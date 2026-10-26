@@ -39,8 +39,17 @@ jobs:
       - name: Engine unit tests (deterministic accounting + JSON contract)
         run: npx vitest run
 
+      - name: Regenerate dataset (determinism check)
+        run: npx tsx scripts/gen-dataset.ts
+
+      - name: Dataset must match generator
+        run: git diff --exit-code -- training/data
+
+      - name: Dataset quality gate (balance, coverage, leakage, safety)
+        run: npx tsx scripts/check-dataset.ts
+
       - name: Dataset validation (zero contract errors gate)
-        run: npx tsx scripts/validate-dataset.ts training/data/train.jsonl training/data/val.jsonl training/data/test.jsonl
+        run: npx tsx scripts/validate-dataset.ts training/data/*.jsonl
 
       - name: Type generation
         run: npx next typegen

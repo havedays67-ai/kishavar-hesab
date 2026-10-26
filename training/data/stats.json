@@ -1,107 +1,146 @@
 {
-  "generatedAt": "2026-10-26T16:11:40.937Z",
-  "total": 241,
-  "generatedBeforeBalance": 890,
-  "capPerIntent": 130,
-  "duplicatesRemoved": 1,
+  "generatedAt": "2026-10-26",
+  "anchorDate": "2026-10-26",
+  "capPerIntent": 50,
+  "generatedBeforeBalance": 2274,
+  "balanced": 734,
+  "duplicatesRemoved": 6,
   "rejected": 0,
   "rejectedSamples": [],
   "splits": {
-    "train": 181,
-    "val": 27,
-    "test": 33
+    "train": 529,
+    "val": 88,
+    "test": 117,
+    "hard": 50
   },
   "intentCoverage": [
     {
       "intent": "add_expense",
-      "train": 92,
-      "val": 13,
-      "test": 25
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 8
     },
     {
       "intent": "add_income",
-      "train": 10,
-      "val": 1,
-      "test": 1
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 5
     },
     {
       "intent": "add_debt",
-      "train": 5,
-      "val": 2,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 4
     },
     {
       "intent": "add_receivable",
-      "train": 6,
-      "val": 1,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 3
     },
     {
       "intent": "add_cheque",
-      "train": 29,
-      "val": 4,
-      "test": 5
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 4
     },
     {
       "intent": "add_task",
-      "train": 4,
-      "val": 0,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 3
     },
     {
       "intent": "add_labor",
-      "train": 3,
-      "val": 2,
-      "test": 1
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 3
     },
     {
       "intent": "inventory_out",
-      "train": 3,
-      "val": 1,
-      "test": 1
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 2
     },
     {
       "intent": "inventory_in",
-      "train": 4,
-      "val": 1,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 2
     },
     {
       "intent": "settle_cheque",
-      "train": 3,
-      "val": 0,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 1
     },
     {
       "intent": "settle_debt",
-      "train": 4,
-      "val": 0,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 2
     },
     {
       "intent": "add_land",
-      "train": 3,
-      "val": 0,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 3
     },
     {
       "intent": "report",
-      "train": 6,
-      "val": 0,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 2
     },
     {
       "intent": "learn",
-      "train": 4,
-      "val": 1,
-      "test": 0
+      "train": 36,
+      "val": 6,
+      "test": 8,
+      "hard": 2
     },
     {
       "intent": "refuse",
-      "train": 5,
-      "val": 1,
-      "test": 0
+      "train": 25,
+      "val": 4,
+      "test": 5,
+      "hard": 6
     }
   ],
-  "notes": "همه نمونه‌ها با validateAssistantOutput و موتور حسابداری اعتبارسنجی شده‌اند. تقسیم بر اساس family انجام شده تا نشت داده بین splitها رخ ندهد."
+  "actions": [
+    {
+      "action": "draft",
+      "train": 409,
+      "hard": 32
+    },
+    {
+      "action": "ask",
+      "train": 23,
+      "hard": 8
+    },
+    {
+      "action": "answer",
+      "train": 72,
+      "hard": 4
+    },
+    {
+      "action": "refuse",
+      "train": 25,
+      "hard": 6
+    }
+  ],
+  "notes": "template هر intent سقف دارد؛ val/test سهمیه‌ی هر intent را دارند. hard-test مستقل است و نباید در train تکرار شود. تاریخ مرجع: 2026-10-26."
 }

@@ -107,19 +107,22 @@
 | قرارداد JSON سخت‌گیرانه دستیار + اعتبارسنج | ✅ `src/lib/engine/contracts.ts` |
 | اسکیمای SQLite آفلاین نسخه‌دار (۱۸ جدول، CHECK، ایندکس، FTS5) | ✅ `src/lib/engine/localdb.ts` |
 | تست واحد موتور/قرارداد/اسکیما | ✅ **۳۲۶ تست** — `npx vitest run` |
-| دیتاست پایه تمیز (۱۵ intent، فارسی محاوره‌ای و رسمی) | ✅ **۲۴۱ نمونه متوازن**، صفر خطای قرارداد |
-| خط لوله دو معلم (Claude + DeepSeek) + پالایش با موتور | ✅ `training/generate_teachers.py` |
-| QLoRA + ارزیابی با آستانه ۹۸٪/۱۰۰٪ | ✅ `training/train_qlora.py` · Colab: `training/colab_finetune.ipynb` |
+| دیتاست تمیز (۱۵ intent) | ✅ **۷۳۴ نمونه** (۵۲۹ train / ۸۸ val / ۱۱۷ test) + **۵۰ تست سخت مستقل**؛ صفر خطای قرارداد؛ نسبت توازن ۱.۴۴ |
+| خط لوله دو معلم + پالایش با موتور | 🕒 اسکریپت هست؛ کلید GLM در دسترس نیست و هیچ نمونه‌ای تولید/تأیید نشده |
+| QLoRA + ارزیابی با آستانه ۹۸٪/۱۰۰٪ | 🕒 اسکریپت آماده است؛ **هنوز اجرا نشده و `eval_report.json` واقعی وجود ندارد** |
 | استخراج GGUF + هش | ✅ `training/export_gguf.sh` |
 | مدل روی گوشی + دانلود قابل ادامه | 🕒 فاز ۳ (جدول `download_state` آماده است) |
+| APK واقعاً آفلاین | ❌ APK فعلی WebView است و در اولین اجرا آدرس سرور می‌خواهد |
 | حذف سرور | ⛔ در فاز ۱ رد شد؛ سرور «اختیاری» برای بکاپ/همگام‌سازی می‌ماند |
 
 **تصمیم مدیریتی، ارزیابی مدل‌ها، ریسک‌ها و کارهای دستی شما:** [`docs/ROADMAP-DECISION.md`](docs/ROADMAP-DECISION.md)
+**تصمیم جدید مدل/داده/زیرساخت (Kaggle + HF + Cloudflare):** [`docs/DECISION-2026-10-26-AI.md`](docs/DECISION-2026-10-26-AI.md)
 **قرارداد تحویل به ایجنت محلی/GPU:** [`docs/AGENT-HANDOFF.md`](docs/AGENT-HANDOFF.md)
 
 ### دیتاست و آموزش
 ```bash
-npx tsx scripts/gen-dataset.ts                    # تولید دیتاست از قالب‌های اعتبارسنجی‌شده
+npx tsx scripts/gen-dataset.ts                    # تولید دیتاست + تست سخت
+npx tsx scripts/check-dataset.ts                  # دروازه‌ی توازن/پوشش/نشت/ایمنی
 npx tsx scripts/validate-dataset.ts training/data/*.jsonl
 python3 training/generate_teachers.py --per-intent 150   # با کلید env، روی سرور شما
 python3 training/train_qlora.py --model Qwen/Qwen3-1.7B --data training/data/teachers
