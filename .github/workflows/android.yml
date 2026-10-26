@@ -32,11 +32,11 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: JDK 17
+      - name: JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Android SDK
         uses: android-actions/setup-android@v3
@@ -44,8 +44,13 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" >/dev/null
+
       - name: Capacitor toolchain
-        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+        run: npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
 
       - name: Add Android platform
         env:
@@ -54,31 +59,13 @@ jobs:
           npx cap add android
           echo "Android 8+ (minSdk 26) enforced"
 
-      - name: Configure project (minSdk 26, target 35, app label)
+      - name: Configure project (minSdk 26, target 35)
         run: |
-          python3 - <<'PY'
-          import re, pathlib
-          gradle = pathlib.Path("android/variables.gradle")
-          text = gradle.read_text()
-          text = re.sub(r"minSdkVersion = \d+", "minSdkVersion = 26", text)
-          text = re.sub(r"targetSdkVersion = \d+", "targetSdkVersion = 35", text)
-          text = re.sub(r"compileSdkVersion = \d+", "compileSdkVersion = 35", text)
-          gradle.write_text(text)
-
-          strings = pathlib.Path("android/app/src/main/res/values/strings.xml")
-          if strings.exists():
-              body = strings.read_text()
-              body = re.sub(r"<string name=\"app_name\">.*?</string>", "<string name=\"app_name\">کشاورزحساب</string>", body)
-              body = re.sub(r"<string name=\"title_activity_main\">.*?</string>", "<string name=\"title_activity_main\">کشاورزحساب</string>", body)
-              strings.write_text(body)
-
-          manifest = pathlib.Path("android/app/src/main/AndroidManifest.xml")
-          body = manifest.read_text()
-          if "android.permission.INTERNET" not in body:
-              body = body.replace("<application", '<uses-permission android:name="android.permission.INTERNET" />\n    <application')
-          manifest.write_text(body)
-          print("project configured")
-          PY
+          sed -i -E 's/minSdkVersion = [0-9]+/minSdkVersion = 26/' android/variables.gradle
+          sed -i -E 's/targetSdkVersion = [0-9]+/targetSdkVersion = 35/' android/variables.gradle
+          sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
+          grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
 
       - name: Decode release keystore (optional)
         if: ${{ github.event.inputs.variant == 'release' }}
