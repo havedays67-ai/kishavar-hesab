@@ -217,10 +217,13 @@ def main() -> int:
         bnb_4bit_compute_dtype=torch.bfloat16 if bf16 else torch.float16,
         bnb_4bit_use_double_quant=True,
     )
+    # روی T4 x2، device_map="auto" مدل ۴بیتی را بین دو GPU پخش می‌کند و
+    # Trainer نمی‌تواند روی دستگاه متفاوت آموزش دهد. همه‌چیز را روی GPU 0 قفل می‌کنیم.
+    device_map = {"": torch.cuda.current_device()} if torch.cuda.is_available() else "cpu"
     base = AutoModelForCausalLM.from_pretrained(
         args.model,
         quantization_config=bnb,
-        device_map="auto",
+        device_map=device_map,
         trust_remote_code=True,
     )
     base = prepare_model_for_kbit_training(base)
