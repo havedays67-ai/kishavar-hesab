@@ -113,9 +113,12 @@
 | استخراج GGUF + هش | ✅ `training/export_gguf.sh` |
 | مدل روی گوشی + دانلود قابل ادامه | 🕒 فاز ۳ (جدول `download_state` آماده است) |
 | APK واقعاً آفلاین | ❌ APK فعلی WebView است و در اولین اجرا آدرس سرور می‌خواهد |
+| صفحه دانلود + manifest نسخه | ✅ https://kishavar.tivachat-vflash-ai.ir · `/api/latest.json` |
 | حذف سرور | ⛔ در فاز ۱ رد شد؛ سرور «اختیاری» برای بکاپ/همگام‌سازی می‌ماند |
 
 **تصمیم مدیریتی، ارزیابی مدل‌ها، ریسک‌ها و کارهای دستی شما:** [`docs/ROADMAP-DECISION.md`](docs/ROADMAP-DECISION.md)
+**دانلود APK و manifest:** https://kishavar.tivachat-vflash-ai.ir
+
 **تصمیم جدید مدل/داده/زیرساخت (Kaggle + HF + Cloudflare):** [`docs/DECISION-2026-10-26-AI.md`](docs/DECISION-2026-10-26-AI.md)
 **قرارداد تحویل به ایجنت محلی/GPU:** [`docs/AGENT-HANDOFF.md`](docs/AGENT-HANDOFF.md)
 
