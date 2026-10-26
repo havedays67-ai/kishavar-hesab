@@ -15,34 +15,7 @@ export function normalizeFa(input: string): string {
     .trim();
 }
 
-const MULTIPLIERS: Record<string, number> = {
-  میلیارد: 1_000_000_000,
-  میلیون: 1_000_000,
-  میلیونى: 1_000_000,
-  هزار: 1_000,
-  "هزارتومان": 1_000,
-};
-
-/** Parses the first money-like number, honouring «میلیون/هزار/میلیارد». */
-export function parseAmount(text: string): number | null {
-  const t = normalizeFa(text);
-  const re = /(\d+(?:[.,]\d+)?)\s*(میلیارد|میلیون|هزار|تومان|ریال)?/gu;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(t))) {
-    const raw = Number(match[1].replace(/,/g, ""));
-    if (!Number.isFinite(raw)) continue;
-    const unit = match[2] ?? "";
-    const mult = MULTIPLIERS[unit] ?? 1;
-    // Skip tiny numbers that are clearly day counts / percentages unless a money unit follows.
-    if (!unit && raw < 1_000_000 && !/تومان|ریال/.test(t.slice(match.index + match[0].length, match.index + match[0].length + 12))) {
-      continue;
-    }
-    let amount = Math.round(raw * mult);
-    if (unit === "ریال") amount = Math.round(amount / 10);
-    return amount;
-  }
-  return null;
-}
+export { parseAmount } from "@/lib/engine/money";
 
 export function parseQuantity(text: string): number | null {
   const t = normalizeFa(text);
@@ -194,6 +167,11 @@ export function detectIntent(text: string): AssistIntent {
   }
   // تسویه بدهی/طلب
   if (/(بدهی|بدهکار|طلب|قرض)/u.test(t) && /(تسویه|پرداخت کردم|دریافت کردم|دادم|گرفتم|بسته|تصفیه)/u.test(t)) return "settle_debt";
+  const hasTransactionVerb = /(خریدم|خرید کردم|فروختم|فروش کردم|پرداخت کردم|ثبت کن|بدهکارم|طلب دارم|کم کن|وارد کردم|کار کرد|روز کار|بنویس|بکش)/u.test(t);
+  if (!hasTransactionVerb) {
+    if (/(چیست|چطور|چگونه|یعنی|فرق|تفاوت|اموزش|یاد بده|محاسبه|تعریف)/u.test(t)) return "learn";
+    if (/(گزارش|چقدر|سود|زیان|وضعیت|جمع|خلاصه|بهای تمام|تعادل|موجودی)/u.test(t)) return "report";
+  }
   // انبار: فقط وقتی صریحاً از انبار صحبت شود
   if (/(انبار|موجودی|نهاده)/u.test(t)) {
     if (/(خروج|مصرف|کم کن|بردار|کسر|استفاده کردم)/u.test(t)) return "inventory_out";
@@ -207,7 +185,7 @@ export function detectIntent(text: string): AssistIntent {
   // زمین جدید
   if (/(زمین جدید|قطعه جدید|مزرعه جدید|زمین خریدم|زمین اجاره کردم|اضافه کردن زمین)/u.test(t)) return "add_land";
   // درآمد
-  if (/(درامد|فروختم|فروش داشتم|فروش محصول|دریافت کردم|گرفتم|وصول|یارانه|اجاره دادم)/u.test(t)) return "add_income";
+  if (/(درامد|فروختم|فروش داشتم|فروش محصول|فروش گندم|فروش زعفران|فروش گردو|فروش گوجه|فروش کلزا|(^|\s)فروش(\s|$)|دریافت کردم|گرفتم|وصول|یارانه|اجاره دادم)/u.test(t)) return "add_income";
   // هزینه
   if (/(هزینه|خریدم|خرید|پرداخت|دادم|خرج|کردم|گازوییل|گازوئیل|کود|سم|بذر|نشا|سوخت|تعمیر|کرایه|حمل|بیمه|بسته بندی)/u.test(t)) return "add_expense";
   // گزارش و پرسش
@@ -243,8 +221,8 @@ const CATEGORY_ALIASES: { match: RegExp; name: string }[] = [
   { match: /(دستمزد|کارگر|کارگری|نفر ?روز|گل ?چین)/u, name: "دستمزد کارگر" },
   { match: /(کود|سم|حشره ?کش|علف ?کش|پتاس|اوره|سولفات)/u, name: "کود و سم" },
   { match: /(بذر|نشا|نهال|پیاز)/u, name: "بذر و نهال" },
-  { match: /(اب|ابیاری|قطره|چاه|پمپ)/u, name: "آبیاری و آب" },
   { match: /(گازوییل|گازوئیل|سوخت|بنزین|برق|انرژی|گاز)/u, name: "سوخت و انرژی" },
+  { match: /(اب|ابیاری|قطره|چاه|پمپ)/u, name: "آبیاری و آب" },
   { match: /(اجاره زمین|اجاره قطعه|اجاره سالانه)/u, name: "اجاره زمین" },
   { match: /(تعمیر|سرویس|لاستیک|مکانیک)/u, name: "تعمیر ماشین‌آلات" },
   { match: /(حمل|کرایه|باربری|تریلر)/u, name: "حمل و نقل" },

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app_db
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/app_db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Engine unit tests (deterministic accounting + JSON contract)
+        run: npx vitest run
+
+      - name: Dataset validation (zero contract errors gate)
+        run: npx tsx scripts/validate-dataset.ts training/data/train.jsonl training/data/val.jsonl training/data/test.jsonl
+
+      - name: Type generation
+        run: npx next typegen
+
+      - name: TypeScript
+        run: npx tsc --noEmit --pretty false
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Apply database schema
+        run: npx drizzle-kit push --force
+
+      - name: Production build
+        run: npm run build
+
+      - name: Upload dataset stats
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataset-stats
+          path: training/data/stats.json
+          if-no-files-found: warn

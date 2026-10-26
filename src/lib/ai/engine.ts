@@ -474,7 +474,7 @@ async function buildDraft(intent: AssistIntent, text: string): Promise<Draft> {
     ]),
   ];
 
-  const amount = parseAmount(text);
+  const amount = parseAmount(text)?.amount ?? null;
   const landId = matchLand(text, landRows);
   const cropId = matchCrop(text, cropRows);
   const guessCat = guessCategoryName(text);
@@ -896,7 +896,7 @@ async function extractSlots(intent: AssistIntent, text: string): Promise<Record<
   const t = normalizeFa(text);
   const out: Record<string, string | number | null> = {};
 
-  const amount = parseAmount(text);
+  const amount = parseAmount(text)?.amount ?? null;
   if (amount !== null && amount > 0) out.amount = amount;
   const due = parseDueDate(text);
   if (due) {
@@ -952,7 +952,7 @@ async function extractSlots(intent: AssistIntent, text: string): Promise<Record<
     const days = t.match(/(\d+(?:[.,]\d+)?)\s*(?:روز|نفر)/u);
     if (days) out.days = Number(days[1].replace(/,/g, ""));
     if (!worker && /(دستمزد|روزمزد|روزی|نرخ)/u.test(t)) {
-      const wage = parseAmount(text);
+      const wage = parseAmount(text)?.amount;
       if (wage) out.dailyWage = wage;
     }
   }

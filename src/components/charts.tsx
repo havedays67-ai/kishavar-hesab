@@ -59,32 +59,31 @@ export function Donut({
   const total = top.reduce((a, d) => a + d.amount, 0) || 1;
   const radius = size / 2 - 10;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const segments = top.map((d, index) => {
+    const portion = d.amount / total;
+    const dash = portion * circumference;
+    const start = top.slice(0, index).reduce((acc, item) => acc + (item.amount / total) * circumference, 0);
+    return { name: d.name, dash, start, color: DONUT_COLORS[index % DONUT_COLORS.length] };
+  });
   return (
     <div className="flex flex-wrap items-center gap-4">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#eee9dc" strokeWidth={14} />
-          {top.map((d, index) => {
-            const portion = d.amount / total;
-            const dash = portion * circumference;
-            const el = (
-              <circle
-                key={d.name}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke={DONUT_COLORS[index % DONUT_COLORS.length]}
-                strokeWidth={14}
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={-offset}
-                strokeLinecap="butt"
-              />
-            );
-            offset += dash;
-            return el;
-          })}
+          {segments.map((segment) => (
+            <circle
+              key={segment.name}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth={14}
+              strokeDasharray={`${segment.dash} ${circumference - segment.dash}`}
+              strokeDashoffset={-segment.start}
+              strokeLinecap="butt"
+            />
+          ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
           <span className="text-[10px] text-[#84907f]">{centerLabel ?? "جمع"}</span>

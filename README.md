@@ -4,12 +4,13 @@
 
 کشاورزحساب برای کشاورز، باغدار، زارع و شرکت‌های کشت و صنعت ساخته شده است: تمام پول‌های مزرعه را ثبت می‌کند، بهای تمام‌شده هر کیلو محصول را حساب می‌کند، بدهی و چک را پایش می‌کند و یک **هوش مصنوعی دوحالته** دارد که هم آموزش می‌دهد و هم کارهای دفتری را از زبان ساده انجام می‌دهد.
 
-> وضعیت: نسخه `1.0.0` — وب آماده اجراست و **APK اندروید ۸+ ساخته و در Releases منتشر شده است**.
+> وضعیت: نسخه `1.0.0` (وب + APK) و `1.1` (هسته آفلاین، دیتاست و خط لوله آموزش). APK اندروید ۸+ در Releases است.
 
 ### 🚀 شروع سریع
 - **دانلود اپ اندروید:** [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk)
 - **اجرای نسخه وب:** `cp .env.example .env` ← تنظیم `DATABASE_URL` ← `npm install` ← `npx drizzle-kit push` ← `npm run dev`
-- **آموزش و معماری:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **پایگاه دانش داخل نرم‌افزار:** `/knowledge`
+- **آموزش و معماری:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **تصمیم آفلاین و مدل:** [docs/ROADMAP-DECISION.md](docs/ROADMAP-DECISION.md)
+- **پایگاه دانش داخل نرم‌افزار:** `/knowledge` · **تست موتور:** `npx vitest run`
 
 ---
 
@@ -93,6 +94,39 @@
 یادم باشه هفته بعد بیمه را تمدید کنم
 گزارش بهای تمام‌شده محصولات را بده
 ```
+
+---
+
+## 🧭 وضعیت مسیر آفلاین (v1.1)
+
+پیشنهاد «حذف کامل سرور و مدل روی گوشی» بررسی و به این شکل اجرا شد:
+
+| بخش | وضعیت |
+|---|---|
+| موتور حسابداری قطعی و مشترک (وب/آفلاین) | ✅ `src/lib/engine/accounting.ts` + `money.ts` |
+| قرارداد JSON سخت‌گیرانه دستیار + اعتبارسنج | ✅ `src/lib/engine/contracts.ts` |
+| اسکیمای SQLite آفلاین نسخه‌دار (۱۸ جدول، CHECK، ایندکس، FTS5) | ✅ `src/lib/engine/localdb.ts` |
+| تست واحد موتور/قرارداد/اسکیما | ✅ **۳۲۶ تست** — `npx vitest run` |
+| دیتاست پایه تمیز (۱۵ intent، فارسی محاوره‌ای و رسمی) | ✅ **۲۴۱ نمونه متوازن**، صفر خطای قرارداد |
+| خط لوله دو معلم (Claude + DeepSeek) + پالایش با موتور | ✅ `training/generate_teachers.py` |
+| QLoRA + ارزیابی با آستانه ۹۸٪/۱۰۰٪ | ✅ `training/train_qlora.py` · Colab: `training/colab_finetune.ipynb` |
+| استخراج GGUF + هش | ✅ `training/export_gguf.sh` |
+| مدل روی گوشی + دانلود قابل ادامه | 🕒 فاز ۳ (جدول `download_state` آماده است) |
+| حذف سرور | ⛔ در فاز ۱ رد شد؛ سرور «اختیاری» برای بکاپ/همگام‌سازی می‌ماند |
+
+**تصمیم مدیریتی، ارزیابی مدل‌ها، ریسک‌ها و کارهای دستی شما:** [`docs/ROADMAP-DECISION.md`](docs/ROADMAP-DECISION.md)
+**قرارداد تحویل به ایجنت محلی/GPU:** [`docs/AGENT-HANDOFF.md`](docs/AGENT-HANDOFF.md)
+
+### دیتاست و آموزش
+```bash
+npx tsx scripts/gen-dataset.ts                    # تولید دیتاست از قالب‌های اعتبارسنجی‌شده
+npx tsx scripts/validate-dataset.ts training/data/*.jsonl
+python3 training/generate_teachers.py --per-intent 150   # با کلید env، روی سرور شما
+python3 training/train_qlora.py --model Qwen/Qwen3-1.7B --data training/data/teachers
+bash training/export_gguf.sh                      # GGUF Q4_K_M برای گوشی
+```
+قالب هر نمونه: `messages` (system حاوی قاعده JSON-only + user فارسی + assistant JSON) و هر خروجی
+با `validateAssistantOutput` و موتور حسابداری سنجیده شده است.
 
 ---
 
@@ -196,6 +230,8 @@ cd android && ./gradlew assembleDebug
 ```bash
 npx next typegen
 npm exec tsc -- --noEmit
+npx vitest run                                  # ۳۲۶ تست موتور/قرارداد/اسکیما
+npx tsx scripts/validate-dataset.ts training/data/*.jsonl
 npm run build
 ```
 
@@ -206,7 +242,8 @@ npm run build
 ---
 
 ## 🗺️ نقشه راه
-- [ ] نسخه آفلاین کامل با همگام‌سازی (Drizzle + SQLite محلی در Capacitor)
+- [ ] فاز ۲: لایه محلی PWA (IndexedDB/SQLite-WASM) + بکاپ رمزنگاری‌شده + Undo UI
+- [ ] فاز ۳: پلاگین دانلود مدل (sha256 + resume) و سه‌سطحی اجرا GPU→CPU→NLU در APK
 - [ ] خروجی PDF/Excel گزارش‌ها
 - [ ] پشتیبانی چند مزرعه/چند کاربر با نقش و سطح دسترسی
 - [ ] اتصال به دمای هوا و تقویم کشت برای هشدارهای اقلیمی
