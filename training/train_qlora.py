@@ -157,6 +157,7 @@ def main() -> int:
     parser.add_argument("--max-len", type=int, default=1024)
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--eval-only", action="store_true")
+    parser.add_argument("--load-in-4bit", action="store_true", help="QLoRA 4bit؛ پیش‌فرض LoRA fp16 پایدارتر است")
     parser.add_argument("--adapter", default=None)
     parser.add_argument("--hard-test", default=None)
     parser.add_argument("--limit", type=int, default=0)
@@ -211,24 +212,29 @@ def main() -> int:
             }
 
     bf16 = torch.cuda.is_bf16_supported() if torch.cuda.is_available() else False
-    bnb = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16 if bf16 else torch.float16,
-        bnb_4bit_use_double_quant=True,
-    )
-    # روی T4 x2، device_map="auto" مدل ۴بیتی را بین دو GPU پخش می‌کند و
-    # Trainer نمی‌تواند روی دستگاه متفاوت آموزش دهد. همه‌چیز را روی GPU 0 قفل می‌کنیم.
+    # روی T4 x2، device_map="auto" مدل را بین دو GPU پخش می‌کند و Trainer
+    # نمی‌تواند روی دستگاه متفاوت آموزش دهد. همه‌چیز را روی GPU 0 قفل می‌کنیم.
     device_map = {"": torch.cuda.current_device()} if torch.cuda.is_available() else "cpu"
-    base = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        quantization_config=bnb,
-        device_map=device_map,
-        trust_remote_code=True,
-        # روی T4 با fp16، مسیر SDPA گاهی illegal memory access می‌دهد؛ eager پایدارتر است.
-        attn_implementation="eager",
-    )
-    base = prepare_model_for_kbit_training(base)
+    load_kwargs: dict[str, Any] = {
+        "device_map": device_map,
+        "trust_remote_code": True,
+        # مسیر SDPA روی T4 گاهی illegal memory access می‌دهد؛ eager پایدارتر است.
+        "attn_implementation": "eager",
+    }
+    if args.load_in_4bit:
+        load_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16 if bf16 else torch.float16,
+            bnb_4bit_use_double_quant=False,
+        )
+    else:
+        load_kwargs["torch_dtype"] = torch.bfloat16 if bf16 else torch.float16
+    base = AutoModelForCausalLM.from_pretrained(args.model, **load_kwargs)
+    if args.load_in_4bit:
+        base = prepare_model_for_kbit_training(base)
+    else:
+        base.enable_input_require_grads()
 
     if args.adapter:
         model = PeftModel.from_pretrained(base, args.adapter, is_trainable=not args.eval_only)
@@ -255,7 +261,7 @@ def main() -> int:
             eval_strategy="no",
             bf16=bf16,
             fp16=not bf16,
-            optim="paged_adamw_8bit",
+            optim="paged_adamw_8bit" if args.load_in_4bit else "adamw_torch",
             gradient_checkpointing=True,
             gradient_checkpointing_kwargs={"use_reentrant": False},
             max_grad_norm=1.0,
