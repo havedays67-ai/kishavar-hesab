@@ -140,7 +140,7 @@ def apply_template(tokenizer: Any, messages: list[dict[str, str]], add_generatio
     for extra in ({"enable_thinking": False}, {}):
         try:
             return tokenizer.apply_chat_template(messages, **base, **extra)
-        except (TypeError, ValueError):
+        except Exception:
             continue
     return tokenizer.apply_chat_template(messages, **base)
 

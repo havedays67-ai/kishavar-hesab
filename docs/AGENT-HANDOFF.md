@@ -54,7 +54,7 @@ python3 training/train_qlora.py --model Qwen/Qwen3.5-2B --data training/data --o
 
 ## ۴) استخراج و کوانتیزه
 ```bash
-BASE_MODEL=Qwen/Qwen3-1.7B ADAPTER=out/kishavar-lora OUT=out/kishavar-merged bash training/export_gguf.sh
+BASE_MODEL=Qwen/Qwen3.5-2B ADAPTER=out/qwen35-2b OUT=out/qwen35-merged bash training/export_gguf.sh
 # خروجی: out/kishavar-merged/kishavar-q4_k_m.gguf + .sha256
 ```
 آپلود در میزبان امن و ثبت این‌ها برای اپ: `url`, `sha256`, `bytes_total`, `version`.
