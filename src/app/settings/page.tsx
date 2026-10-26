@@ -102,13 +102,22 @@ export default async function SettingsPage() {
               است.
             </p>
             <a
+              href="https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-farm-700 px-3 py-2 text-[11px] font-bold text-white"
+            >
+              <Icon name="box" className="h-3.5 w-3.5" />
+              دانلود مستقیم APK (۳.۹ مگابایت)
+            </a>
+            <a
               href="https://github.com/havedays67-ai/kishavar-hesab"
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-farm-700 hover:underline"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-farm-700 hover:underline"
             >
               <Icon name="arrow" className="h-3.5 w-3.5" />
-              مخزن پروژه و دانلود APK
+              مخزن عمومی پروژه و مشخصات کلید امضا
             </a>
           </div>
         </div>

@@ -4,7 +4,12 @@
 
 کشاورزحساب برای کشاورز، باغدار، زارع و شرکت‌های کشت و صنعت ساخته شده است: تمام پول‌های مزرعه را ثبت می‌کند، بهای تمام‌شده هر کیلو محصول را حساب می‌کند، بدهی و چک را پایش می‌کند و یک **هوش مصنوعی دوحالته** دارد که هم آموزش می‌دهد و هم کارهای دفتری را از زبان ساده انجام می‌دهد.
 
-> وضعیت: نسخه `1.0.0` — آماده اجرا روی وب و ساخت APK اندروید از طریق GitHub Actions.
+> وضعیت: نسخه `1.0.0` — وب آماده اجراست و **APK اندروید ۸+ ساخته و در Releases منتشر شده است**.
+
+### 🚀 شروع سریع
+- **دانلود اپ اندروید:** [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk)
+- **اجرای نسخه وب:** `cp .env.example .env` ← تنظیم `DATABASE_URL` ← `npm install` ← `npx drizzle-kit push` ← `npm run dev`
+- **آموزش و معماری:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **پایگاه دانش داخل نرم‌افزار:** `/knowledge`
 
 ---
 
@@ -12,7 +17,10 @@
 
 | مورد | مقدار |
 |---|---|
-| لینک دانلود | **[Releases ← آخرین APK](https://github.com/havedays67-ai/kishavar-hesab/releases/latest)** |
+| ⬇️ دانلود مستقیم APK | **[KishavarHesab-1.0.0.apk (۳.۹ مگابایت)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk)** |
+| صفحه نسخه | [Releases · apk-v1.0.2](https://github.com/havedays67-ai/kishavar-hesab/releases/tag/apk-v1.0.2) |
+| آخرین نسخه‌ها | [releases/latest](https://github.com/havedays67-ai/kishavar-hesab/releases/latest) |
+| وضعیت ساخت | ✅ ساخته‌شده با GitHub Actions (Build موفق، خروجی ۳٬۹ مگابایت) |
 | ساخت دستی | تب **Actions ← Android APK ← Run workflow** (یا ارسال تگ `v*`) |
 | حداقل اندروید | **۸.۰ (API 26)** — سازگار با اندروید ۸ تا ۱۵ |
 | شناسه بسته | `ir.kishavarhesab.app` |
