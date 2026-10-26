@@ -225,6 +225,8 @@ def main() -> int:
         quantization_config=bnb,
         device_map=device_map,
         trust_remote_code=True,
+        # روی T4 با fp16، مسیر SDPA گاهی illegal memory access می‌دهد؛ eager پایدارتر است.
+        attn_implementation="eager",
     )
     base = prepare_model_for_kbit_training(base)
 
