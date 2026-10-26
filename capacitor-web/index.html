@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e5827" />
+    <title>کشاورزحساب</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Vazirmatn, "Segoe UI", Tahoma, sans-serif;
+        background: radial-gradient(900px 400px at 90% -10%, #dcefdb, transparent 60%), #f7f5ee;
+        color: #1d2a21;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: #fff;
+        border: 1px solid #e7e2d3;
+        border-radius: 22px;
+        padding: 22px;
+        box-shadow: 0 20px 40px -30px rgba(18, 48, 25, 0.7);
+      }
+      .logo {
+        width: 58px; height: 58px; border-radius: 18px;
+        background: linear-gradient(135deg, #368a3d, #123019);
+        display: grid; place-items: center;
+        color: #f4f0e4; font-size: 28px;
+      }
+      h1 { font-size: 19px; margin: 14px 0 4px; color: #123019; }
+      p { font-size: 12px; line-height: 2; color: #5b6a5e; margin: 0 0 14px; }
+      label { font-size: 11px; color: #55655a; display: block; margin-bottom: 6px; }
+      input {
+        width: 100%; padding: 11px 12px; border-radius: 12px;
+        border: 1px solid #ddd7c7; font-size: 13px; direction: ltr; text-align: left;
+        font-family: inherit; outline: none;
+      }
+      input:focus { border-color: #58a75c; box-shadow: 0 0 0 3px #dcefdb; }
+      button {
+        width: 100%; margin-top: 10px; padding: 12px; border: 0; border-radius: 12px;
+        background: #1e5827; color: #fff; font-size: 13px; font-weight: 700;
+        font-family: inherit; cursor: pointer;
+      }
+      button:active { transform: scale(0.99); }
+      .hint { margin-top: 12px; font-size: 10px; color: #84907f; line-height: 1.9; }
+      .chip { display: inline-block; background: #f2f8f1; color: #256e2e; border: 1px solid #dcefdb; border-radius: 999px; padding: 3px 9px; font-size: 10px; margin-inline-start: 4px; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="logo">🌾</div>
+      <h1>کشاورزحساب</h1>
+      <p>حسابداری هوشمند کشاورزی — نسخه اندروید ۸ به بالا.</p>
+      <span class="chip">minSdk 26</span><span class="chip">APK رسمی</span>
+
+      <div style="margin-top: 18px">
+        <label for="server">آدرس نسخه وب نرم‌افزار</label>
+        <input id="server" type="url" placeholder="https://your-server.example.com" dir="ltr" />
+        <button id="go">ورود به برنامه</button>
+      </div>
+
+      <p class="hint">
+        اگر سرور اختصاصی دارید، آدرس آن را وارد کنید. این آدرس در گوشی ذخیره می‌شود و دفعه بعد مستقیم باز می‌شود.
+        برای ساخت APK با آدرس ثابت، هنگام اجرای workflow مقدار <code>server_url</code> را وارد کنید.
+      </p>
+    </main>
+    <script>
+      (function () {
+        var key = "kishavarhesab.server";
+        var input = document.getElementById("server");
+        var saved = localStorage.getItem(key);
+        if (saved) input.value = saved;
+        document.getElementById("go").addEventListener("click", function () {
+          var url = (input.value || "").trim();
+          if (!/^https?:\/\/.+/i.test(url)) {
+            alert("آدرس معتبر وارد کنید (با http یا https).");
+            return;
+          }
+          localStorage.setItem(key, url);
+          window.location.href = url.replace(/\/+$/, "");
+        });
+      })();
+    </script>
+  </body>
+</html>

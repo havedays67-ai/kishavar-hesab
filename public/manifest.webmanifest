@@ -1,0 +1,34 @@
+{
+  "name": "کشاورزحساب — حسابداری هوشمند کشاورزی",
+  "short_name": "کشاورزحساب",
+  "description": "حسابداری حرفه‌ای کشاورزی با دستیار هوشمند: زمین، کشت، هزینه، انبار، کارگر، ماشین‌آلات، بدهی و گزارش.",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f5ee",
+  "theme_color": "#1e5827",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
