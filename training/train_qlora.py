@@ -1,25 +1,29 @@
 #!/usr/bin/env python3
 """
-آموزش QLoRA روی سرور GPU شما + ارزیابی با آستانه‌های پذیرش.
+آموزش QLoRA + ارزیابی سخت‌گیرانه روی تست مستقل.
 
-معیار قبولی: دقت intent و فیلدها روی test ≥ ۹۸٪ و نرخ JSON معتبر = ۱۰۰٪
-(چون خروجی نهایی با Constrained Decoding محدود می‌شود، آستانه JSON در ارزیابی
-هم روی «خروجی خام مدل» سنجیده می‌شود؛ اگر پایین بود، دیتای هدفمند اضافه کنید.)
+معیار قبولی (روی hard-test، نه test قالب‌محور):
+  JSON معتبر = ۱۰۰٪ ، intent ≥ ۹۸٪ ، فیلدها ≥ ۹۸٪
 
-نمونه اجرا:
+نمونه:
   python3 training/train_qlora.py \
-      --model Qwen/Qwen3-1.7B \
-      --data training/data/teachers \
-      --out out/qwen3-1.7b-kishavar \
+      --model Qwen/Qwen3.5-2B \
+      --data training/data \
+      --out out/qwen35-2b \
       --epochs 3
 
-پیش‌نیاز: pip install "transformers>=4.45" "peft>=0.13" "bitsandbytes>=0.44" datasets accelerate torch
+فقط ارزیابی یک آداپتر موجود:
+  python3 training/train_qlora.py --model Qwen/Qwen3.5-2B --out out/qwen35-2b \
+      --eval-only --adapter out/qwen35-2b
+
+هیچ عددی از مدل به‌عنوان حقیقت پذیرفته نمی‌شود؛ این اسکریپت فقط NLU را می‌سنجد.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import re
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -42,37 +46,65 @@ def extract_json(text: str) -> dict[str, Any] | None:
         return None
 
 
+def expected_of(row: dict[str, Any]) -> dict[str, Any]:
+    return json.loads(next(m["content"] for m in row["messages"] if m["role"] == "assistant"))
+
+
 def score_predictions(rows: list[dict[str, Any]], predictions: list[str]) -> dict[str, Any]:
     intent_ok = 0
     field_ok = 0
     field_total = 0
+    extra_slots = 0
+    action_ok = 0
     json_ok = 0
+    exact = 0
     errors: list[dict[str, Any]] = []
+    per_intent: dict[str, dict[str, int]] = defaultdict(lambda: {"n": 0, "intent_ok": 0, "field_ok": 0, "field_total": 0})
 
     for row, raw in zip(rows, predictions):
-        expected = json.loads(next(m["content"] for m in row["messages"] if m["role"] == "assistant"))
+        expected = expected_of(row)
+        intent = str(expected.get("intent"))
+        stat = per_intent[intent]
+        stat["n"] += 1
+
         predicted = extract_json(raw)
         if predicted is None:
-            errors.append({"id": row.get("id"), "reason": "invalid-json", "raw": raw[:200]})
+            errors.append({"id": row.get("id"), "intent": intent, "reason": "invalid-json", "raw": raw[:300]})
             continue
         json_ok += 1
         if predicted.get("intent") == expected.get("intent"):
             intent_ok += 1
+            stat["intent_ok"] += 1
         else:
             errors.append({"id": row.get("id"), "reason": "intent", "expected": expected.get("intent"), "got": predicted.get("intent")})
+        if predicted.get("action") == expected.get("action"):
+            action_ok += 1
+        else:
+            errors.append({"id": row.get("id"), "reason": "action", "expected": expected.get("action"), "got": predicted.get("action")})
 
         exp_slots = expected.get("slots", {}) or {}
         got_slots = predicted.get("slots", {}) or {}
         for key, value in exp_slots.items():
             field_total += 1
+            stat["field_total"] += 1
             if str(got_slots.get(key, "")).strip() == str(value).strip():
                 field_ok += 1
-            elif len(errors) < 60:
+                stat["field_ok"] += 1
+            elif len(errors) < 200:
                 errors.append({"id": row.get("id"), "reason": f"field:{key}", "expected": value, "got": got_slots.get(key)})
-        # هالوسینیشن: اسلات اضافه‌ای که در انتظار نبوده
         for key in set(got_slots) - set(exp_slots):
+            extra_slots += 1
             field_total += 1
-            errors.append({"id": row.get("id"), "reason": f"extra-slot:{key}", "got": got_slots.get(key)})
+            stat["field_total"] += 1
+            if len(errors) < 200:
+                errors.append({"id": row.get("id"), "reason": f"extra-slot:{key}", "got": got_slots.get(key)})
+
+        if (
+            predicted.get("intent") == expected.get("intent")
+            and (predicted.get("slots") or {}) == exp_slots
+            and predicted.get("action") == expected.get("action")
+        ):
+            exact += 1
 
     total = max(1, len(rows))
     report = {
@@ -80,8 +112,19 @@ def score_predictions(rows: list[dict[str, Any]], predictions: list[str]) -> dic
         "json_validity": json_ok / total,
         "intent_accuracy": intent_ok / total,
         "field_accuracy": (field_ok / field_total) if field_total else 1.0,
+        "action_accuracy": action_ok / total,
+        "exact_match": exact / total,
+        "extra_slots": extra_slots,
         "thresholds": THRESHOLDS,
-        "errors": errors[:60],
+        "per_intent": {
+            intent: {
+                "n": stat["n"],
+                "intent_recall": (stat["intent_ok"] / stat["n"]) if stat["n"] else 0.0,
+                "field_accuracy": (stat["field_ok"] / stat["field_total"]) if stat["field_total"] else 1.0,
+            }
+            for intent, stat in sorted(per_intent.items())
+        },
+        "errors": errors[:80],
     }
     report["passed"] = (
         report["json_validity"] >= THRESHOLDS["json"]
@@ -91,74 +134,107 @@ def score_predictions(rows: list[dict[str, Any]], predictions: list[str]) -> dic
     return report
 
 
+def apply_template(tokenizer: Any, messages: list[dict[str, str]], add_generation_prompt: bool) -> str:
+    """سازگار با مدل‌هایی که enable_thinking دارند و مدل‌هایی که ندارند."""
+    base: dict[str, Any] = {"tokenize": False, "add_generation_prompt": add_generation_prompt}
+    for extra in ({"enable_thinking": False}, {}):
+        try:
+            return tokenizer.apply_chat_template(messages, **base, **extra)
+        except (TypeError, ValueError):
+            continue
+    return tokenizer.apply_chat_template(messages, **base)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="Qwen/Qwen3-1.7B")
+    parser.add_argument("--model", required=True)
     parser.add_argument("--data", default="training/data")
     parser.add_argument("--out", default="out/kishavar-lora")
     parser.add_argument("--epochs", type=float, default=3)
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--batch", type=int, default=2)
-    parser.add_argument("--grad-accum", type=int, default=8)
+    parser.add_argument("--batch", type=int, default=1)
+    parser.add_argument("--grad-accum", type=int, default=16)
     parser.add_argument("--max-len", type=int, default=1024)
+    parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--eval-only", action="store_true")
     parser.add_argument("--adapter", default=None)
+    parser.add_argument("--hard-test", default=None)
+    parser.add_argument("--limit", type=int, default=0)
     args = parser.parse_args()
 
     import torch
     from datasets import Dataset
     from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
-    from transformers import (
-        AutoModelForCausalLM,
-        AutoTokenizer,
-        BitsAndBytesConfig,
-        DataCollatorForLanguageModeling,
-        Trainer,
-        TrainingArguments,
-    )
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, Trainer, TrainingArguments
 
     data_dir = Path(args.data)
     train_rows = load_jsonl(data_dir / "train.jsonl")
     val_rows = load_jsonl(data_dir / "val.jsonl")
+    hard_path = Path(args.hard_test) if args.hard_test else data_dir / "hard-test.jsonl"
+    hard_rows = load_jsonl(hard_path)
     test_rows = load_jsonl(data_dir / "test.jsonl")
+    if args.limit:
+        train_rows = train_rows[: args.limit]
+        hard_rows = hard_rows[: args.limit]
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    def to_text(row: dict[str, Any]) -> str:
+    def encode(row: dict[str, Any]) -> dict[str, Any]:
         messages = row["messages"]
-        return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        answer = next(m["content"] for m in messages if m["role"] == "assistant")
+        prompt_text = apply_template(tokenizer, [m for m in messages if m["role"] != "assistant"], add_generation_prompt=True)
+        answer_text = answer + (tokenizer.eos_token or "")
+        prompt_ids = tokenizer(prompt_text, add_special_tokens=False)["input_ids"]
+        answer_ids = tokenizer(answer_text, add_special_tokens=False)["input_ids"]
+        input_ids = (prompt_ids + answer_ids)[: args.max_len]
+        labels = ([-100] * len(prompt_ids) + answer_ids)[: args.max_len]
+        return {"input_ids": input_ids, "labels": labels, "attention_mask": [1] * len(input_ids)}
 
-    def encode(batch: dict[str, list[Any]]) -> dict[str, Any]:
-        texts = [to_text({"messages": [{"role": "system", "content": s}, {"role": "user", "content": u}, {"role": "assistant", "content": a}]})
-                 for s, u, a in zip(batch["system"], batch["user"], batch["assistant"])]
-        encoded = tokenizer(texts, truncation=True, max_length=args.max_len, padding="max_length")
-        encoded["labels"] = [ids.copy() for ids in encoded["input_ids"]]
-        return encoded
+    train_ds = Dataset.from_list([encode(row) for row in train_rows])
+    val_ds = Dataset.from_list([encode(row) for row in val_rows])
 
-    def build(rows: list[dict[str, Any]]) -> Dataset:
-        return Dataset.from_dict({
-            "system": [next(m["content"] for m in r["messages"] if m["role"] == "system") for r in rows],
-            "user": [next(m["content"] for m in r["messages"] if m["role"] == "user") for r in rows],
-            "assistant": [next(m["content"] for m in r["messages"] if m["role"] == "assistant") for r in rows],
-        })
+    class Collator:
+        def __call__(self, features: list[dict[str, Any]]) -> dict[str, Any]:
+            max_len = max(len(f["input_ids"]) for f in features)
+            input_ids, labels, attention = [], [], []
+            for f in features:
+                pad = max_len - len(f["input_ids"])
+                input_ids.append(f["input_ids"] + [tokenizer.pad_token_id] * pad)
+                labels.append(f["labels"] + [-100] * pad)
+                attention.append(f["attention_mask"] + [0] * pad)
+            return {
+                "input_ids": torch.tensor(input_ids, dtype=torch.long),
+                "labels": torch.tensor(labels, dtype=torch.long),
+                "attention_mask": torch.tensor(attention, dtype=torch.long),
+            }
 
-    train_ds = build(train_rows).map(encode, batched=True, remove_columns=["system", "user", "assistant"])
-    val_ds = build(val_rows).map(encode, batched=True, remove_columns=["system", "user", "assistant"])
-
-    bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_use_double_quant=True)
-    base = AutoModelForCausalLM.from_pretrained(args.model, quantization_config=bnb, device_map="auto", trust_remote_code=True)
+    bf16 = torch.cuda.is_bf16_supported() if torch.cuda.is_available() else False
+    bnb = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16 if bf16 else torch.float16,
+        bnb_4bit_use_double_quant=True,
+    )
+    base = AutoModelForCausalLM.from_pretrained(
+        args.model,
+        quantization_config=bnb,
+        device_map="auto",
+        trust_remote_code=True,
+    )
     base = prepare_model_for_kbit_training(base)
 
     if args.adapter:
         model = PeftModel.from_pretrained(base, args.adapter, is_trainable=not args.eval_only)
     else:
-        lora = LoraConfig(
-            r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM",
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        module_names = {name.split(".")[-1] for name, _ in base.named_modules()}
+        candidates = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        targets: list[str] | str = [name for name in candidates if name in module_names] or "all-linear"
+        model = get_peft_model(
+            base,
+            LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM", target_modules=targets),
         )
-        model = get_peft_model(base, lora)
 
     if not args.eval_only:
         training_args = TrainingArguments(
@@ -170,39 +246,79 @@ def main() -> int:
             lr_scheduler_type="cosine",
             warmup_ratio=0.03,
             logging_steps=10,
-            save_strategy="epoch",
-            eval_strategy="epoch",
-            bf16=torch.cuda.is_bf16_supported(),
+            save_strategy="no",
+            eval_strategy="no",
+            bf16=bf16,
+            fp16=not bf16,
+            optim="paged_adamw_8bit",
             gradient_checkpointing=True,
+            gradient_checkpointing_kwargs={"use_reentrant": False},
+            max_grad_norm=1.0,
             report_to=[],
+            remove_unused_columns=False,
         )
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=train_ds,
             eval_dataset=val_ds,
-            data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+            data_collator=Collator(),
         )
         trainer.train()
-        trainer.save_model(args.out)
+        model.save_pretrained(args.out)
         tokenizer.save_pretrained(args.out)
 
-    # ارزیابی روی test با تولید آزاد
     model.eval()
-    predictions: list[str] = []
-    for row in test_rows:
-        messages = [m for m in row["messages"] if m["role"] != "assistant"]
-        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-        with torch.no_grad():
-            output = model.generate(**inputs, max_new_tokens=320, do_sample=False, temperature=0.0)
-        predictions.append(tokenizer.decode(output[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True))
 
-    report = score_predictions(test_rows, predictions)
-    Path(args.out).mkdir(parents=True, exist_ok=True)
-    (Path(args.out) / "eval_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({k: report[k] for k in ("n", "json_validity", "intent_accuracy", "field_accuracy", "passed")}, ensure_ascii=False, indent=2))
-    return 0 if report["passed"] else 1
+    def predict(rows: list[dict[str, Any]]) -> list[str]:
+        outputs: list[str] = []
+        for row in rows:
+            messages = [m for m in row["messages"] if m["role"] != "assistant"]
+            prompt = apply_template(tokenizer, messages, add_generation_prompt=True)
+            inputs = tokenizer(prompt, return_tensors="pt", add_special_tokens=False).to(model.device)
+            with torch.no_grad():
+                generated = model.generate(
+                    **inputs,
+                    max_new_tokens=args.max_new_tokens,
+                    do_sample=False,
+                    pad_token_id=tokenizer.pad_token_id,
+                )
+            outputs.append(tokenizer.decode(generated[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True))
+        return outputs
+
+    hard_report = score_predictions(hard_rows, predict(hard_rows))
+    test_report = score_predictions(test_rows, predict(test_rows))
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    report = {
+        "model": args.model,
+        "adapter": args.adapter or args.out,
+        "hard_test": str(hard_path),
+        "hard": hard_report,
+        "template_test": {k: test_report[k] for k in ("n", "json_validity", "intent_accuracy", "field_accuracy", "passed")},
+        "passed": hard_report["passed"],
+        "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+    }
+    (out / "eval_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print(
+        json.dumps(
+            {
+                "model": args.model,
+                "n_hard": hard_report["n"],
+                "json_validity": hard_report["json_validity"],
+                "intent_accuracy": hard_report["intent_accuracy"],
+                "field_accuracy": hard_report["field_accuracy"],
+                "action_accuracy": hard_report["action_accuracy"],
+                "exact_match": hard_report["exact_match"],
+                "passed": hard_report["passed"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0 if hard_report["passed"] else 1
 
 
 if __name__ == "__main__":

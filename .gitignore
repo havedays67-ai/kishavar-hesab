@@ -35,3 +35,6 @@ Thumbs.db
 android/
 ios/
 .capacitor/
+
+__pycache__/
+*.pyc
