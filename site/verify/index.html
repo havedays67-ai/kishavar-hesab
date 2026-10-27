@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>استعلام اصالت سند — کسب‌وکار من</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#07110d;--card:#0f241a;--line:#29483a;--mint:#79dfb7;--text:#eaf5ee;--muted:#8ea79a;--sand:#e3c47f;--bad:#efad9f}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(circle at 90% 0%,#173a2a,transparent 35rem),var(--bg);color:var(--text);font-family:Vazirmatn,Tahoma,sans-serif;display:grid;place-items:center;padding:20px}
+  .card{width:100%;max-width:560px;background:linear-gradient(160deg,#12291e,#0b1d15);border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#2b7457,#0d3929);display:grid;place-items:center;font-size:22px}
+  h1{font-size:18px;margin:0}
+  .sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700;margin-bottom:14px}
+  .ok{background:rgba(121,223,183,.12);color:var(--mint);border:1px solid rgba(121,223,183,.3)}
+  .bad{background:rgba(239,173,159,.1);color:var(--bad);border:1px solid rgba(239,173,159,.3)}
+  .warn{background:rgba(227,196,127,.1);color:var(--sand);border:1px solid rgba(227,196,127,.3)}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  td{border-bottom:1px solid rgba(255,255,255,.07);padding:9px 4px;font-size:12px;vertical-align:top}
+  td:first-child{color:var(--muted);width:38%}
+  td:last-child{font-weight:600;word-break:break-word}
+  .code{font-family:monospace;letter-spacing:1px;color:var(--mint)}
+  .note{margin-top:16px;border:1px solid rgba(227,196,127,.22);background:rgba(227,196,127,.06);border-radius:12px;padding:10px 12px;font-size:10px;line-height:1.9;color:#d8cca6}
+  .btn{display:block;text-align:center;margin-top:14px;background:var(--mint);color:#07110d;text-decoration:none;border-radius:12px;padding:11px;font-size:12px;font-weight:800}
+  .empty{font-size:12px;color:var(--muted);line-height:2}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">
+    <div class="logo">🌾</div>
+    <div>
+      <h1>کسب‌وکار من — استعلام سند</h1>
+      <div class="sub">مزرعه سبز دشت مغان · کنترل اصالت و یکپارچگی داده سند</div>
+    </div>
+  </div>
+  <div id="status"></div>
+  <div id="content" class="empty">در حال بررسی سند…</div>
+  <div class="note">
+    این صفحه فقط می‌تواند «یکپارچگی داده ثبت‌شده در QR» را کنترل کند (اینکه اطلاعات دست‌کاری نشده باشد). کد کنترل، امضای الکترونیکی یا تأیید حقوقی نیست و جایگزین ثبت رسمی، مهر و امضای حضوری یا استعلام از صادرکننده اصلی نمی‌شود.
+  </div>
+  <a class="btn" href="https://github.com/havedays67-ai/kishavar-hesab">صفحه رسمی برنامه در GitHub</a>
+</main>
+<script>
+  const PARAM_KEYS = ["s","k","d","a","c"];
+  const kinds = {
+    "sale-contract":"قرارداد فروش محصول","weigh-ticket":"قبض باسکول و رسید تحویل","quality-minutes":"صورتجلسه نمونه‌برداری و کیفیت","sale-invoice":"صورت‌حساب فروش محصول","settlement":"صورتجلسه تسویه حساب","lease-contract":"قرارداد زمین کشاورزی","lease-receipt":"رسید پرداخت مال‌الاجاره","lease-handover":"صورتجلسه تحویل زمین","trades-report":"گزارش معاملات محصول","cost-report":"گزارش بهای تمام‌شده","party-statement":"صورتحساب بدهکار / بستانکار","finance-report":"گزارش دفتر مالی","inventory-report":"گزارش انبار، دارایی و بودجه"
+  };
+  function checksum(serial, kind, date, amount) {
+    const text = serial + "|" + kind + "|" + date + "|" + Math.round(Number(amount) || 0);
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619) >>> 0;
+    }
+    return hash.toString(36).toUpperCase().padStart(6, "0").slice(-6);
+  }
+  const params = new URLSearchParams(location.search);
+  const s = params.get("s") || "";
+  const k = params.get("k") || "";
+  const d = params.get("d") || "";
+  const a = params.get("a") || "";
+  const c = (params.get("c") || "").toUpperCase();
+  const status = document.getElementById("status");
+  const content = document.getElementById("content");
+  if (!s) {
+    status.innerHTML = '<span class="badge warn">اطلاعات کافی نیست</span>';
+    content.innerHTML = "این صفحه باید با اسکن QR یک سند باز شود. اگر قبلاً QR را اسکن کرده‌اید، دوباره از نسخه چاپی تازه استفاده کنید. شماره سند و کد کنترل را از چاپ سند بخواهید.";
+  } else {
+    const expected = checksum(s, k, d, a);
+    const amount = Number(a) || 0;
+    const valid = expected === c;
+    status.innerHTML = '<span class="badge ' + (valid ? "ok" : "bad") + '">' + (valid ? "✓ یکپارچگی داده تأیید شد" : "✗ داده سند با کد کنترل نمی‌خواند") + '</span>';
+    content.innerHTML = '<table>' +
+      '<tr><td>شماره سند</td><td class="code">' + s.replace(/[<>&"]/g,"") + '</td></tr>' +
+      '<tr><td>نوع سند</td><td>' + (kinds[k] || k || "—") + '</td></tr>' +
+      '<tr><td>تاریخ سند</td><td>' + (d || "—") + '</td></tr>' +
+      '<tr><td>مبلغ مندرج (تومان)</td><td>' + (amount ? amount.toLocaleString("en-US") : "طبق سند چاپی") + '</td></tr>' +
+      '<tr><td>کد کنترل سند</td><td class="code">' + (c || "—") + '</td></tr>' +
+      '<tr><td>کد محاسبه‌شده</td><td class="code">' + expected + '</td></tr>' +
+      '</table>' + (valid ? "" : '<div class="note">اگر کد نمی‌خواند، ممکن است QR یا بخشی از نشانی در اسکن تغییر کرده باشد. شماره سند و کد کنترل چاپ‌شده را با صادرکننده تطبیق دهید.</div>');
+  }
+</script>
+</body>
+</html>
