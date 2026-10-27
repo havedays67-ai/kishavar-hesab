@@ -4,10 +4,10 @@
 
 کشاورزحساب برای کشاورز، باغدار، زارع و شرکت‌های کشت و صنعت ساخته شده است: تمام پول‌های مزرعه را ثبت می‌کند، بهای تمام‌شده هر کیلو محصول را حساب می‌کند، بدهی و چک را پایش می‌کند و یک **هوش مصنوعی دوحالته** دارد که هم آموزش می‌دهد و هم کارهای دفتری را از زبان ساده انجام می‌دهد.
 
-> وضعیت: نسخه `1.0.0` (وب + APK) و `1.1` (هسته آفلاین، دیتاست و خط لوله آموزش). APK اندروید ۸+ در Releases است.
+> وضعیت: **نسخه ۱.۰** (وب + APK). APK اندروید ۸+ با هر push روی `main` به‌صورت خودکار ساخته و در Releases به‌روزرسانی می‌شود. نسخه عمداً روی «۱» ثابت است چون هنوز انتشار رسمی انجام نشده.
 
 ### 🚀 شروع سریع
-- **دانلود اپ اندروید:** [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-offline-mvp/KishavarHesab-1.0.0-offline.apk)
+- **دانلود اپ اندروید (همیشه آخرین بیلد):** [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)
 - **اجرای نسخه وب:** `cp .env.example .env` ← تنظیم `DATABASE_URL` ← `npm install` ← `npx drizzle-kit push` ← `npm run dev`
 - **آموزش و معماری:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **تصمیم آفلاین و مدل:** [docs/ROADMAP-DECISION.md](docs/ROADMAP-DECISION.md)
 - **پایگاه دانش داخل نرم‌افزار:** `/knowledge` · **تست موتور:** `npx vitest run`
@@ -18,15 +18,23 @@
 
 | مورد | مقدار |
 |---|---|
-| ⬇️ **دانلود مستقیم APK** | **[KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.7/KishavarHesab-1.0.0.apk)** — حدود ۴ مگابایت |
-| صفحه نسخه | [Releases · apk-v1.0.7](https://github.com/havedays67-ai/kishavar-hesab/releases/tag/apk-v1.0.7) |
+| ⬇️ **دانلود مستقیم APK** | **[KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)** — همیشه آخرین بیلد main |
+| صفحه نسخه | [Releases · apk-v1](https://github.com/havedays67-ai/kishavar-hesab/releases/tag/apk-v1) |
 | آخرین نسخه‌ها | [releases/latest](https://github.com/havedays67-ai/kishavar-hesab/releases/latest) |
-| وضعیت ساخت | ✅ GitHub Actions (workflow «Android APK» — Build و Release موفق) |
+| وضعیت ساخت | ✅ GitHub Actions — workflow «Android APK» با هر push روی `main` می‌سازد و همان Release نسخه ۱ را به‌روز می‌کند |
 | حداقل اندروید | **۸.۰ (API 26)** — سازگار با اندروید ۸ تا ۱۵ |
 | شناسه بسته | `ir.kishavarhesab.app` |
 | نام/نسخه | `1.0.0` (نسخه ۱ حفظ شده) |
 | ذات شبکه | **بدون هیچ درخواست شبکه‌ای** — `connect-src 'none'` |
 | SHA-256 فایل | `a0d87b9e4a607057ceabd8077d3c436d992d562e8a935c0132d3b48708fa8c3d` |
+
+### 🆕 بهبودهای نسخه ۱ (وب و APK)
+
+- **ویرایش و حذف در همهٔ بخش‌ها:** زمین، کشت، تراکنش، انبار (کالا و حرکات)، کارگر و دستمزد، ماشین‌آلات، بدهی، چک و کارها. هر ردیف دکمهٔ حذف با تأیید و پنل «ویرایش» دارد.
+- **نمایش مبالغ یکدست:** ابتدا مبلغ با جداکنندهٔ هزارگان و واحد ریال (مثل `100,000,000 ریال`) و سپس معادل حروفی به تومان (مثل «ده میلیون تومان»).
+- **ورودی مبلغ هوشمند:** مبلغ به ریال وارد می‌شود و همان لحظه معادل ریالی و حروفی تومان نمایش داده می‌شود.
+- **حذف حرکت انبار با اصلاح خودکار موجودی** و امکان ویرایش کامل کالا، کارگر، کشت و بدهی/چک.
+- **راه‌اندازی بیلد APK روی main:** نسخه APK در هر push دوباره ساخته می‌شود و شماره نسخه روی ۱ ثابت می‌ماند.
 
 ### قابلیت‌های اپ داخل APK
 

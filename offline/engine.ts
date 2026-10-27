@@ -293,11 +293,64 @@ export function toAmount(value: unknown): number {
   return Number.isFinite(n) ? Math.round(n) : 0;
 }
 
+/* --------------------- نمایش مبالغ: ریال + حروفی تومان --------------------- */
+
+const W_ONES = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+const W_TEENS = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+const W_TENS = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+const W_HUNDREDS = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+const W_SCALES = ["", " هزار", " میلیون", " میلیارد", " تریلیون"];
+
+function under1000(n: number): string {
+  const parts: string[] = [];
+  const h = Math.floor(n / 100);
+  const r = n % 100;
+  if (h) parts.push(W_HUNDREDS[h]);
+  if (r >= 10 && r < 20) parts.push(W_TEENS[r - 10]);
+  else {
+    const t = Math.floor(r / 10);
+    if (t) parts.push(W_TENS[t]);
+    if (r % 10) parts.push(W_ONES[r % 10]);
+  }
+  return parts.join(" و ");
+}
+
+/** عدد → حروف فارسی: ۱۰۰۰۰۰۰۰ → «ده میلیون» */
+export function numberToWords(value: number): string {
+  const n = Math.round(Math.abs(Number(value) || 0));
+  if (!n) return "صفر";
+  const groups: number[] = [];
+  let rest = n;
+  while (rest > 0) {
+    groups.push(rest % 1000);
+    rest = Math.floor(rest / 1000);
+  }
+  const parts: string[] = [];
+  for (let i = groups.length - 1; i >= 0; i -= 1) {
+    if (!groups[i]) continue;
+    parts.push(`${under1000(groups[i])}${W_SCALES[i] ?? ""}`);
+  }
+  return parts.join(" و ");
+}
+
+/** مبلغ تومانی → «ده میلیون تومان» */
+export function moneyWords(amount: number): string {
+  const n = Math.round(Number(amount) || 0);
+  return `${n < 0 ? "منفی " : ""}${numberToWords(n)} تومان`;
+}
+
+/** مبلغ تومانی → «100,000,000 ریال» (رقم لاتین، جداشده با کاما) */
+export function moneyRial(amount: number): string {
+  const rial = Math.round((Number.isFinite(amount) ? amount : 0) * 10);
+  const sign = rial < 0 ? "−" : "";
+  return `${sign}${Math.abs(rial).toLocaleString("en-US")} ریال`;
+}
+
 export function fmt(amount: number, withUnit = true): string {
   const n = Math.round(Number.isFinite(amount) ? amount : 0);
-  const abs = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "٬");
   const sign = n < 0 ? "−" : "";
-  return withUnit ? `${sign}${faDigits(abs)} تومان` : `${sign}${faDigits(abs)}`;
+  if (!withUnit) return `${sign}${Math.abs(n * 10).toLocaleString("en-US")}`;
+  return `${moneyRial(n)} · ${moneyWords(n)}`;
 }
 
 export function fmtShort(amount: number): string {

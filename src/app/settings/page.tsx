@@ -19,9 +19,9 @@ export default async function SettingsPage() {
   const rows: { label: string; value: string }[] = [
     { label: "سطح زیرکشت", value: `${formatNumber(o.totals.landArea, 1)} هکتار` },
     { label: "تعداد کشت‌ها", value: formatNumber(o.cropStats.length) },
-    { label: "ارزش انبار", value: `${formatMoney(Math.round(o.totals.inventoryValue))} تومان` },
-    { label: "بدهی تسویه‌نشده", value: `${formatMoney(o.totals.payable)} تومان` },
-    { label: "طلب وصول‌نشده", value: `${formatMoney(o.totals.receivable)} تومان` },
+    { label: "ارزش انبار", value: `${formatMoney(Math.round(o.totals.inventoryValue))}` },
+    { label: "بدهی تسویه‌نشده", value: `${formatMoney(o.totals.payable)}` },
+    { label: "طلب وصول‌نشده", value: `${formatMoney(o.totals.receivable)}` },
   ];
 
   return (

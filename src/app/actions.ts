@@ -28,6 +28,12 @@ const n = (fd: FormData, key: string) => {
   const value = Number(cleanNumber(s(fd, key)));
   return Number.isFinite(value) ? Math.round(value) : 0;
 };
+/** مبالغ به ریال وارد می‌شوند و به تومان (عدد صحیح) ذخیره می‌شوند. */
+const rial = (fd: FormData, key: string) => {
+  const value = Number(cleanNumber(s(fd, key)));
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.round(value / 10);
+};
 const f = (fd: FormData, key: string) => {
   const value = Number(cleanNumber(s(fd, key)));
   return Number.isFinite(value) ? value : 0;
@@ -53,6 +59,8 @@ function refresh() {
     "/finance",
     "/reports",
     "/assistant",
+    "/knowledge",
+    "/settings",
   ];
   for (const path of paths) revalidatePath(path);
 }
@@ -61,7 +69,7 @@ function refresh() {
 
 export async function createTransaction(formData: FormData) {
   const kind = s(formData, "kind") === "income" ? "income" : "expense";
-  const amount = n(formData, "amount");
+  const amount = rial(formData, "amount");
   if (amount <= 0) return;
   const today = new Date().toISOString().slice(0, 10);
   await db.insert(transactions).values({
@@ -164,7 +172,7 @@ export async function createItem(formData: FormData) {
     category: s(formData, "category") || "نهاده",
     quantity: Math.max(0, f(formData, "quantity")),
     reorderLevel: Math.max(0, f(formData, "reorderLevel")),
-    unitCost: Math.max(0, n(formData, "unitCost")),
+    unitCost: Math.max(0, rial(formData, "unitCost")),
     warehouse: s(formData, "warehouse") || "انبار مرکزی",
   });
   refresh();
@@ -183,7 +191,7 @@ export async function createMove(formData: FormData) {
     itemId,
     kind,
     quantity,
-    unitCost: n(formData, "unitCost") || item.unitCost,
+    unitCost: rial(formData, "unitCost") || item.unitCost,
     date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
     note: s(formData, "note"),
     cropId: id(formData, "cropId"),
@@ -211,14 +219,14 @@ export async function createWorker(formData: FormData) {
     name,
     role: s(formData, "role") || "کارگر عمومی",
     phone: s(formData, "phone"),
-    dailyWage: Math.max(0, n(formData, "dailyWage")),
+    dailyWage: Math.max(0, rial(formData, "dailyWage")),
   });
   refresh();
 }
 
 export async function createLabor(formData: FormData) {
   const days = Math.max(0, f(formData, "days"));
-  const dailyWage = Math.max(0, n(formData, "dailyWage"));
+  const dailyWage = Math.max(0, rial(formData, "dailyWage"));
   const workerId = id(formData, "workerId");
   const workerName = s(formData, "workerName");
   if (days <= 0 || dailyWage <= 0) return;
@@ -269,8 +277,8 @@ export async function createEquipment(formData: FormData) {
     name,
     type: s(formData, "type") || "ماشین",
     purchaseDate: date(formData, "purchaseDate"),
-    purchasePrice: Math.max(0, n(formData, "purchasePrice")),
-    salvageValue: Math.max(0, n(formData, "salvageValue")),
+    purchasePrice: Math.max(0, rial(formData, "purchasePrice")),
+    salvageValue: Math.max(0, rial(formData, "salvageValue")),
     usefulLifeYears: Math.max(1, f(formData, "usefulLifeYears") || 10),
     hoursUsed: Math.max(0, f(formData, "hoursUsed")),
     notes: s(formData, "notes"),
@@ -289,7 +297,7 @@ export async function deleteEquipment(formData: FormData) {
 
 export async function createDebt(formData: FormData) {
   const party = s(formData, "party");
-  const amount = n(formData, "amount");
+  const amount = rial(formData, "amount");
   if (!party || amount <= 0) return;
   await db.insert(debts).values({
     party,
@@ -321,7 +329,7 @@ export async function deleteDebt(formData: FormData) {
 
 export async function createCheque(formData: FormData) {
   const party = s(formData, "party");
-  const amount = n(formData, "amount");
+  const amount = rial(formData, "amount");
   if (!party || amount <= 0) return;
   await db.insert(cheques).values({
     party,
@@ -374,4 +382,224 @@ export async function toggleTask(formData: FormData) {
   if (!row) return;
   await db.update(tasks).set({ status: row.status === "open" ? "done" : "open" }).where(eq(tasks.id, recordId));
   revalidatePath("/");
+}
+
+/* ------------------------------------------------------------------ */
+/* ویرایش و حذف کامل — همهٔ بخش‌ها                                     */
+/* ------------------------------------------------------------------ */
+
+export async function updateLand(formData: FormData) {
+  const recordId = id(formData);
+  const name = s(formData, "name");
+  if (!recordId || !name) return;
+  await db
+    .update(lands)
+    .set({
+      name,
+      areaHa: Math.max(0, f(formData, "areaHa")),
+      region: s(formData, "region"),
+      soilType: s(formData, "soilType"),
+      irrigation: s(formData, "irrigation"),
+      ownership: ["owned", "shared", "leased"].includes(s(formData, "ownership")) ? s(formData, "ownership") : "owned",
+      sharePercent: Math.min(100, Math.max(0, f(formData, "sharePercent") || 100)),
+      notes: s(formData, "notes"),
+    })
+    .where(eq(lands.id, recordId));
+  refresh();
+}
+
+export async function updateTransaction(formData: FormData) {
+  const recordId = id(formData);
+  const amount = rial(formData, "amount");
+  if (!recordId || amount <= 0) return;
+  await db
+    .update(transactions)
+    .set({
+      kind: s(formData, "kind") === "income" ? "income" : "expense",
+      categoryId: id(formData, "categoryId"),
+      landId: id(formData, "landId"),
+      cropId: id(formData, "cropId"),
+      amount,
+      date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
+      description: s(formData, "description"),
+      party: s(formData, "party"),
+      method: ["cash", "bank", "credit"].includes(s(formData, "method")) ? s(formData, "method") : "cash",
+    })
+    .where(eq(transactions.id, recordId));
+  refresh();
+}
+
+export async function updateItem(formData: FormData) {
+  const recordId = id(formData);
+  const name = s(formData, "name");
+  if (!recordId || !name) return;
+  await db
+    .update(inventoryItems)
+    .set({
+      name,
+      unit: s(formData, "unit") || "کیلوگرم",
+      category: s(formData, "category") || "نهاده",
+      quantity: Math.max(0, f(formData, "quantity")),
+      reorderLevel: Math.max(0, f(formData, "reorderLevel")),
+      unitCost: rial(formData, "unitCost"),
+      warehouse: s(formData, "warehouse") || "انبار مرکزی",
+    })
+    .where(eq(inventoryItems.id, recordId));
+  refresh();
+}
+
+export async function deleteMove(formData: FormData) {
+  const recordId = id(formData);
+  if (!recordId) return;
+  const rows = await db.select().from(inventoryMoves).where(eq(inventoryMoves.id, recordId));
+  const move = rows[0];
+  if (!move) return;
+  const itemRows = await db.select().from(inventoryItems).where(eq(inventoryItems.id, move.itemId));
+  const item = itemRows[0];
+  if (item) {
+    const next = move.kind === "in" ? item.quantity - move.quantity : item.quantity + move.quantity;
+    await db.update(inventoryItems).set({ quantity: Math.max(0, next) }).where(eq(inventoryItems.id, item.id));
+  }
+  await db.delete(inventoryMoves).where(eq(inventoryMoves.id, recordId));
+  refresh();
+}
+
+export async function updateWorker(formData: FormData) {
+  const recordId = id(formData);
+  const name = s(formData, "name");
+  if (!recordId || !name) return;
+  await db
+    .update(workers)
+    .set({
+      name,
+      role: s(formData, "role") || "کارگر عمومی",
+      phone: s(formData, "phone"),
+      dailyWage: rial(formData, "dailyWage"),
+      active: s(formData, "active") === "on",
+    })
+    .where(eq(workers.id, recordId));
+  refresh();
+}
+
+export async function deleteWorker(formData: FormData) {
+  const recordId = id(formData);
+  if (!recordId) return;
+  await db.delete(workers).where(eq(workers.id, recordId));
+  refresh();
+}
+
+export async function updateLabor(formData: FormData) {
+  const recordId = id(formData);
+  const days = Math.max(0, f(formData, "days"));
+  const dailyWage = rial(formData, "dailyWage");
+  if (!recordId || days <= 0 || dailyWage <= 0) return;
+  const workerId = id(formData, "workerId");
+  const typedName = s(formData, "workerName");
+  let workerName = typedName;
+  if (workerId) {
+    const rows = await db.select().from(workers).where(eq(workers.id, workerId));
+    workerName = rows[0]?.name ?? typedName;
+  }
+  await db
+    .update(laborLogs)
+    .set({
+      workerId,
+      workerName,
+      landId: id(formData, "landId"),
+      cropId: id(formData, "cropId"),
+      date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
+      days,
+      dailyWage,
+      amount: Math.round(days * dailyWage),
+      task: s(formData, "task") || "کار مزرعه",
+      paid: s(formData, "paid") === "on",
+    })
+    .where(eq(laborLogs.id, recordId));
+  refresh();
+}
+
+export async function updateEquipment(formData: FormData) {
+  const recordId = id(formData);
+  const name = s(formData, "name");
+  if (!recordId || !name) return;
+  await db
+    .update(equipment)
+    .set({
+      name,
+      type: s(formData, "type") || "ماشین",
+      purchaseDate: date(formData, "purchaseDate"),
+      purchasePrice: rial(formData, "purchasePrice"),
+      salvageValue: rial(formData, "salvageValue"),
+      usefulLifeYears: Math.max(1, f(formData, "usefulLifeYears") || 10),
+      hoursUsed: Math.max(0, f(formData, "hoursUsed")),
+      notes: s(formData, "notes"),
+    })
+    .where(eq(equipment.id, recordId));
+  refresh();
+}
+
+export async function updateDebt(formData: FormData) {
+  const recordId = id(formData);
+  const party = s(formData, "party");
+  const amount = rial(formData, "amount");
+  if (!recordId || !party || amount <= 0) return;
+  await db
+    .update(debts)
+    .set({
+      party,
+      direction: s(formData, "direction") === "receivable" ? "receivable" : "payable",
+      title: s(formData, "title"),
+      amount,
+      dueDate: date(formData, "dueDate"),
+      paid: s(formData, "paid") === "on",
+      notes: s(formData, "notes"),
+    })
+    .where(eq(debts.id, recordId));
+  refresh();
+}
+
+export async function updateCheque(formData: FormData) {
+  const recordId = id(formData);
+  const party = s(formData, "party");
+  const amount = rial(formData, "amount");
+  if (!recordId || !party || amount <= 0) return;
+  const status = s(formData, "status");
+  await db
+    .update(cheques)
+    .set({
+      party,
+      direction: s(formData, "direction") === "received" ? "received" : "issued",
+      amount,
+      dueDate: date(formData, "dueDate"),
+      bank: s(formData, "bank"),
+      serial: s(formData, "serial"),
+      status: ["pending", "passed", "bounced"].includes(status) ? status : "pending",
+      notes: s(formData, "notes"),
+    })
+    .where(eq(cheques.id, recordId));
+  refresh();
+}
+
+export async function updateTask(formData: FormData) {
+  const recordId = id(formData);
+  const title = s(formData, "title");
+  if (!recordId || !title) return;
+  await db
+    .update(tasks)
+    .set({
+      title,
+      dueDate: date(formData, "dueDate"),
+      priority: ["low", "normal", "high"].includes(s(formData, "priority")) ? s(formData, "priority") : "normal",
+      status: s(formData, "status") === "done" ? "done" : "open",
+      landId: id(formData, "landId"),
+    })
+    .where(eq(tasks.id, recordId));
+  refresh();
+}
+
+export async function deleteTask(formData: FormData) {
+  const recordId = id(formData);
+  if (!recordId) return;
+  await db.delete(tasks).where(eq(tasks.id, recordId));
+  refresh();
 }

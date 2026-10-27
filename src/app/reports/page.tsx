@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCrops, getLands, listTransactions } from "@/lib/data";
-import { formatMoney, formatNumber, monthKey, monthLabel, pct, formatDate } from "@/lib/format";
+import { formatMoney, formatMoneyWords, formatNumber, monthKey, monthLabel, pct, formatDate } from "@/lib/format";
 import { Card, EmptyState, Field, Icon, PageHeader, StatCard, Badge, Progress } from "@/components/ui";
 import { AreaChart, Donut, HBar } from "@/components/charts";
 
@@ -144,9 +144,9 @@ export default async function ReportsPage({
       </Card>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="درآمد دوره" value={formatMoney(income)} tone="farm" icon="chart" />
-        <StatCard label="هزینه دوره" value={formatMoney(expense)} tone="clay" icon="receipt" />
-        <StatCard label="سود دوره" value={formatMoney(profit)} tone={profit >= 0 ? "farm" : "red"} icon="wallet" />
+        <StatCard label="درآمد دوره" value={formatMoney(income)} hint={formatMoneyWords(income)} tone="farm" icon="chart" />
+        <StatCard label="هزینه دوره" value={formatMoney(expense)} hint={formatMoneyWords(expense)} tone="clay" icon="receipt" />
+        <StatCard label="سود دوره" value={formatMoney(profit)} hint={formatMoneyWords(profit)} tone={profit >= 0 ? "farm" : "red"} icon="wallet" />
         <StatCard label="حاشیه سود" value={pct(profit > 0 ? profit : 0, income)} tone="slate" icon="bolt" hint="سود ÷ درآمد" />
       </div>
 
@@ -180,7 +180,7 @@ export default async function ReportsPage({
             </div>
             <div className="flex items-center justify-between rounded-xl bg-farm-50 px-3 py-2.5">
               <span className="text-xs font-bold text-farm-900">سود / زیان دوره</span>
-              <span className={`num text-sm font-extrabold ${profit >= 0 ? "text-farm-800" : "text-red-600"}`}>{formatMoney(profit)} تومان</span>
+              <span className={`num text-sm font-extrabold ${profit >= 0 ? "text-farm-800" : "text-red-600"}`}>{formatMoney(profit)}<small className="mt-0.5 block text-[10px] font-normal text-[#84907f]">{formatMoneyWords(profit)}</small></span>
             </div>
           </div>
         </Card>

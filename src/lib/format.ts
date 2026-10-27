@@ -1,4 +1,5 @@
 /* Persian-aware formatting helpers (pure, no dependencies) */
+import { tomanWords } from "@/lib/money-words";
 
 const FA_DIGITS = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 
@@ -22,11 +23,40 @@ export function formatNumber(value: number, digits = 0): string {
   );
 }
 
-/** Amounts are stored in Toman. */
+/** عدد با جداکنندهٔ هزارگان و رقم لاتین (برای مبالغ) */
+export function formatAmountNumber(value: number, digits = 0): string {
+  if (!Number.isFinite(value)) return "0";
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+/**
+ * مبالغ در پایگاه داده «تومان» ذخیره می‌شوند.
+ * نمایش به ریال است: ۱۰٫۰۰۰٫۰۰۰ تومان → «100,000,000 ریال»
+ */
 export function formatMoney(value: number, opts?: { sign?: boolean }): string {
-  const v = Math.round(value || 0);
-  const sign = opts?.sign && v > 0 ? "+" : v < 0 ? "−" : "";
-  return `${sign}${formatNumber(Math.abs(v))}`;
+  const toman = Math.round(value || 0);
+  const rial = Math.abs(toman) * 10;
+  const sign = opts?.sign && toman > 0 ? "+" : toman < 0 ? "−" : "";
+  return `${sign}${formatAmountNumber(rial)} ریال`;
+}
+
+/** همان formatMoney با نام صریح‌تر برای خوانایی کد */
+export function formatRial(value: number, opts?: { sign?: boolean }): string {
+  return formatMoney(value, opts);
+}
+
+/** معادل حروفی مبلغ، بر حسب تومان: «ده میلیون تومان» */
+export function formatMoneyWords(value: number): string {
+  return tomanWords(value);
+}
+
+/** مبلغ ریالی ورودی کاربر → تومان برای ذخیره‌سازی */
+export function rialsToToman(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value / 10);
 }
 
 export function formatCompactMoney(value: number): string {
@@ -39,7 +69,7 @@ export function formatCompactMoney(value: number): string {
 }
 
 export function formatMoneyUnit(value: number): string {
-  return `${formatMoney(value)} تومان`;
+  return `${formatMoney(value)} · ${tomanWords(value)}`;
 }
 
 export const JALALI_MONTHS = [

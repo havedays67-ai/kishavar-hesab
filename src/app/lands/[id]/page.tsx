@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCrops, getFarmOverview, getLabor, getLands, listTransactions } from "@/lib/data";
-import { formatDate, formatMoney, formatNumber, statusLabel } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyWords, formatNumber, statusLabel } from "@/lib/format";
 import { Badge, Card, EmptyState, Icon, PageHeader, Progress, StatCard } from "@/components/ui";
+import { DeleteForm } from "@/components/record-actions";
+import { deleteLabor, deleteTransaction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +44,9 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="درآمد این قطعه" value={formatMoney(income)} tone="farm" icon="chart" />
-        <StatCard label="هزینه این قطعه" value={formatMoney(expense)} tone="clay" icon="receipt" />
-        <StatCard label="سود قطعه" value={formatMoney(profit)} tone={profit >= 0 ? "farm" : "red"} icon="wallet" />
+        <StatCard label="درآمد این قطعه" value={formatMoney(income)} hint={formatMoneyWords(income)} tone="farm" icon="chart" />
+        <StatCard label="هزینه این قطعه" value={formatMoney(expense)} hint={formatMoneyWords(expense)} tone="clay" icon="receipt" />
+        <StatCard label="سود قطعه" value={formatMoney(profit)} hint={formatMoneyWords(profit)} tone={profit >= 0 ? "farm" : "red"} icon="wallet" />
         <StatCard label="هزینه هر هکتار" value={formatMoney(Math.round(stat?.costPerHa ?? 0))} tone="slate" icon="land" />
       </div>
 
@@ -131,7 +133,8 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                   <th>دسته</th>
                   <th>شرح</th>
                   <th>طرف حساب</th>
-                  <th>مبلغ (تومان)</th>
+                  <th>مبلغ (ریال)</th>
+                  <th>حذف</th>
                 </tr>
               </thead>
               <tbody>
@@ -146,6 +149,10 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                     <td className="whitespace-nowrap text-[11px] text-[#7c8a7f]">{t.party || "—"}</td>
                     <td className={`num whitespace-nowrap text-xs font-bold ${t.kind === "income" ? "text-farm-700" : "text-clay-600"}`}>
                       {formatMoney(t.amount)}
+                      <span className="mt-0.5 block text-[9px] font-normal text-[#84907f]">{formatMoneyWords(t.amount)}</span>
+                    </td>
+                    <td>
+                      <DeleteForm action={deleteTransaction} id={t.id} label="حذف تراکنش" confirmText={`تراکنش ${formatMoney(t.amount)} حذف شود؟`} />
                     </td>
                   </tr>
                 ))}
@@ -168,6 +175,7 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                 </span>
                 <span className="num shrink-0 font-semibold">{formatMoney(l.amount)}</span>
                 <Badge tone={l.paid ? "green" : "red"}>{l.paid ? "پرداخت‌شده" : "پرداخت‌نشده"}</Badge>
+                <DeleteForm action={deleteLabor} id={l.id} label="حذف دستمزد" confirmText="این دستمزد حذف شود؟" />
               </li>
             ))}
           </ul>

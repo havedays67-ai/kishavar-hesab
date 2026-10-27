@@ -13,8 +13,21 @@ on:
         description: "آدرس نسخه وب (مثلاً https://agri.example.com)"
         required: false
   push:
+    branches:
+      - main
+    paths:
+      - "offline/**"
+      - "capacitor-web/**"
+      - "scripts/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - ".github/workflows/android.yml"
     tags:
       - "v*"
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -78,6 +91,9 @@ jobs:
           sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
+          sed -i -E 's/versionCode [0-9]+/versionCode 1/' android/app/build.gradle
+          sed -i -E 's/versionName "[^"]*"/versionName "1.0"/' android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
 
       - name: Decode release keystore (optional)
         if: ${{ github.event.inputs.variant == 'release' }}
@@ -139,10 +155,16 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v1.0.${{ github.run_number }}
+          tag_name: apk-v1
           name: کشاورزحساب ۱.۰ (اندروید ۸+)
+          make_latest: true
+          overwrite_files: true
           body: |
-            نسخه اندروید کشاورزحساب — حداقل اندروید ۸ (API 26).
+            نسخه اندروید کشاورزحساب ۱.۰ (شماره نسخه ثابت ۱ — نسخه رسمی منتشرنشده).
+            این Release با هر push روی main به‌روزرسانی می‌شود؛ لینک دانلود همیشه ثابت است:
+            https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk
+
+            حداقل اندروید ۸ (API 26). ویرایش/حذف همهٔ بخش‌ها و نمایش مبالغ به ریال + حروفی تومان.
 
             نصب: فایل APK را دانلود کنید، «نصب از منابع ناشناس» را برای فایل‌منیجر فعال کنید و نصب کنید.
             در اولین اجرا آدرس سرور نسخه وب را وارد کنید.

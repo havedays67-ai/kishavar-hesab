@@ -48,8 +48,9 @@ const $ = <T extends Element = HTMLElement>(sel: string): T => document.querySel
 const esc = (value: unknown): string =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] ?? c));
 
-const money = (n: number): string => `${n < 0 ? "−" : ""}${E.faDigits(Math.abs(Math.round(n)).toLocaleString("en-US"))}`;
-const moneyU = (n: number): string => `${money(n)} تومان`;
+/** همهٔ مبالغ: «100,000,000 ریال» — معادل حروفی به */
+const money = (n: number): string => E.moneyRial(n);
+const moneyU = (n: number): string => `${E.moneyRial(n)} · ${E.moneyWords(n)}`;
 
 function toast(message: string, error = false): void {
   const el = document.getElementById("toast");
@@ -425,7 +426,7 @@ function viewAssistant(): string {
   <div class="card">
     <form data-form="assistant">
       <label for="atext">جمله‌ی خود را بنویسید</label>
-      <input id="atext" name="text" placeholder="مثلاً: ۴۵۰ هزار تومان گازوئیل خریدم" autocomplete="off" />
+      <input id="atext" name="text" placeholder="مثلاً: ۴۵۰ هزار گازوئیل خریدم" autocomplete="off" />
       <button class="btn pri" type="submit" style="width:100%">ارسال به دستیار</button>
     </form>
   </div>`;
@@ -513,7 +514,7 @@ function viewMore(): string {
   <div class="card">
     <h2>درباره</h2>
     <div class="note">
-      کشاورزحساب ۱.۰.۰ (افلاین) · موتور دوطرفه با کنترل تراز · تقویم شمسی و تومان · ${E.faDigits(ASSISTANT_INTENT_COUNT)} قصد دستیار محلی · بدون هیچ درخواست شبکه.<br>
+      کشاورزحساب ۱.۰.۰ (افلاین) · موتور دوطرفه با کنترل تراز · تقویم شمسی و · ${E.faDigits(ASSISTANT_INTENT_COUNT)} قصد دستیار محلی · بدون هیچ درخواست شبکه.<br>
       درستی حسابداری &gt; آفلاین &gt; سادگی &gt; زیبایی. اعداد این برنامه فقط از موتور قطعی می‌آیند.
     </div>
   </div>`;
@@ -573,7 +574,7 @@ function formExpense(db: E.DB, kind: "expense" | "income", f?: Record<string, st
   const cats = db.accounts.filter((a) => a.type === (kind === "expense" ? "expense" : "income"));
   const selectedCat = f?.categoryCode ? db.accounts.find((a) => a.code === f.categoryCode)?.id : cats[0]?.id;
   return `<form data-form="txn" data-kind="${kind}">
-    <label>مبلغ (تومان)</label>
+    <label>مبلغ (ریال)</label>
     <input name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" placeholder="۴۵۰٬۰۰۰" />
     <label>شرح</label>
     <input name="desc" required value="${esc(val(f, "desc"))}" placeholder="${kind === "expense" ? "گازوئیل تراکتور" : "فروش محصول"}" />

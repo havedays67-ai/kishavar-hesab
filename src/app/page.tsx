@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getFarmOverview, getTasks } from "@/lib/data";
-import { formatDate, formatMoney, formatNumber, pct, todayISO, statusLabel } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyWords, formatNumber, pct, todayISO, statusLabel } from "@/lib/format";
 import { Card, Icon, StatCard, Badge, Progress, EmptyState } from "@/components/ui";
 import { MonthlyBars, Donut } from "@/components/charts";
 import { toggleTask } from "@/app/actions";
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
               {o.totals.landArea > 0
                 ? `${formatNumber(o.totals.landArea, 1)} هکتار زمین، ${formatNumber(o.totals.activeCrops)} کشت فعال. سود خالص تا امروز ${formatMoney(
                     o.totals.profit,
-                  )} تومان است.`
+                  )} است (${formatMoneyWords(o.totals.profit)}).`
                 : "برای شروع، زمین و کشت خود را ثبت کنید یا از دستیار هوشمند بخواهید اطلاعات را وارد کند."}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -46,10 +46,12 @@ export default async function DashboardPage() {
             <div className="rounded-xl bg-white/10 p-3">
               <span className="block text-[10px] text-farm-100">درآمد کل</span>
               <span className="num mt-1 block text-sm font-bold">{formatMoney(o.totals.income)}</span>
+              <span className="num mt-0.5 block text-[9px] text-farm-100/90">{formatMoneyWords(o.totals.income)}</span>
             </div>
             <div className="rounded-xl bg-white/10 p-3">
               <span className="block text-[10px] text-farm-100">هزینه کل</span>
               <span className="num mt-1 block text-sm font-bold">{formatMoney(o.totals.expense)}</span>
+              <span className="num mt-0.5 block text-[9px] text-farm-100/90">{formatMoneyWords(o.totals.expense)}</span>
             </div>
             <div className="col-span-2 rounded-xl bg-[#d8a24a]/20 p-3">
               <span className="block text-[10px] text-farm-100">حاشیه سود</span>
@@ -60,10 +62,10 @@ export default async function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="سود / زیان خالص" value={`${formatMoney(o.totals.profit)} تومان`} tone={profitTone} icon="chart" hint="درآمد منهای هزینه ثبت‌شده" />
-        <StatCard label="هزینه هر هکتار" value={o.totals.landArea ? `${formatMoney(Math.round(o.totals.expense / o.totals.landArea))} تومان` : "—"} tone="clay" icon="land" hint="برای مقایسه قطعات" />
-        <StatCard label="بدهی + چک نزدیک" value={`${formatMoney(o.totals.payable + o.totals.chequeUpcoming)} تومان`} tone="red" icon="wallet" hint="نیازمند برنامه نقدینگی" />
-        <StatCard label="طلب از دیگران" value={`${formatMoney(o.totals.receivable)} تومان`} tone="slate" icon="phone" hint="پیگیری وصول مطالبات" />
+        <StatCard label="سود / زیان خالص" value={`${formatMoney(o.totals.profit)}`} tone={profitTone} icon="chart" hint={`درآمد منهای هزینه · ${formatMoneyWords(o.totals.profit)}`} />
+        <StatCard label="هزینه هر هکتار" value={o.totals.landArea ? `${formatMoney(Math.round(o.totals.expense / o.totals.landArea))}` : "—"} tone="clay" icon="land" hint={o.totals.landArea ? formatMoneyWords(Math.round(o.totals.expense / o.totals.landArea)) : "برای مقایسه قطعات"} />
+        <StatCard label="بدهی + چک نزدیک" value={`${formatMoney(o.totals.payable + o.totals.chequeUpcoming)}`} tone="red" icon="wallet" hint={formatMoneyWords(o.totals.payable + o.totals.chequeUpcoming)} />
+        <StatCard label="طلب از دیگران" value={`${formatMoney(o.totals.receivable)}`} tone="slate" icon="phone" hint={formatMoneyWords(o.totals.receivable)} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
