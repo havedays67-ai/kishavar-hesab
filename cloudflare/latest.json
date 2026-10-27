@@ -1,17 +1,18 @@
 {
   "schema": 1,
-  "updatedAt": "2026-10-26T20:00:00Z",
+  "updatedAt": "2026-10-27T05:16:24Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": 2,
+    "versionCode": null,
     "minSdk": 26,
-    "sizeBytes": 4003011,
-    "sha256": "cf83233bd0b0f83a1ce697151c90f97ec001baa616b60a189ef7e8b8abbd458e",
-    "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk",
-    "releaseNotes": "نسخه وب‌محور ۱.۰.۰؛ برای اجرا به آدرس سرور نیاز دارد. نسخه کاملاً آفلاین در حال ساخت است."
+    "sizeBytes": 4013545,
+    "sha256": "e0159a79d60d5a69478d019d5e674fc3cbabe0faad537a4ddff8c42a4f717110",
+    "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-offline-mvp/KishavarHesab-1.0.0-offline.apk",
+    "releaseNotes": "نسخه آفلاین MVP: ثبت هزینه/درآمد، دستیار با پیش‌نمایش و تأیید، گزارش و خروجی JSON. بدون سرور؛ داده‌ها روی گوشی. مدل زبانی هنوز همراه APK نیست.",
+    "build": "offline-mvp"
   },
   "model": {
     "status": "not-published",
@@ -32,9 +33,10 @@
       "hard": 50
     }
   },
-  "serverRequired": true,
+  "serverRequired": false,
   "links": {
     "chat": "https://chat.tivachat-vflash-ai.ir",
     "download": "https://kishavar.tivachat-vflash-ai.ir"
-  }
+  },
+  "offline": true
 }
