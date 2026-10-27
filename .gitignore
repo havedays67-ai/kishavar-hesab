@@ -38,3 +38,6 @@ ios/
 
 __pycache__/
 *.pyc
+
+# dependency folder (never commit)
+/node_modules
