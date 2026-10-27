@@ -5,6 +5,21 @@
 import * as S from "./store";
 import * as E from "./engine";
 import {
+  LEASE_KIND_LABEL,
+  LEASE_STATUS_LABEL,
+  businessInsights,
+  leaseContractText,
+  leaseIsOverdue,
+  leaseNextDue,
+  leasePaid,
+  leaseRemaining,
+  leaseSignedBoth,
+  leaseSignatures,
+  leaseStats,
+  leaseTotalRent,
+  smartSuggestions,
+} from "./lease";
+import {
   ASSISTANT_INTENT_COUNT,
   ASSISTANT_SAMPLES,
   GUIDE_SECTIONS,
@@ -103,6 +118,9 @@ function viewHome(): string {
   const low = db.products.filter((p) => p.stock <= p.min);
   const overBudget = db.budgets.length ? E.budgetUsageEq(db).filter((b) => b.pct > 100) : [];
   const dc = E.debtorsCreditors(db);
+  const insights = businessInsights(db);
+  const suggestions = smartSuggestions(db);
+  const lStats = leaseStats(db);
   const alerts: string[] = [];
   if (dueCheques.length) alerts.push(`${E.faDigits(dueCheques.length)} چک تا ۱۰ روز آینده سررسید می‌شود`);
   if (lateInstallments.length) alerts.push(`${E.faDigits(lateInstallments.length)} قسط معوق دارید`);
@@ -138,6 +156,12 @@ function viewHome(): string {
     <div class="btn-row"><button class="btn sm" data-act="open" data-open="contact">＋ طرف‌حساب</button><button class="btn sm" data-act="statement-list">فهرست صورتحساب‌ها</button><button class="btn sm" data-act="guide" data-section="contact">؟ راهنما</button></div>
   </div>
   <div class="card">
+    <h2>هوش تحلیلی <small>پیشنهاد و هشدار قطعی</small></h2>
+    ${insights.map((i) => `<div class="row" style="align-items:flex-start"><span class="ico">${i.severity === "critical" ? "🚨" : i.severity === "warning" ? "⚠️" : i.severity === "good" ? "✅" : "💡"}</span><div class="grow"><div class="t">${esc(i.title)}</div><div class="s" style="white-space:normal">${esc(i.detail)}</div></div>${i.action?.sheet ? `<button class="btn sm" data-act="open" data-open="${i.action.sheet}"${i.action.fields?.id ? ` data-id="${i.action.fields.id}"` : ""}>${esc(i.action.label)}</button>` : i.action?.tab ? `<button class="btn sm" data-act="tab" data-tab="${i.action.tab}">${esc(i.action.label)}</button>` : ""}</div>`).join("")}
+    ${suggestions.length ? `<div class="note">پیشنهاد بعدی: ${suggestions.map((x) => `<button class="btn sm" data-act="open" data-open="${x.sheet ?? "quick"}">${esc(x.label)}</button>`).join(" ")}</div>` : ""}
+    <div class="btn-row"><button class="btn sm" data-act="open" data-open="debtor-add">＋ بدهکار</button><button class="btn sm" data-act="open" data-open="creditor-add">＋ بستانکار</button><button class="btn sm" data-act="open" data-open="lease-new">＋ قرارداد اجاره</button><button class="btn sm" data-act="guides">؟ راهنماها</button></div>
+  </div>
+  <div class="card">
     <h2>هشدارهای مهم <span class="chip ${alerts.length ? "warn" : "pos"}">${alerts.length ? `${E.faDigits(alerts.length)} مورد` : "آرام"}</span></h2>
     ${alerts.length ? alerts.map((a) => `<div class="row"><span class="ico">⚠️</span><div class="grow"><div class="t">${esc(a)}</div></div></div>`).join("") : emptyBox("هیچ سررسید یا بودجه‌ی بحرانی ندارید.")}
     <div class="btn-row">
@@ -157,6 +181,12 @@ function viewHome(): string {
         .join("")}
     </div>
     <div class="btn-row"><span class="chip brand">درآمد</span><span class="chip warn">هزینه</span></div>
+  </div>
+  <div class="card">
+    <h2>اجاره‌های کشاورزی <button class="btn sm" data-act="open" data-open="lease-list">مدیریت</button></h2>
+    <div class="stats">${statCard("قرارداد فعال", E.faDigits(lStats.active), "ملک/زمین", "pos")}${statCard("مانده اجاره", money(lStats.remaining), lStats.overdue ? `معوق ${money(lStats.overdue)}` : "بدون معوقه", lStats.overdue ? "neg" : "")}</div>
+    ${lStats.unsigned ? `<div class="row"><span class="ico">✍️</span><div class="grow"><div class="t">${E.faDigits(lStats.unsigned)} قرارداد امضای کامل ندارد</div><div class="s">امضای موجر و مستاجر را ثبت کنید</div></div><button class="btn sm" data-act="open" data-open="lease-list">ثبت امضا</button></div>` : ""}
+    <div class="btn-row"><button class="btn sm pri" data-act="open" data-open="lease-new">＋ قرارداد جدید</button><button class="btn sm" data-act="open" data-open="signatures-list">دفتر امضاها</button><button class="btn sm" data-act="guide" data-section="lease">؟ راهنمای اجاره</button></div>
   </div>
   <div class="card">
     <h2>آخرین اسناد <small>${E.faDigits(db.entries.length)} سند</small></h2>
@@ -219,6 +249,7 @@ const REPORT_TABS = [
   { key: "balance", label: "ترازنامه" },
   { key: "tax", label: "مالیات" },
   { key: "debtors", label: "بدهکار/بستانکار" },
+  { key: "leases", label: "اجاره" },
   { key: "contacts", label: "طرف‌حساب" },
   { key: "trial", label: "تراز آزمایشی" },
   { key: "budget", label: "بودجه" },
@@ -334,6 +365,28 @@ function viewReports(): string {
       <div class="note">اگر جمع بدهکار و بستانکار برابر است، همه‌ی اسناد دوطرفه و سالم هستند. با دکمه «دفتر» گردش هر حساب را ببینید.</div>
       <div class="btn-row"><button class="btn sm" data-act="guide" data-section="reports">؟ راهنمای گزارش‌ها</button></div>
     </div>`;
+  } else if (state.reportTab === "leases") {
+    const st = leaseStats(db);
+    body = `<div class="card"><h2>گزارش اجاره‌های کشاورزی <button class="btn sm" data-act="guide" data-section="lease">؟ راهنما</button></h2>
+      <div class="stats">${statCard("قرارداد فعال", E.faDigits(st.active), "ملک", "pos")}${statCard("جمع اجاره", money(st.totalRent), "کل مدت")}${statCard("پرداخت‌شده", money(st.paid), "تا امروز", "pos")}${statCard("مانده", money(st.remaining), st.overdue ? `معوق ${money(st.overdue)}` : "بدون معوقه", st.overdue ? "neg" : "")}</div>
+      ${db.leases.length ? db.leases.map((l) => {
+        const next = leaseNextDue(l);
+        const sig = leaseSignedBoth(l, db.signatures);
+        return `<div class="row" style="align-items:flex-start"><span class="ico">🏞️</span><div class="grow">
+          <div class="t">${esc(l.title)}</div>
+          <div class="s">${esc(LEASE_KIND_LABEL[l.kind])} · ${esc(E.formatJalali(l.start))} تا ${esc(E.formatJalali(l.end))} · اجاره ${money(leaseTotalRent(l))}${l.sharePercent ? ` + ${E.faDigits(l.sharePercent)}٪ محصول` : ""}</div>
+          <div class="s">موجر: ${esc(db.contacts.find((c) => c.id === l.landlordId)?.name ?? "—")} · مستاجر: ${esc(db.contacts.find((c) => c.id === l.tenantId)?.name ?? "—")}</div>
+          <div class="s">پرداخت‌شده ${money(leasePaid(l, db.rents))} · مانده ${money(leaseRemaining(l, db.rents))}${next ? ` · قسط بعدی ${esc(E.formatJalali(next.due))}` : " · تسویه"}</div>
+          <div class="chip-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+            <span class="chip ${l.status === "active" ? "pos" : "warn"}">${esc(LEASE_STATUS_LABEL[l.status])}</span>
+            <span class="chip ${sig.complete ? "pos" : "warn"}">امضا ${sig.complete ? "کامل" : "ناقص"}</span>
+            ${leaseIsOverdue(l) ? '<span class="chip neg">معوق</span>' : ""}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm pri" data-act="open" data-open="lease-pay" data-id="${l.id}">پرداخت</button><button class="btn sm" data-act="open" data-open="lease-sign" data-id="${l.id}">امضا</button><button class="btn sm" data-act="lease-contract" data-id="${l.id}">متن قرارداد</button></div></div>`;
+      }).join("") : emptyBox("قرارداد اجاره‌ای ثبت نشده است.")}
+      <div class="btn-row"><button class="btn sm pri" data-act="open" data-open="lease-new">＋ قرارداد جدید</button><button class="btn sm" data-act="open" data-open="signatures-list">دفتر امضاها</button></div>
+    </div>`;
   } else {
     body = `<div class="card"><h2>سود زمین‌ها <small>مرکز هزینه</small></h2>
       ${db.projects.length ? db.projects.map((p) => {
@@ -440,6 +493,18 @@ function viewMore(): string {
     <div class="note">پشتیبان شامل همه اسناد، فاکتورها، چک، اقساط و تنظیمات است و هیچ کلید یا توکنی در آن نیست.</div>
   </div>
   <div class="card">
+    <h2>اجاره و امضا <small>${E.faDigits(db.leases.length)} قرارداد · ${E.faDigits(db.signatures.length)} امضا</small></h2>
+    <div class="list-btns">
+      <button data-act="open" data-open="lease-new"><span class="t">＋ قرارداد اجاره</span><span class="s">نقدی، سهم محصول یا ترکیبی</span></button>
+      <button data-act="open" data-open="lease-list"><span class="t">مدیریت قراردادها</span><span class="s">پرداخت، امضا، پایان</span></button>
+      <button data-act="open" data-open="lease-pay"><span class="t">پرداخت اجاره</span><span class="s">سند خودکار هزینه اجاره</span></button>
+      <button data-act="open" data-open="signatures-list"><span class="t">دفتر امضاها</span><span class="s">همه امضاهای ثبت‌شده</span></button>
+      <button data-act="guide" data-section="lease"><span class="t">راهنمای اجاره</span><span class="s">ارکان قرارداد و نکات حقوقی</span></button>
+      <button data-act="guide" data-section="signature"><span class="t">راهنمای امضا</span><span class="s">چطور امضا ثبت و نگه‌داری می‌شود</span></button>
+    </div>
+    <div class="btn-row"><button class="btn sm" data-act="open" data-open="debtor-add">＋ بدهکار</button><button class="btn sm" data-act="open" data-open="creditor-add">＋ بستانکار</button></div>
+  </div>
+  <div class="card">
     <h2>راهنمای کامل بخش‌ها <small>${E.faDigits(GUIDE_SECTIONS.length)} بخش</small></h2>
     <div class="note">هر بخش را انتخاب کنید تا توضیح دقیق، گام‌به‌گام و ساده ببینید. همین راهنماها در دستیار هم با جمله‌هایی مثل «بخش چک را توضیح بده» قابل پرسیدن است.</div>
     <div class="list-btns">${GUIDE_SECTIONS.map((key) => `<button data-act="guide" data-section="${key}"><span class="t">${esc(SECTION_GUIDES[key].icon)} ${esc(SECTION_GUIDES[key].title)}</span><span class="s">توضیح کامل و گام‌به‌گام</span></button>`).join("")}</div>
@@ -488,6 +553,15 @@ const SHEET_TITLES: Record<string, string> = {
   guide: "راهنمای بخش",
   "account-ledger": "دفتر معین حساب",
   debtors: "بدهکاران و بستانکاران",
+  "debtor-add": "افزودن بدهکار",
+  "creditor-add": "افزودن بستانکار",
+  "lease-new": "قرارداد اجاره ملک کشاورزی",
+  "lease-list": "مدیریت قراردادهای اجاره",
+  "lease-pay": "پرداخت اجاره",
+  "lease-sign": "ثبت امضا",
+  "signatures-list": "دفتر امضاها",
+  "lease-contract": "متن قرارداد",
+  guides: "راهنمای کامل بخش‌ها",
 };
 
 function val(fields: Record<string, string> | undefined, key: string, fallback = ""): string {
@@ -785,6 +859,225 @@ function accountLedgerSheet(id: number): string {
   </div>`;
 }
 
+
+function debtorForm(kind: "customer" | "supplier"): string {
+  return `<form data-form="debtor" data-kind="${kind}">
+    <div class="note">${kind === "customer" ? "بدهکار = مشتری که به شما بدهکار است. با ثبت مانده اول دوره، سند دوطرفه با حساب سرمایه ساخته می‌شود." : "بستانکار = تأمین‌کننده یا شخصی که شما به او بدهکار هستید."}</div>
+    <label>نام ${kind === "customer" ? "مشتری (بدهکار)" : "تأمین‌کننده (بستانکار)"}</label>
+    <input name="name" required placeholder="${kind === "customer" ? "آقای احمدی" : "نهاده زاگرس"}" />
+    <label>تلفن</label><input name="phone" inputmode="tel" />
+    <div class="grid2">
+      <div><label>${kind === "customer" ? "طلب اولیه" : "بدهی اولیه"}</label><input name="amount" inputmode="numeric" value="0" /></div>
+      <div><label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" /></div>
+    </div>
+    <label>نوع ${kind === "customer" ? "مشتری" : "تأمین‌کننده"}</label>
+    <select name="contactKind"><option value="${kind}">${kind === "customer" ? "مشتری" : "تأمین‌کننده"}</option><option value="both">هر دو</option>${kind === "customer" ? '<option value="worker">کارگر</option><option value="partner">شریک</option>' : ""}</select>
+    <label>مانده اول دوره به‌عنوان</label>
+    <select name="side"><option value="debit"${kind === "customer" ? " selected" : ""}>بدهکار (طرف‌حساب به من بدهکار است)</option><option value="credit"${kind === "supplier" ? " selected" : ""}>بستانکار (من به طرف‌حساب بدهکار هستم)</option></select>
+    ${signaturePad("امضای طرف‌حساب (اختیاری)")}
+    <button class="btn pri" type="submit" style="width:100%">ثبت و افزودن</button>
+  </form>`;
+}
+
+let sigPadSeq = 0;
+
+function signaturePad(label: string): string {
+  sigPadSeq += 1;
+  return `<label>${label}</label>
+  <div class="sig-wrap" data-pad="${sigPadSeq}" style="border:1px dashed var(--line-2);border-radius:12px;background:#fff;margin-bottom:6px;touch-action:none">
+    <canvas id="sig${sigPadSeq}" width="600" height="180" style="width:100%;height:120px;display:block;border-radius:12px"></canvas>
+  </div>
+  <div class="btn-row" style="margin-top:0">
+    <button class="btn sm" type="button" data-act="sig-clear" data-pad="${sigPadSeq}">پاک کردن</button>
+    <span class="note">با انگشت یا ماوس روی کادر بکشید</span>
+  </div>
+  <input type="hidden" name="signature" id="sigData${sigPadSeq}" />`;
+}
+
+
+function guidesSheet(): string {
+  return `<div class="list-btns">${GUIDE_SECTIONS.filter((k) => k !== "guides").map((key) => `<button data-act="guide" data-section="${key}"><span class="t">${esc(SECTION_GUIDES[key].icon)} ${esc(SECTION_GUIDES[key].title)}</span><span class="s">توضیح کامل و گام‌به‌گام</span></button>`).join("")}</div>
+  <div class="btn-row"><button class="btn sm" data-act="tab" data-tab="assistant">پرسیدن از دستیار</button></div>`;
+}
+
+function initSignaturePads(): void {
+  document.querySelectorAll<HTMLCanvasElement>(".sig-wrap canvas").forEach((canvas) => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx || canvas.dataset.ready === "1") return;
+    canvas.dataset.ready = "1";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#14251c";
+    let drawing = false;
+    let last: { x: number; y: number } | null = null;
+    const pos = (ev: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      return { x: ((ev.clientX - rect.left) / rect.width) * canvas.width, y: ((ev.clientY - rect.top) / rect.height) * canvas.height };
+    };
+    const start = (ev: PointerEvent) => {
+      ev.preventDefault();
+      drawing = true;
+      last = pos(ev);
+      const hidden = document.getElementById(`sigData${canvas.id.replace("sig", "")}`) as HTMLInputElement | null;
+      if (hidden) hidden.value = "";
+    };
+    const move = (ev: PointerEvent) => {
+      if (!drawing || !last) return;
+      ev.preventDefault();
+      const current = pos(ev);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(current.x, current.y);
+      ctx.stroke();
+      last = current;
+      const hidden = document.getElementById(`sigData${canvas.id.replace("sig", "")}`) as HTMLInputElement | null;
+      if (hidden) hidden.value = canvas.toDataURL("image/png");
+    };
+    const end = () => {
+      drawing = false;
+      last = null;
+      const hidden = document.getElementById(`sigData${canvas.id.replace("sig", "")}`) as HTMLInputElement | null;
+      if (hidden) hidden.value = canvas.toDataURL("image/png");
+    };
+    canvas.addEventListener("pointerdown", start);
+    canvas.addEventListener("pointermove", move);
+    canvas.addEventListener("pointerup", end);
+    canvas.addEventListener("pointerleave", end);
+    canvas.addEventListener("pointercancel", end);
+  });
+}
+
+function leaseForm(): string {
+  const today = E.todayISO();
+  return `<form data-form="lease">
+    <div class="note">ارکان لازم: مورد اجاره، مدت، مال‌الاجاره، ودیعه، حقابه، تعهدات طرفین و امضای موجر و مستاجر. سند مالی هنگام پرداخت اجاره ساخته می‌شود.</div>
+    <label>عنوان ملک / زمین</label><input name="title" required placeholder="زمین آبی روستای سبز — ۴ هکتار" />
+    <div class="grid2">
+      <div><label>نوع قرارداد</label><select name="kind"><option value="cash">اجاره نقدی</option><option value="share">مزارعه (سهم محصول)</option><option value="mixed">اجاره + سهم محصول</option></select></div>
+      <div><label>محصول</label><input name="crop" placeholder="گندم" /></div>
+    </div>
+    <div class="grid2">
+      <div><label>موجر (مالک)</label><select name="landlordId" required><option value="">انتخاب…</option>${options(state.db.contacts)}</select></div>
+      <div><label>مستاجر</label><select name="tenantId" required><option value="">انتخاب…</option>${options(state.db.contacts)}</select></div>
+    </div>
+    <div class="grid2">
+      <div><label>شروع</label><input name="start" type="date" value="${today}" required /></div>
+      <div><label>پایان</label><input name="end" type="date" value="${E.addMonths(today, 12)}" required /></div>
+    </div>
+    <div class="grid2">
+      <div><label>مساحت (هکتار)</label><input name="area" inputmode="decimal" value="0" /></div>
+      <div><label>پلاک ثبتی</label><input name="plate" /></div>
+    </div>
+    <label>موقعیت</label><input name="location" placeholder="روستا / شهرستان" />
+    <div class="grid2">
+      <div><label>مبلغ کل اجاره</label><input name="total" inputmode="numeric" value="0" /></div>
+      <div><label>ودیعه (قابل استرداد)</label><input name="deposit" inputmode="numeric" value="0" /></div>
+    </div>
+    <div class="grid2">
+      <div><label>دوره پرداخت</label><select name="cycle"><option value="once">یک‌جا</option><option value="monthly">ماهانه</option><option value="seasonal" selected>فصلی</option><option value="annual">سالانه</option></select></div>
+      <div><label>سهم محصول (٪)</label><input name="sharePercent" inputmode="numeric" value="0" /></div>
+    </div>
+    <label>حقابه / سهم آب</label><input name="waterShare" placeholder="۶ ساعت در هفته از چاه مشترک" />
+    <label>هزینه آب و برق و پمپ بر عهده</label><select name="waterPaidBy"><option>مستاجر</option><option>موجر</option><option>بالتساوی</option></select></label>
+    <label>شرایط و تعهدات</label><textarea name="terms" rows="2" placeholder="کشت گندم، عدم تغییر کاربری، تحویل زمین شخم‌زده"></textarea>
+    <label>شاهدها</label><input name="witnesses" placeholder="علی رضایی، محمد کریمی" />
+    <label>پرداخت از حساب</label><select name="accountId">${options(cashAccounts(state.db))}</select>
+    ${signaturePad("امضای موجر (اختیاری، بعداً هم می‌توانید ثبت کنید)")}
+    <button class="btn pri" type="submit" style="width:100%">ثبت قرارداد</button>
+    <div class="note">این قرارداد در اپ ثبت می‌شود؛ برای اثر حقوقی کامل، ثبت رسمی/دفتر اسناد رسمی و مشورت حقوقی لازم است.</div>
+  </form>`;
+}
+
+function leaseList(): string {
+  const db = state.db;
+  if (!db.leases.length) return `${emptyBox("قراردادی ثبت نشده است.")}<div class="btn-row"><button class="btn sm pri" data-act="open" data-open="lease-new">＋ قرارداد جدید</button><button class="btn sm" data-act="guide" data-section="lease">؟ راهنما</button></div>`;
+  return db.leases
+    .map((l) => {
+      const next = leaseNextDue(l);
+      const sig = leaseSignedBoth(l, db.signatures);
+      const signatures = leaseSignatures(db.signatures, l.id);
+      return `<div class="card" style="box-shadow:none;margin-bottom:8px">
+        <div class="row" style="border:0"><span class="ico">🏞️</span><div class="grow"><div class="t">${esc(l.title)}</div><div class="s">${esc(LEASE_KIND_LABEL[l.kind])} · ${esc(E.formatJalali(l.start))} تا ${esc(E.formatJalali(l.end))}</div>
+        <div class="s">اجاره ${money(leaseTotalRent(l))}${l.sharePercent ? ` + ${E.faDigits(l.sharePercent)}٪ محصول` : ""} · پرداخت‌شده ${money(leasePaid(l, db.rents))} · مانده ${money(leaseRemaining(l, db.rents))}</div></div>
+        <span class="chip ${l.status === "active" ? "pos" : "warn"}">${esc(LEASE_STATUS_LABEL[l.status])}</span></div>
+        <div class="note">موجر ${esc(db.contacts.find((c) => c.id === l.landlordId)?.name ?? "—")} · مستاجر ${esc(db.contacts.find((c) => c.id === l.tenantId)?.name ?? "—")}${next ? ` · قسط بعدی ${esc(E.formatJalali(next.due))} (${money(next.amount)})` : " · تسویه"}</div>
+        <div class="note">ودیعه ${money(l.deposit)} · حقابه ${esc(l.waterShare || "—")} · هزینه آب/برق: ${esc(l.waterPaidBy)}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">${sig.complete ? '<span class="chip pos">امضا کامل</span>' : `<span class="chip warn">امضا ناقص (${signatures.length})</span>`}${leaseIsOverdue(l) ? '<span class="chip neg">معوق</span>' : ""}</div>
+        <div class="btn-row">
+          <button class="btn sm pri" data-act="open" data-open="lease-pay" data-id="${l.id}">پرداخت اجاره</button>
+          <button class="btn sm" data-act="open" data-open="lease-sign" data-id="${l.id}">ثبت امضا</button>
+          <button class="btn sm" data-act="lease-contract" data-id="${l.id}">متن قرارداد</button>
+          ${l.status === "active" ? `<button class="btn sm danger" data-act="lease-end" data-id="${l.id}">پایان قرارداد</button>` : ""}
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function leasePayForm(leaseId?: number): string {
+  const db = state.db;
+  const active = db.leases.filter((l) => l.status === "active");
+  if (!active.length) return `${emptyBox("قرارداد فعالی برای پرداخت نیست.")}<div class="btn-row"><button class="btn sm pri" data-act="open" data-open="lease-new">＋ قرارداد جدید</button></div>`;
+  const selected = leaseId && active.some((l) => l.id === leaseId) ? leaseId : active[0].id;
+  const lease = active.find((l) => l.id === selected) ?? active[0];
+  const remaining = leaseRemaining(lease, db.rents);
+  const next = leaseNextDue(lease);
+  return `<form data-form="leasepay">
+    <label>قرارداد</label>
+    <select name="leaseId">${active.map((l) => `<option value="${l.id}"${l.id === selected ? " selected" : ""}>${esc(l.title)} — مانده ${money(leaseRemaining(l, db.rents))}</option>`).join("")}</select>
+    <label>قسط</label>
+    <select name="scheduleNo"><option value="">تخصیص خودکار</option>${lease.schedule.map((r) => `<option value="${r.no}"${!r.paid && next?.no === r.no ? " selected" : ""}>قسط ${E.faDigits(r.no)} — ${esc(E.formatJalali(r.due))} — ${money(r.amount)}${r.paid ? " (پرداخت‌شده)" : ""}</option>`).join("")}</select>
+    <div class="grid2">
+      <div><label>مبلغ</label><input name="amount" inputmode="numeric" required value="${next ? next.amount : remaining}" /></div>
+      <div><label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" /></div>
+    </div>
+    <label>پرداخت از حساب</label><select name="accountId">${options(cashAccounts(db))}</select>
+    <label>یادداشت</label><input name="note" />
+    <button class="btn pri" type="submit" style="width:100%">ثبت پرداخت اجاره</button>
+    <div class="note">سند خودکار: بدهکار «اجاره و آب و برق» / بستانکار حساب بانکی یا صندوق. مانده اجاره و اقساط هم‌زمان به‌روز می‌شود.</div>
+  </form>`;
+}
+
+function leaseSignForm(leaseId?: number): string {
+  const db = state.db;
+  if (!db.leases.length) return emptyBox("اول یک قرارداد اجاره ثبت کنید.");
+  const selected = leaseId && db.leases.some((l) => l.id === leaseId) ? leaseId : db.leases[db.leases.length - 1].id;
+  const existing = leaseSignatures(db.signatures, selected);
+  return `<form data-form="leasesign">
+    <label>قرارداد</label>
+    <select name="leaseId">${db.leases.map((l) => `<option value="${l.id}"${l.id === selected ? " selected" : ""}>${esc(l.title)}</option>`).join("")}</select>
+    <div class="grid2">
+      <div><label>نقش امضاکننده</label><select name="role"><option>موجر</option><option>مستاجر</option><option>شاهد</option><option>نماینده</option></select></div>
+      <div><label>نام امضاکننده</label><input name="signerName" required value="${esc(db.contacts.find((c) => c.id === db.leases.find((l) => l.id === selected)?.landlordId)?.name ?? "")}" /></div>
+    </div>
+    ${signaturePad("امضا")}
+    <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" name="confirm" style="width:auto;margin:0" required /> تأیید می‌کنم این امضا با آگاهی و در حضور طرفین ثبت می‌شود</label>
+    <button class="btn pri" type="submit" style="width:100%">ثبت امضا</button>
+    ${existing.length ? `<div class="note">امضاهای ثبت‌شده: ${existing.map((x) => `${esc(x.role)} (${esc(x.signerName)})`).join(" · ")}</div>` : ""}
+    <div class="note">امضا در همان دستگاه ذخیره می‌شود و به قرارداد/طرف‌حساب مرتبط می‌گردد؛ این یک «ثبت توافقی درون‌برنامه‌ای» است و جایگزین تأییدیه دفتر اسناد رسمی نیست.</div>
+  </form>`;
+}
+
+function signaturesList(): string {
+  const db = state.db;
+  if (!db.signatures.length) return `${emptyBox("امضایی ثبت نشده است.")}<div class="btn-row"><button class="btn sm pri" data-act="open" data-open="lease-sign">＋ ثبت امضا</button></div>`;
+  return [...db.signatures].reverse().map((sig) => {
+    const lease = sig.context === "lease" ? db.leases.find((l) => l.id === sig.refId) : null;
+    const contact = sig.context === "contact" ? db.contacts.find((c) => c.id === sig.refId) : null;
+    return `<div class="row" style="align-items:flex-start"><img src="${sig.image}" alt="امضا" style="width:74px;height:40px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px" /><div class="grow"><div class="t">${esc(sig.role)} — ${esc(sig.signerName)}</div><div class="s">${lease ? `قرارداد: ${esc(lease.title)}` : contact ? `طرف‌حساب: ${esc(contact.name)}` : "سند"}</div><div class="s">${esc(E.formatJalali(sig.at.slice(0, 10)))} · کد اثر ${esc(sig.hash)}</div></div></div>`;
+  }).join("") + `<div class="btn-row"><button class="btn sm pri" data-act="open" data-open="lease-sign">＋ ثبت امضا</button><button class="btn sm" data-act="guide" data-section="signature">؟ راهنمای امضا</button></div>`;
+}
+
+function leaseContractSheet(id: number): string {
+  const text = leaseContractText(state.db, id);
+  if (!text) return emptyBox("قرارداد یافت نشد.");
+  return `<div class="card" style="box-shadow:none"><pre style="white-space:pre-wrap;font:inherit;font-size:11.5px;line-height:2;margin:0">${esc(text)}</pre></div>
+  <div class="btn-row"><button class="btn sm pri" data-act="copy-text" data-id="${id}">کپی متن قرارداد</button><button class="btn sm" data-act="open" data-open="lease-sign" data-id="${id}">ثبت امضا</button><button class="btn sm" data-act="open" data-open="lease-pay" data-id="${id}">پرداخت اجاره</button></div>`;
+}
+
 function formSettings(db: E.DB): string {
   return `<form data-form="settings">
     <label>نام کسب‌وکار</label><input name="business" value="${esc(db.settings.business)}" />
@@ -914,6 +1207,24 @@ function sheetBody(kind: string, fields?: Record<string, string>): string {
       return formRestore();
     case "contact-statement":
       return contactStatementSheet(Number(fields?.id ?? 0));
+    case "debtor-add":
+      return debtorForm("customer");
+    case "creditor-add":
+      return debtorForm("supplier");
+    case "lease-new":
+      return leaseForm();
+    case "lease-list":
+      return leaseList();
+    case "lease-pay":
+      return leasePayForm(fields?.id ? Number(fields.id) : undefined);
+    case "lease-sign":
+      return leaseSignForm(fields?.id ? Number(fields.id) : undefined);
+    case "signatures-list":
+      return signaturesList();
+    case "lease-contract":
+      return leaseContractSheet(Number(fields?.id ?? 0));
+    case "guides":
+      return guidesSheet();
     case "opening":
       return formOpening(Number(fields?.id ?? 0));
     case "guide":
@@ -945,6 +1256,7 @@ function openSheet(kind: string, fields?: Record<string, string>): void {
   if (body) body.innerHTML = sheetBody(kind, fields);
   wrap.classList.remove("hide");
   state.sheet = kind;
+  initSignaturePads();
 }
 
 function closeSheet(): void {
@@ -1109,6 +1421,31 @@ function bindEvents(): void {
       if (window.confirm("داده‌های نمونه روی داده فعلی افزوده/جایگزین می‌شود. ادامه؟")) commit(S.demoDB(), "داده نمونه بارگذاری شد");
     } else if (act === "reset") {
       if (window.confirm("همه داده‌های محلی پاک شود؟ این کار قابل بازگشت نیست.")) commit(S.resetDB(), "همه داده‌ها پاک شد");
+    } else if (act === "guides") {
+      openSheet("guides");
+    } else if (act === "sig-clear" && target.dataset.pad) {
+      const canvas = document.getElementById(`sig${target.dataset.pad}`) as HTMLCanvasElement | null;
+      const ctx = canvas?.getContext("2d");
+      if (canvas && ctx) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const hidden = document.getElementById(`sigData${target.dataset.pad}`) as HTMLInputElement | null;
+        if (hidden) hidden.value = "";
+      }
+    } else if (act === "lease-contract" && target.dataset.id) {
+      openSheet("lease-contract", { id: target.dataset.id });
+    } else if (act === "lease-end" && target.dataset.id) {
+      if (window.confirm("این قرارداد پایان‌یافته شود؟")) {
+        try {
+          commit(S.endLease(state.db, Number(target.dataset.id), "ended"), "قرارداد پایان یافت");
+          openSheet("lease-list");
+        } catch (error) {
+          toast(error instanceof Error ? error.message : "انجام نشد", true);
+        }
+      }
+    } else if (act === "copy-text" && target.dataset.id) {
+      const text = leaseContractText(state.db, Number(target.dataset.id));
+      void navigator.clipboard?.writeText(text).then(() => toast("متن قرارداد کپی شد")).catch(() => toast("کپی ممکن نشد", true));
     } else if (act === "guide" && target.dataset.section) {
       openSheet("guide", { section: target.dataset.section });
     } else if (act === "statement" && target.dataset.id) {
@@ -1248,6 +1585,66 @@ function bindEvents(): void {
         case "loan":
           commit(S.addLoan(state.db, { title: str("title"), lender: str("lender"), principal: num("principal"), rate: num("rate"), months: num("months"), start: str("start") || E.todayISO() }), "وام و اقساط ساخته شد");
           break;
+        case "debtor": {
+          const isCustomer = form.dataset.kind !== "supplier";
+          let next = S.addContact(state.db, { name: str("name"), kind: (str("contactKind") as E.Contact["kind"]) || (isCustomer ? "customer" : "supplier"), phone: str("phone") });
+          const newId = next.contacts[next.contacts.length - 1].id;
+          const amount = num("amount");
+          if (amount > 0) next = S.addContactOpening(next, { contactId: newId, amount, side: str("side") === "credit" ? "credit" : "debit", date: str("date") || E.todayISO() });
+          const image = str("signature");
+          if (image) next = S.addContactSignature(next, { contactId: newId, signerName: str("name"), image, role: isCustomer ? "مشتری" : "تأمین‌کننده" });
+          commit(next, isCustomer ? "بدهکار اضافه شد" : "بستانکار اضافه شد");
+          break;
+        }
+        case "lease": {
+          let next = S.addLease(state.db, {
+            title: str("title"),
+            kind: (str("kind") as "cash" | "share" | "mixed") || "cash",
+            landlordId: Number(data.get("landlordId")),
+            tenantId: Number(data.get("tenantId")),
+            location: str("location"),
+            plate: str("plate"),
+            area: num("area"),
+            crop: str("crop"),
+            start: str("start"),
+            end: str("end"),
+            cycle: (str("cycle") as "once" | "monthly" | "seasonal" | "annual") || "seasonal",
+            total: num("total"),
+            sharePercent: num("sharePercent"),
+            deposit: num("deposit"),
+            waterShare: str("waterShare"),
+            waterPaidBy: str("waterPaidBy"),
+            terms: str("terms"),
+            witnesses: str("witnesses"),
+            accountId: Number(data.get("accountId")),
+          });
+          const leaseId = next.leases[next.leases.length - 1].id;
+          const image = str("signature");
+          if (image) next = S.addLeaseSignature(next, { leaseId, role: "موجر", signerName: state.db.contacts.find((c) => c.id === Number(data.get("landlordId")))?.name ?? "موجر", image });
+          commit(next, "قرارداد اجاره ثبت شد");
+          break;
+        }
+        case "leasepay": {
+          commit(
+            S.addLeasePayment(state.db, {
+              leaseId: Number(data.get("leaseId")),
+              amount: num("amount"),
+              date: str("date") || E.todayISO(),
+              accountId: Number(data.get("accountId")),
+              scheduleNo: str("scheduleNo") ? Number(str("scheduleNo")) : null,
+              note: str("note"),
+            }),
+            "پرداخت اجاره ثبت شد",
+          );
+          break;
+        }
+        case "leasesign": {
+          if (data.get("confirm") !== "on") throw new Error("تأیید ثبت امضا لازم است.");
+          const image = str("signature");
+          if (!image) throw new Error("امضا خالی است؛ روی کادر امضا بکشید.");
+          commit(S.addLeaseSignature(state.db, { leaseId: Number(data.get("leaseId")), role: str("role"), signerName: str("signerName"), image }), "امضا ثبت شد");
+          break;
+        }
         case "opening": {
           commit(
             S.addContactOpening(state.db, {

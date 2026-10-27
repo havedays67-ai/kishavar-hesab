@@ -30,6 +30,7 @@ import {
   loanSchedule,
   monthlySeries,
   postEntry,
+  parseDate,
   profitOf,
   projectProfit,
   toAmount,
@@ -39,6 +40,9 @@ import {
   undoEntry,
   validatePosting,
   type Account,
+  type Lease,
+  type RentPayment,
+  type SignatureRecord,
   type Asset,
   type Budget,
   type Cheque,
@@ -54,6 +58,7 @@ import {
   type Project,
   type Settings,
 } from "./engine";
+import { buildLeaseSchedule as buildSchedule } from "./lease";
 
 export const STORAGE_KEY = "kishavar.offline.v2";
 export const LEGACY_KEY = "kishavar.offline.v1";
@@ -79,6 +84,9 @@ export function emptyDB(): DB {
     budgets: [],
     projects: [],
     ops: [],
+    leases: [],
+    rents: [],
+    signatures: [],
     audit: [],
   };
 }
@@ -105,7 +113,15 @@ export function loadDB(): DB {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<DB>;
       if (parsed && parsed.version === 2 && Array.isArray(parsed.entries) && Array.isArray(parsed.accounts)) {
-        return { ...base, ...parsed, accounts: parsed.accounts.length ? parsed.accounts : base.accounts, settings: { ...base.settings, ...parsed.settings } } as DB;
+        return {
+          ...base,
+          ...parsed,
+          accounts: parsed.accounts.length ? parsed.accounts : base.accounts,
+          settings: { ...base.settings, ...parsed.settings },
+          leases: Array.isArray(parsed.leases) ? parsed.leases : [],
+          rents: Array.isArray(parsed.rents) ? parsed.rents : [],
+          signatures: Array.isArray(parsed.signatures) ? parsed.signatures : [],
+        } as DB;
       }
     }
     const legacy = localStorage.getItem(LEGACY_KEY);
@@ -584,6 +600,31 @@ export function demoDB(): DB {
   db = addFarmOp(db, { projectId: p1, date: addMonths(today, -2), kind: "plant", desc: "کاشت گندم رقم چمران", amount: 0, qty: 2400, unit: "کیلوگرم بذر" });
   db = addFarmOp(db, { projectId: p1, date: addMonths(today, -1), kind: "irrigate", desc: "آبیاری بارانی — نوبت سوم", amount: 7_500_000 });
   db = addFarmOp(db, { projectId: p1, date: addDays(today, -6), kind: "harvest", desc: "برداشت گندم", amount: 0, qty: 12800, unit: "کیلوگرم" });
+
+  db = addLease(db, {
+    title: "زمین آبی روستای سبز — ۴ هکتار",
+    kind: "cash",
+    landlordId: db.contacts[1].id,
+    tenantId: db.contacts[0].id,
+    location: "کبودراهنگ، روستای سبز",
+    plate: "۱۴۷/۲",
+    area: 4,
+    crop: "گندم",
+    start: addMonths(today, -4),
+    end: addMonths(today, 8),
+    cycle: "seasonal",
+    total: 120_000_000,
+    sharePercent: 0,
+    deposit: 50_000_000,
+    waterShare: "۶ ساعت در هفته از چاه مشترک",
+    waterPaidBy: "مستاجر",
+    terms: "کشت گندم، عدم تغییر کاربری، تحویل زمین شخم‌زده در پایان مدت",
+    witnesses: "علی رضایی، محمد کریمی",
+    accountId: bank,
+  });
+  db = addLeaseSignature(db, { leaseId: db.leases[0].id, role: "موجر", signerName: db.contacts[1].name, image: DEMO_SIGNATURE });
+  db = addLeaseSignature(db, { leaseId: db.leases[0].id, role: "مستاجر", signerName: db.contacts[0].name, image: DEMO_SIGNATURE });
+  db = addLeasePayment(db, { leaseId: db.leases[0].id, amount: 30_000_000, date: addDays(today, -20), accountId: bank, scheduleNo: 1 });
   return audit(db, "بارگذاری داده نمونه", "system", "update");
 }
 
@@ -643,4 +684,170 @@ export function addContactOpening(
     lines,
   });
   return audit(posted.db, `مانده اول دوره ${contact?.name ?? ""} به مبلغ ${fmt(amount)}`, "contact");
+}
+
+/* ------------------------------ اجاره و امضا ------------------------------ */
+
+const DEMO_SIGNATURE =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="90"><rect width="240" height="90" fill="#fff"/><path d="M20 60 C60 10 90 85 120 40 S180 20 220 55" fill="none" stroke="#14251c" stroke-width="3" stroke-linecap="round"/></svg>');
+
+function signatureHash(image: string): string {
+  let h = 5381;
+  for (let i = 0; i < image.length; i += 7) h = ((h << 5) + h + image.charCodeAt(i)) >>> 0;
+  return `S${h.toString(16).toUpperCase()}`;
+}
+
+export function addLease(
+  db: DB,
+  input: {
+    title: string;
+    kind: Lease["kind"];
+    landlordId: number;
+    tenantId: number;
+    location: string;
+    plate: string;
+    area: number;
+    crop: string;
+    start: string;
+    end: string;
+    cycle: Lease["cycle"];
+    total: number;
+    sharePercent: number;
+    deposit: number;
+    waterShare: string;
+    waterPaidBy: string;
+    terms: string;
+    witnesses: string;
+    accountId?: number;
+  },
+): DB {
+  if (!input.title.trim()) throw new Error("عنوان ملک یا زمین را وارد کنید.");
+  if (!input.landlordId) throw new Error("موجر (مالک) را انتخاب کنید.");
+  if (!input.tenantId) throw new Error("مستاجر را انتخاب کنید.");
+  if (input.landlordId === input.tenantId) throw new Error("موجر و مستاجر نمی‌توانند یک نفر باشند.");
+  if (!input.start || !input.end) throw new Error("تاریخ شروع و پایان قرارداد لازم است.");
+  if (input.end <= input.start) throw new Error("تاریخ پایان باید بعد از شروع باشد.");
+  if (input.kind === "share" && (input.sharePercent <= 0 || input.sharePercent >= 100)) throw new Error("در مزارعه سهم باید بین ۱ تا ۹۹ درصد از محصول باشد.");
+  if (input.kind !== "share" && input.total <= 0) throw new Error("مبلغ اجاره باید بزرگ‌تر از صفر باشد.");
+
+  const { db: next, id } = bump(db);
+  const startDate = parseDate(input.start);
+  const endDate = parseDate(input.end);
+  const months = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1);
+  const schedule = buildSchedule({ start: input.start, end: input.end, total: Math.round(input.total), cycle: input.cycle });
+  const lease: Lease = {
+    id,
+    title: input.title.trim(),
+    kind: input.kind,
+    landlordId: input.landlordId,
+    tenantId: input.tenantId,
+    location: input.location.trim(),
+    plate: input.plate.trim(),
+    area: Number(input.area) || 0,
+    crop: input.crop.trim(),
+    start: input.start,
+    end: input.end,
+    months,
+    cycle: input.cycle,
+    sharePercent: input.kind === "cash" ? 0 : Math.round(input.sharePercent),
+    deposit: Math.max(0, Math.round(input.deposit)),
+    waterShare: input.waterShare.trim(),
+    waterPaidBy: input.waterPaidBy.trim() || "مستاجر",
+    terms: input.terms.trim(),
+    witnesses: input.witnesses.trim(),
+    status: "active",
+    schedule,
+    createdAt: new Date().toISOString(),
+  };
+  return audit({ ...next, leases: [...next.leases, lease] }, `قرارداد اجاره «${lease.title}» ثبت شد`, "lease");
+}
+
+export function addLeasePayment(
+  db: DB,
+  input: { leaseId: number; amount: number; date: string; accountId: number; scheduleNo?: number | null; note?: string },
+): DB {
+  const lease = db.leases.find((l) => l.id === input.leaseId);
+  if (!lease) throw new Error("قرارداد اجاره یافت نشد.");
+  const amount = Math.round(Math.abs(input.amount));
+  if (amount <= 0) throw new Error("مبلغ اجاره معتبر نیست.");
+  const postId = db.seq + 1;
+  const posted = postEntry(
+    { ...db, seq: postId },
+    {
+      date: input.date || todayISO(),
+      desc: `پرداخت اجاره — ${lease.title}${input.scheduleNo ? ` (قسط ${input.scheduleNo})` : ""}`,
+      source: "payment",
+      contactId: lease.landlordId,
+      lines: [
+        { accountId: codeOf(db, "5140"), debit: amount, credit: 0 },
+        { accountId: input.accountId || codeOf(db, "1020"), debit: 0, credit: amount },
+      ],
+    },
+  );
+  const rent: RentPayment = { id: postId, leaseId: lease.id, date: input.date || todayISO(), amount, accountId: input.accountId, scheduleNo: input.scheduleNo ?? null, note: input.note ?? "" };
+  let schedule = lease.schedule;
+  if (input.scheduleNo) {
+    schedule = schedule.map((r) => (r.no === input.scheduleNo ? { ...r, paid: true, paidAmount: (r.paidAmount ?? 0) + amount } : r));
+  } else {
+    let left = amount;
+    schedule = schedule.map((r) => {
+      if (left <= 0 || r.paid) return r;
+      const use = Math.min(left, r.amount);
+      left -= use;
+      return { ...r, paid: use >= r.amount, paidAmount: (r.paidAmount ?? 0) + use };
+    });
+  }
+  return audit(
+    { ...posted.db, rents: [...posted.db.rents, rent], leases: posted.db.leases.map((l) => (l.id === lease.id ? { ...l, schedule } : l)) },
+    `پرداخت اجاره ${lease.title} به مبلغ ${fmt(amount)}`,
+    "rent",
+  );
+}
+
+export function addLeaseSignature(db: DB, input: { leaseId: number; role: string; signerName: string; image: string }): DB {
+  const lease = db.leases.find((l) => l.id === input.leaseId);
+  if (!lease) throw new Error("قرارداد یافت نشد.");
+  if (!input.signerName.trim()) throw new Error("نام امضاکننده لازم است.");
+  if (!input.image || input.image.length < 80) throw new Error("امضا خالی است؛ روی کادر امضا بکشید.");
+  const { db: next, id } = bump(db);
+  const record: SignatureRecord = {
+    id,
+    at: new Date().toISOString(),
+    context: "lease",
+    refId: lease.id,
+    role: input.role || "امضاکننده",
+    signerName: input.signerName.trim(),
+    image: input.image,
+    hash: signatureHash(input.image),
+  };
+  return audit({ ...next, signatures: [...next.signatures, record] }, `امضای ${record.role} — ${lease.title}`, "signature");
+}
+
+export function addContactSignature(db: DB, input: { contactId: number; signerName: string; image: string; role?: string }): DB {
+  const contact = db.contacts.find((c) => c.id === input.contactId);
+  if (!contact) throw new Error("طرف‌حساب یافت نشد.");
+  if (!input.image || input.image.length < 80) throw new Error("امضا خالی است؛ روی کادر امضا بکشید.");
+  const { db: next, id } = bump(db);
+  const record: SignatureRecord = {
+    id,
+    at: new Date().toISOString(),
+    context: "contact",
+    refId: contact.id,
+    role: input.role || "طرف‌حساب",
+    signerName: input.signerName.trim() || contact.name,
+    image: input.image,
+    hash: signatureHash(input.image),
+  };
+  return audit({ ...next, signatures: [...next.signatures, record] }, `ثبت امضای ${record.signerName}`, "signature");
+}
+
+export function endLease(db: DB, leaseId: number, status: "ended" | "canceled" = "ended"): DB {
+  const lease = db.leases.find((l) => l.id === leaseId);
+  if (!lease) throw new Error("قرارداد یافت نشد.");
+  return audit({ ...db, leases: db.leases.map((l) => (l.id === leaseId ? { ...l, status } : l)) }, `${status === "ended" ? "پایان" : "فسخ"} قرارداد ${lease.title}`, "lease", "update");
+}
+
+export function demoSignature(): string {
+  return DEMO_SIGNATURE;
 }

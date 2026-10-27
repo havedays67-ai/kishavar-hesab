@@ -179,6 +179,64 @@ export interface Settings {
   theme: "light" | "dark";
 }
 
+
+/* ------------------------------ اجاره و امضا ------------------------------ */
+
+export interface RentScheduleRow {
+  no: number;
+  due: string;
+  amount: number;
+  paid: boolean;
+  paidAmount?: number;
+}
+
+export interface Lease {
+  id: number;
+  title: string;
+  kind: "cash" | "share" | "mixed";
+  landlordId: number;
+  tenantId: number;
+  location: string;
+  plate: string;
+  area: number;
+  crop: string;
+  start: string;
+  end: string;
+  months: number;
+  cycle: "once" | "monthly" | "seasonal" | "annual";
+  sharePercent: number;
+  deposit: number;
+  waterShare: string;
+  waterPaidBy: string;
+  terms: string;
+  witnesses: string;
+  status: "draft" | "active" | "ended" | "canceled";
+  schedule: RentScheduleRow[];
+  createdAt: string;
+  note?: string;
+}
+
+export interface RentPayment {
+  id: number;
+  leaseId: number;
+  date: string;
+  amount: number;
+  accountId: number;
+  scheduleNo?: number | null;
+  note?: string;
+}
+
+export interface SignatureRecord {
+  id: number;
+  at: string;
+  context: "lease" | "contact" | "document" | "invoice";
+  refId: number | null;
+  role: string;
+  signerName: string;
+  image: string;
+  hash: string;
+}
+
 export interface DB {
   version: 2;
   seq: number;
@@ -198,6 +256,9 @@ export interface DB {
   budgets: Budget[];
   projects: Project[];
   ops: FarmOp[];
+  leases: Lease[];
+  rents: RentPayment[];
+  signatures: SignatureRecord[];
   audit: Audit[];
 }
 
