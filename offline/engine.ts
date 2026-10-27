@@ -773,3 +773,177 @@ export function budgetUsageEq(db: DB): { accountId: number; name: string; budget
 export function monthsForChart(db: DB, count = 6): { label: string; income: number; expense: number }[] {
   return monthlySeries(db, lastMonths(count)).map((m) => ({ label: m.label, income: m.income, expense: m.expense }));
 }
+
+
+/* --------------------------- دفتر معین طرف‌حساب --------------------------- */
+
+export interface StatementRow {
+  id: string;
+  date: string;
+  kind: "invoice" | "payment" | "cheque" | "opening" | "manual";
+  title: string;
+  ref: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface ContactLedger {
+  rows: StatementRow[];
+  debit: number;
+  credit: number;
+  net: number;
+  invoiced: number;
+  settled: number;
+  openInvoices: number;
+  chequesPending: number;
+  overdue: number;
+}
+
+export function contactKindLabel(kind: Contact["kind"]): string {
+  return kind === "customer" ? "مشتری" : kind === "supplier" ? "تأمین‌کننده" : kind === "both" ? "مشتری و تأمین‌کننده" : kind === "worker" ? "کارگر" : "شریک";
+}
+
+/** گردش کامل یک طرف‌حساب: هر ردیف با مانده‌ی تجمعی (بدهکار مثبت، بستانکار منفی) */
+export function contactStatement(db: DB, contactId: number): ContactLedger {
+  const ar = codeOfSafe(db, "1100");
+  const ap = codeOfSafe(db, "2100");
+  const raw: Omit<StatementRow, "balance">[] = [];
+  for (const entry of db.entries) {
+    if (entry.contactId !== contactId) continue;
+    let debit = 0;
+    let credit = 0;
+    for (const line of entry.lines) {
+      if (line.accountId !== ar && line.accountId !== ap) continue;
+      debit += line.debit;
+      credit += line.credit;
+    }
+    if (!debit && !credit) continue;
+    raw.push({
+      id: `e-${entry.id}`,
+      date: entry.date,
+      kind:
+        entry.source === "sale" || entry.source === "purchase"
+          ? "invoice"
+          : entry.source === "payment"
+            ? "payment"
+            : entry.source === "cheque"
+              ? "cheque"
+              : entry.source === "opening"
+                ? "opening"
+                : "manual",
+      title: entry.desc,
+      ref: `#${faDigits(entry.id)}`,
+      debit,
+      credit,
+    });
+  }
+  raw.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  let running = 0;
+  const rows: StatementRow[] = raw.map((r) => {
+    running += r.debit - r.credit;
+    return { ...r, balance: running };
+  });
+  const debit = rows.reduce((s, r) => s + r.debit, 0);
+  const credit = rows.reduce((s, r) => s + r.credit, 0);
+  const invoices = db.invoices.filter((i) => i.contactId === contactId);
+  const open = invoices.filter((i) => invoiceRemaining(i) > 0);
+  const overdue = open.filter((i) => i.type === "sale" && i.due < todayISO()).reduce((s, i) => s + invoiceRemaining(i), 0);
+  return {
+    rows,
+    debit,
+    credit,
+    net: debit - credit,
+    invoiced: invoices.reduce((s, i) => s + i.total, 0),
+    settled: invoices.reduce((s, i) => s + i.paid, 0),
+    openInvoices: open.length,
+    chequesPending: db.cheques.filter((c) => c.contactId === contactId && c.status === "pending").reduce((s, c) => s + c.amount, 0),
+    overdue,
+  };
+}
+
+export interface ContactSummary {
+  id: number;
+  name: string;
+  kind: Contact["kind"];
+  debit: number;
+  credit: number;
+  net: number;
+  overdue: number;
+  openInvoices: number;
+}
+
+export function contactSummaries(db: DB): ContactSummary[] {
+  return db.contacts
+    .map((c) => {
+      const s = contactStatement(db, c.id);
+      return { id: c.id, name: c.name, kind: c.kind, debit: s.debit, credit: s.credit, net: s.net, overdue: s.overdue, openInvoices: s.openInvoices };
+    })
+    .sort((a, b) => b.net - a.net);
+}
+
+/** تفکیک بدهکاران (طلب ما) و بستانکاران (بدهی ما) با جمع و معوق */
+export function debtorsCreditors(db: DB): {
+  debtors: ContactSummary[];
+  creditors: ContactSummary[];
+  totalDebit: number;
+  totalCredit: number;
+  overdueTotal: number;
+} {
+  const all = contactSummaries(db);
+  const debtors = all.filter((c) => c.net > 0);
+  const creditors = all.filter((c) => c.net < 0);
+  return {
+    debtors,
+    creditors,
+    totalDebit: debtors.reduce((s, c) => s + c.net, 0),
+    totalCredit: creditors.reduce((s, c) => s + Math.abs(c.net), 0),
+    overdueTotal: all.reduce((s, c) => s + c.overdue, 0),
+  };
+}
+
+/** دفتر معین یک حساب: همه ردیف‌های آن حساب با مانده تجمعی */
+export function accountLedger(db: DB, accountId: number): {
+  name: string;
+  code: string;
+  type: AccountType;
+  rows: StatementRow[];
+  debit: number;
+  credit: number;
+  balance: number;
+} {
+  const account = db.accounts.find((a) => a.id === accountId);
+  const rowsRaw: Omit<StatementRow, "balance">[] = [];
+  for (const entry of db.entries) {
+    const debit = entry.lines.filter((l) => l.accountId === accountId).reduce((s, l) => s + l.debit, 0);
+    const credit = entry.lines.filter((l) => l.accountId === accountId).reduce((s, l) => s + l.credit, 0);
+    if (!debit && !credit) continue;
+    rowsRaw.push({ id: `e-${entry.id}`, date: entry.date, kind: "manual", title: entry.desc, ref: `#${faDigits(entry.id)}`, debit, credit });
+  }
+  rowsRaw.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  let running = 0;
+  const rows = rowsRaw.map((r) => {
+    running += r.debit - r.credit;
+    return { ...r, balance: running };
+  });
+  const debit = rows.reduce((s, r) => s + r.debit, 0);
+  const credit = rows.reduce((s, r) => s + r.credit, 0);
+  return { name: account?.name ?? "—", code: account?.code ?? "—", type: account?.type ?? "asset", rows, debit, credit, balance: debit - credit };
+}
+
+/** صورتحساب متنی برای اشتراک‌گذاری/کپی (بدون کلید و داده حساس) */
+export function statementText(db: DB, contactId: number): string {
+  const contact = db.contacts.find((c) => c.id === contactId);
+  if (!contact) return "";
+  const s = contactStatement(db, contactId);
+  const lines = [
+    `صورتحساب ${contact.name} — ${formatJalali(new Date(), "long")}`,
+    `مانده: ${fmt(s.net)} (${s.net > 0 ? "بدهکار" : s.net < 0 ? "بستانکار" : "تسویه"})`,
+    `جمع بدهکار: ${fmt(s.debit)} | جمع بستانکار: ${fmt(s.credit)}`,
+    "—".repeat(20),
+    ...s.rows.map((r) => `${formatJalali(r.date)} | ${r.title} | بدهکار ${fmt(r.debit)} | بستانکار ${fmt(r.credit)} | مانده ${fmt(r.balance)}`),
+    "—".repeat(20),
+    "کشاورزحساب — محاسبه‌شده با موتور قطعی دوطرفه",
+  ];
+  return lines.join("\n");
+}

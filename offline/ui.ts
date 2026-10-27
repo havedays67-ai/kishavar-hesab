@@ -4,7 +4,15 @@
  */
 import * as S from "./store";
 import * as E from "./engine";
-import { ASSISTANT_INTENT_COUNT, ASSISTANT_SAMPLES, runAssistant, type AssistantResult } from "./assistant";
+import {
+  ASSISTANT_INTENT_COUNT,
+  ASSISTANT_SAMPLES,
+  GUIDE_SECTIONS,
+  SECTION_GUIDES,
+  runAssistant,
+  sectionGuide,
+  type AssistantResult,
+} from "./assistant";
 
 type Tab = "home" | "ledger" | "reports" | "assistant" | "more";
 type ChatMessage = { role: "me" | "bot"; text: string; result?: AssistantResult };
@@ -94,6 +102,7 @@ function viewHome(): string {
   const lateInstallments = db.installments.filter((i) => !i.paid && i.due < E.todayISO());
   const low = db.products.filter((p) => p.stock <= p.min);
   const overBudget = db.budgets.length ? E.budgetUsageEq(db).filter((b) => b.pct > 100) : [];
+  const dc = E.debtorsCreditors(db);
   const alerts: string[] = [];
   if (dueCheques.length) alerts.push(`${E.faDigits(dueCheques.length)} چک تا ۱۰ روز آینده سررسید می‌شود`);
   if (lateInstallments.length) alerts.push(`${E.faDigits(lateInstallments.length)} قسط معوق دارید`);
@@ -117,6 +126,16 @@ function viewHome(): string {
     ${statCard("مطالبات", money(db.invoices.filter((i) => i.type === "sale").reduce((s, i) => s + E.invoiceRemaining(i), 0)), "فاکتور باز")}
     ${statCard("بدهی", money(E.balanceSheet(db).liabilities), "وام و بستانکار")}
     ${statCard("ترازنامه", E.balanceSheet(db).balanced ? "تراز" : "عدم تراز", "کنترل")}
+  </div>
+  <div class="card">
+    <h2>بدهکاران و بستانکاران <button class="btn sm" data-act="open" data-open="contacts-list">همه</button></h2>
+    <div class="stats">
+      ${statCard("جمع طلب از بدهکاران", money(dc.totalDebit), `${E.faDigits(dc.debtors.length)} طرف‌حساب`, "pos")}
+      ${statCard("جمع بدهی به بستانکاران", money(dc.totalCredit), `${E.faDigits(dc.creditors.length)} طرف‌حساب`, "neg")}
+    </div>
+    ${dc.overdueTotal > 0 ? `<div class="row"><span class="ico">⚠️</span><div class="grow"><div class="t">مطالبات معوق</div><div class="s">سررسید گذشته و وصول‌نشده</div></div><span class="num neg" style="font-weight:700">${money(dc.overdueTotal)}</span></div>` : ""}
+    ${[...dc.debtors.slice(0, 3), ...dc.creditors.slice(0, 2)].map((c) => `<div class="row"><span class="ico">${c.net >= 0 ? "🟢" : "🔴"}</span><div class="grow"><div class="t">${esc(c.name)}</div><div class="s">${c.net >= 0 ? "بدهکار به شما" : "شما بدهکار هستید"}${c.overdue > 0 ? ` · معوق ${money(c.overdue)}` : ""}</div></div><button class="btn sm" data-act="statement" data-id="${c.id}">صورتحساب</button></div>`).join("") || emptyBox("برای شروع، طرف‌حساب و فاکتور ثبت کنید.")}
+    <div class="btn-row"><button class="btn sm" data-act="open" data-open="contact">＋ طرف‌حساب</button><button class="btn sm" data-act="statement-list">فهرست صورتحساب‌ها</button><button class="btn sm" data-act="guide" data-section="contact">؟ راهنما</button></div>
   </div>
   <div class="card">
     <h2>هشدارهای مهم <span class="chip ${alerts.length ? "warn" : "pos"}">${alerts.length ? `${E.faDigits(alerts.length)} مورد` : "آرام"}</span></h2>
@@ -199,7 +218,9 @@ const REPORT_TABS = [
   { key: "aging", label: "مطالبات" },
   { key: "balance", label: "ترازنامه" },
   { key: "tax", label: "مالیات" },
+  { key: "debtors", label: "بدهکار/بستانکار" },
   { key: "contacts", label: "طرف‌حساب" },
+  { key: "trial", label: "تراز آزمایشی" },
   { key: "budget", label: "بودجه" },
   { key: "stock", label: "انبار" },
   { key: "assets", label: "دارایی" },
@@ -291,6 +312,28 @@ function viewReports(): string {
       }).join("") : emptyBox("دارایی ثبت نشده است.")}
       <div class="note">جمع بهای تمام‌شده: ${moneyU(totalCost)} — استهلاک خط مستقیم و قطعی.</div>
       <div class="btn-row"><button class="btn sm" data-act="open" data-open="asset">＋ دارایی</button></div></div>`;
+  } else if (state.reportTab === "debtors") {
+    const dc = E.debtorsCreditors(db);
+    const row = (c: E.ContactSummary, tone: "pos" | "neg") => `<div class="row"><span class="ico">${tone === "pos" ? "🟢" : "🔴"}</span><div class="grow"><div class="t">${esc(c.name)}</div><div class="s">${tone === "pos" ? "بدهکار به شما" : "شما بدهکار هستید"}${c.openInvoices ? ` · ${E.faDigits(c.openInvoices)} فاکتور باز` : ""}${c.overdue > 0 ? ` · معوق ${money(c.overdue)}` : ""}</div></div><div style="text-align:left"><span class="num ${tone}" style="font-weight:700">${money(Math.abs(c.net))}</span><div class="s num">بد ${E.faDigits(c.debit)} / بس ${E.faDigits(c.credit)}</div><button class="btn sm" data-act="statement" data-id="${c.id}">صورتحساب</button></div></div>`;
+    body = `<div class="card"><h2>بدهکاران <small>طلب شما</small><button class="btn sm" data-act="guide" data-section="contact">؟ راهنما</button></h2>
+      <div class="stats">${statCard("جمع طلب", money(dc.totalDebit), `${E.faDigits(dc.debtors.length)} نفر`, "pos")}${statCard("معوق", money(dc.overdueTotal), "سررسید گذشته", "neg")}</div>
+      ${dc.debtors.length ? dc.debtors.map((c) => row(c, "pos")).join("") : emptyBox("بدهکاری ندارید.")}
+    </div>
+    <div class="card"><h2>بستانکاران <small>بدهی شما</small></h2>
+      <div class="stats">${statCard("جمع بدهی", money(dc.totalCredit), `${E.faDigits(dc.creditors.length)} نفر`, "neg")}${statCard("مانده خالص", money(dc.totalDebit - dc.totalCredit), "طلب − بدهی")}</div>
+      ${dc.creditors.length ? dc.creditors.map((c) => row(c, "neg")).join("") : emptyBox("بستانکاری ندارید.")}
+      <div class="btn-row"><button class="btn sm" data-act="open" data-open="contact">＋ طرف‌حساب</button><button class="btn sm" data-act="open" data-open="payment-in">دریافت</button><button class="btn sm" data-act="open" data-open="payment-out">پرداخت</button></div>
+    </div>`;
+  } else if (state.reportTab === "trial") {
+    const trial = E.trialBalance(db);
+    body = `<div class="card"><h2>تراز آزمایشی <span class="chip ${trial.balanced ? "pos" : "neg"}">${trial.balanced ? "متوازن" : "عدم تراز"}</span></h2>
+      <div class="tbl-scroll"><table><thead><tr><th>کد</th><th>حساب</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th><th /></tr></thead><tbody>
+      ${trial.rows.map((r) => `<tr><td class="num">${esc(r.code)}</td><td>${esc(r.name)}</td><td class="num">${money(r.debit)}</td><td class="num">${money(r.credit)}</td><td class="num">${money(r.balance)}</td><td><button class="btn sm" data-act="account-ledger" data-id="${r.accountId}">دفتر</button></td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="row"><div class="grow"><div class="t" style="font-weight:800">جمع کل</div></div><span class="num" style="font-weight:800">${money(trial.debit)} / ${money(trial.credit)}</span></div>
+      <div class="note">اگر جمع بدهکار و بستانکار برابر است، همه‌ی اسناد دوطرفه و سالم هستند. با دکمه «دفتر» گردش هر حساب را ببینید.</div>
+      <div class="btn-row"><button class="btn sm" data-act="guide" data-section="reports">؟ راهنمای گزارش‌ها</button></div>
+    </div>`;
   } else {
     body = `<div class="card"><h2>سود زمین‌ها <small>مرکز هزینه</small></h2>
       ${db.projects.length ? db.projects.map((p) => {
@@ -309,7 +352,7 @@ function viewAssistant(): string {
   return `
   <div class="card">
     <h2>دستیار آفلاین <span class="chip brand">${E.faDigits(ASSISTANT_INTENT_COUNT)} قصد</span></h2>
-    <div class="note">همه محلی اجرا می‌شود. مدل زبانی هیچ عددی حساب نمی‌کند؛ پاسخ‌ها از موتور قطعی می‌آید و هیچ سندی بدون تأیید شما ثبت نمی‌شود.</div>
+    <div class="note">هر بخش را می‌توانید توضیح بخواهید (مثلاً «بخش چک را کامل توضیح بده») یا صورت‌حساب بگیرید («صورتحساب شرکت لبنیات دشت»).<br>همه محلی اجرا می‌شود. مدل زبانی هیچ عددی حساب نمی‌کند؛ پاسخ‌ها از موتور قطعی می‌آید و هیچ سندی بدون تأیید شما ثبت نمی‌شود.</div>
     <div class="samples">${ASSISTANT_SAMPLES.map((s) => `<button data-act="sample" data-text="${esc(s)}">${esc(s)}</button>`).join("")}</div>
   </div>
   <div class="card" id="chat">
@@ -397,6 +440,12 @@ function viewMore(): string {
     <div class="note">پشتیبان شامل همه اسناد، فاکتورها، چک، اقساط و تنظیمات است و هیچ کلید یا توکنی در آن نیست.</div>
   </div>
   <div class="card">
+    <h2>راهنمای کامل بخش‌ها <small>${E.faDigits(GUIDE_SECTIONS.length)} بخش</small></h2>
+    <div class="note">هر بخش را انتخاب کنید تا توضیح دقیق، گام‌به‌گام و ساده ببینید. همین راهنماها در دستیار هم با جمله‌هایی مثل «بخش چک را توضیح بده» قابل پرسیدن است.</div>
+    <div class="list-btns">${GUIDE_SECTIONS.map((key) => `<button data-act="guide" data-section="${key}"><span class="t">${esc(SECTION_GUIDES[key].icon)} ${esc(SECTION_GUIDES[key].title)}</span><span class="s">توضیح کامل و گام‌به‌گام</span></button>`).join("")}</div>
+    <div class="btn-row"><button class="btn sm" data-act="tab" data-tab="assistant">پرسیدن از دستیار</button></div>
+  </div>
+  <div class="card">
     <h2>درباره</h2>
     <div class="note">
       کشاورزحساب ۱.۰.۰ (افلاین) · موتور دوطرفه با کنترل تراز · تقویم شمسی و تومان · ${E.faDigits(ASSISTANT_INTENT_COUNT)} قصد دستیار محلی · بدون هیچ درخواست شبکه.<br>
@@ -434,6 +483,11 @@ const SHEET_TITLES: Record<string, string> = {
   "contacts-list": "طرف‌حساب‌ها",
   "products-list": "موجودی",
   "audit-list": "گزارش عملیات",
+  "contact-statement": "صورتحساب طرف‌حساب",
+  opening: "مانده اول دوره",
+  guide: "راهنمای بخش",
+  "account-ledger": "دفتر معین حساب",
+  debtors: "بدهکاران و بستانکاران",
 };
 
 function val(fields: Record<string, string> | undefined, key: string, fallback = ""): string {
@@ -658,6 +712,79 @@ function formLoan(): string {
   </form>`;
 }
 
+
+function guideHtml(section: string): string {
+  const guide = sectionGuide(section);
+  if (!guide) return emptyBox("راهنمای این بخش پیدا نشد.");
+  return `<div class="card" style="box-shadow:none;margin-bottom:8px">
+    <div class="row" style="border:0"><span class="ico">${guide.icon}</span><div class="grow"><div class="t">${esc(guide.title)}</div><div class="s">توضیح ساده و کامل</div></div></div>
+    <div class="note" style="font-size:11.5px;line-height:2">${esc(guide.what)}</div>
+  </div>
+  <div class="card" style="box-shadow:none;margin-bottom:8px">
+    <h2>گام‌به‌گام</h2>
+    <ol style="margin:0;padding-inline-start:16px;font-size:11.5px;line-height:2">${guide.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
+  </div>
+  <div class="card" style="box-shadow:none;margin-bottom:8px">
+    <h2>نکته‌های مهم</h2>
+    <ul style="margin:0;padding-inline-start:16px;font-size:11.5px;line-height:2">${guide.tips.map((tip) => `<li>${esc(tip)}</li>`).join("")}</ul>
+    <div class="note" style="margin-top:6px">نمونه جمله برای دستیار: «${esc(guide.example)}»</div>
+    <div class="btn-row"><button class="btn sm" data-act="ask-guide" data-text="${esc(guide.example)}">پرسیدن همین نمونه از دستیار</button></div>
+  </div>`;
+}
+
+function contactStatementSheet(id: number): string {
+  const db = state.db;
+  const contact = db.contacts.find((c) => c.id === id);
+  if (!contact) return emptyBox("طرف‌حساب یافت نشد.");
+  const st = E.contactStatement(db, contact.id);
+  const side = st.net > 0 ? "بدهکار به شما" : st.net < 0 ? "شما به او بدهکار هستید" : "تسویه";
+  return `<div class="card" style="box-shadow:none;margin-bottom:8px">
+    <div class="row" style="border:0"><span class="ico">👤</span><div class="grow"><div class="t">${esc(contact.name)}</div><div class="s">${esc(E.contactKindLabel(contact.kind))} · ${side}${contact.phone ? ` · ${esc(contact.phone)}` : ""}</div></div><span class="num ${st.net >= 0 ? "pos" : "neg"}" style="font-weight:800">${money(Math.abs(st.net))}</span></div>
+    <div class="stats">${statCard("جمع بدهکار", money(st.debit), "کل گردش", "pos")}${statCard("جمع بستانکار", money(st.credit), "کل گردش", "neg")}</div>
+    <div class="note">فاکتور باز: ${E.faDigits(st.openInvoices)} · چک در جریان: ${money(st.chequesPending)} · معوق: ${money(st.overdue)} · کل فاکتورها: ${money(st.invoiced)} · پرداخت‌شده: ${money(st.settled)}</div>
+    <div class="btn-row">
+      <button class="btn sm pri" data-act="pay-for" data-id="${contact.id}" data-direction="in">＋ دریافت</button>
+      <button class="btn sm" data-act="pay-for" data-id="${contact.id}" data-direction="out">＋ پرداخت</button>
+      <button class="btn sm" data-act="open" data-open="opening" data-id="${contact.id}">مانده اول دوره</button>
+      <button class="btn sm" data-act="copy-statement" data-id="${contact.id}">کپی صورتحساب</button>
+      <button class="btn sm" data-act="guide" data-section="contact">؟ راهنما</button>
+    </div>
+  </div>
+  <div class="card" style="box-shadow:none">
+    <h2>گردش حساب <small>${E.faDigits(st.rows.length)} ردیف</small></h2>
+    ${st.rows.length ? `<div class="tbl-scroll"><table><thead><tr><th>تاریخ</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>
+      ${st.rows.map((r) => `<tr><td class="num">${esc(E.formatJalali(r.date))}</td><td>${esc(r.title)}<div class="muted" style="font-size:9px">${r.kind === "invoice" ? "فاکتور" : r.kind === "payment" ? "دریافت/پرداخت" : r.kind === "opening" ? "مانده اول دوره" : r.kind === "cheque" ? "چک" : "سند"}</div></td><td class="num">${r.debit ? money(r.debit) : "—"}</td><td class="num">${r.credit ? money(r.credit) : "—"}</td><td class="num" style="font-weight:700">${money(r.balance)}</td></tr>`).join("")}
+    </tbody></table></div>` : emptyBox("گردشی ثبت نشده است. فاکتور، دریافت/پرداخت یا مانده اول دوره ثبت کنید.")}
+    <div class="note">مانده مثبت = طرف‌حساب به شما بدهکار است؛ مانده منفی = شما به او بدهکار هستید.</div>
+  </div>`;
+}
+
+function formOpening(id: number): string {
+  const db = state.db;
+  const contact = db.contacts.find((c) => c.id === id);
+  if (!contact) return emptyBox("طرف‌حساب یافت نشد.");
+  return `<form data-form="opening" data-id="${id}">
+    <div class="note">مانده‌ی قبل از شروع کار با ${esc(contact.name)} را یک‌بار ثبت کنید. سند آن به حساب سرمایه می‌خورد و در گردش حساب دیده می‌شود.</div>
+    <label>مبلغ</label><input name="amount" inputmode="numeric" required placeholder="۵٬۰۰۰٬۰۰۰" />
+    <label>ماهیت مانده</label>
+    <select name="side"><option value="debit">بدهکار — طرف‌حساب به من بدهکار است</option><option value="credit">بستانکار — من به طرف‌حساب بدهکار هستم</option></select>
+    <label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" />
+    <button class="btn pri" type="submit" style="width:100%">ثبت مانده اول دوره</button>
+  </form>`;
+}
+
+function accountLedgerSheet(id: number): string {
+  const db = state.db;
+  const ledger = E.accountLedger(db, id);
+  return `<div class="card" style="box-shadow:none;margin-bottom:8px">
+    <div class="row" style="border:0"><span class="ico">📘</span><div class="grow"><div class="t">${esc(ledger.code)} · ${esc(ledger.name)}</div><div class="s">گردش ${E.faDigits(ledger.rows.length)} ردیف</div></div><span class="num" style="font-weight:800">${money(ledger.balance)}</span></div>
+    <div class="stats">${statCard("جمع بدهکار", money(ledger.debit), "حساب")}${statCard("جمع بستانکار", money(ledger.credit), "حساب")}</div>
+  </div>
+  <div class="card" style="box-shadow:none"><h2>ردیف‌های حساب</h2>
+    ${ledger.rows.length ? `<div class="tbl-scroll"><table><thead><tr><th>تاریخ</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>${ledger.rows.map((r) => `<tr><td class="num">${esc(E.formatJalali(r.date))}</td><td>${esc(r.title)}</td><td class="num">${r.debit ? money(r.debit) : "—"}</td><td class="num">${r.credit ? money(r.credit) : "—"}</td><td class="num" style="font-weight:700">${money(r.balance)}</td></tr>`).join("")}</tbody></table></div>` : emptyBox("گردشی برای این حساب ثبت نشده است.")}
+  </div>`;
+}
+
 function formSettings(db: E.DB): string {
   return `<form data-form="settings">
     <label>نام کسب‌وکار</label><input name="business" value="${esc(db.settings.business)}" />
@@ -711,10 +838,10 @@ function listLoans(db: E.DB): string {
 
 function listContacts(db: E.DB): string {
   if (!db.contacts.length) return emptyBox("طرف‌حسابی ثبت نشده است.");
-  return db.contacts.map((c) => {
-    const b = E.contactBalance(db, c.id);
-    return `<div class="row"><span class="ico">👤</span><div class="grow"><div class="t">${esc(c.name)}</div><div class="s">${esc(c.kind)}${c.phone ? ` · ${esc(c.phone)}` : ""}</div></div><span class="num ${b.net >= 0 ? "pos" : "neg"}">${money(b.net)}</span></div>`;
-  }).join("");
+  const dc = E.debtorsCreditors(db);
+  return `<div class="stats">${statCard("جمع طلب", money(dc.totalDebit), `${E.faDigits(dc.debtors.length)} بدهکار`, "pos")}${statCard("جمع بدهی", money(dc.totalCredit), `${E.faDigits(dc.creditors.length)} بستانکار`, "neg")}</div>
+  ${E.contactSummaries(db).map((c) => `<div class="row"><span class="ico">${c.net >= 0 ? "🟢" : "🔴"}</span><div class="grow"><div class="t">${esc(c.name)}</div><div class="s">${esc(E.contactKindLabel(c.kind))} · ${c.net >= 0 ? "بدهکار" : "بستانکار"}${c.overdue > 0 ? ` · معوق ${money(c.overdue)}` : ""}</div></div><div style="text-align:left"><span class="num ${c.net >= 0 ? "pos" : "neg"}" style="font-weight:700">${money(Math.abs(c.net))}</span><button class="btn sm" data-act="statement" data-id="${c.id}">صورتحساب</button></div></div>`).join("")}
+  <div class="btn-row"><button class="btn sm pri" data-act="open" data-open="contact">＋ طرف‌حساب جدید</button><button class="btn sm" data-act="guide" data-section="contact">؟ راهنمای بدهکار/بستانکار</button></div>`;
 }
 
 function listProducts(db: E.DB): string {
@@ -785,6 +912,14 @@ function sheetBody(kind: string, fields?: Record<string, string>): string {
       return formSettings(db);
     case "restore":
       return formRestore();
+    case "contact-statement":
+      return contactStatementSheet(Number(fields?.id ?? 0));
+    case "opening":
+      return formOpening(Number(fields?.id ?? 0));
+    case "guide":
+      return guideHtml(fields?.section ?? "home");
+    case "account-ledger":
+      return accountLedgerSheet(Number(fields?.id ?? 0));
     case "sales-list":
       return listInvoices(db);
     case "cheques-list":
@@ -941,7 +1076,7 @@ function bindEvents(): void {
       state.tab = target.dataset.tab as Tab;
       render();
     } else if (act === "open" && target.dataset.open) {
-      openSheet(target.dataset.open);
+      openSheet(target.dataset.open, target.dataset.id ? { id: target.dataset.id } : undefined);
     } else if (act === "report" && target.dataset.key) {
       state.reportTab = target.dataset.key;
       render();
@@ -974,6 +1109,25 @@ function bindEvents(): void {
       if (window.confirm("داده‌های نمونه روی داده فعلی افزوده/جایگزین می‌شود. ادامه؟")) commit(S.demoDB(), "داده نمونه بارگذاری شد");
     } else if (act === "reset") {
       if (window.confirm("همه داده‌های محلی پاک شود؟ این کار قابل بازگشت نیست.")) commit(S.resetDB(), "همه داده‌ها پاک شد");
+    } else if (act === "guide" && target.dataset.section) {
+      openSheet("guide", { section: target.dataset.section });
+    } else if (act === "statement" && target.dataset.id) {
+      openSheet("contact-statement", { id: target.dataset.id });
+    } else if (act === "statement-list") {
+      openSheet("contacts-list");
+    } else if (act === "account-ledger" && target.dataset.id) {
+      openSheet("account-ledger", { id: target.dataset.id });
+    } else if (act === "pay-for" && target.dataset.id) {
+      openSheet(target.dataset.direction === "out" ? "payment-out" : "payment-in", { contactId: target.dataset.id });
+    } else if (act === "ask-guide" && target.dataset.text) {
+      closeSheet();
+      askAssistant(target.dataset.text);
+    } else if (act === "copy-statement" && target.dataset.id) {
+      const text = E.statementText(state.db, Number(target.dataset.id));
+      void navigator.clipboard
+        ?.writeText(text)
+        .then(() => toast("صورتحساب در کلیپ‌بورد کپی شد"))
+        .catch(() => toast("کپی ممکن نشد؛ از خروجی CSV استفاده کنید", true));
     } else if (act === "small") {
       toast("این بخش در نسخه‌ی بعد اضافه می‌شود");
     } else if (act === "sample" && target.dataset.text) {
@@ -1094,6 +1248,18 @@ function bindEvents(): void {
         case "loan":
           commit(S.addLoan(state.db, { title: str("title"), lender: str("lender"), principal: num("principal"), rate: num("rate"), months: num("months"), start: str("start") || E.todayISO() }), "وام و اقساط ساخته شد");
           break;
+        case "opening": {
+          commit(
+            S.addContactOpening(state.db, {
+              contactId: Number(form.dataset.id),
+              amount: num("amount"),
+              side: str("side") === "credit" ? "credit" : "debit",
+              date: str("date") || E.todayISO(),
+            }),
+            "مانده اول دوره ثبت شد",
+          );
+          break;
+        }
         case "settings": {
           const theme = str("theme") === "dark" ? "dark" : "light";
           state.db = S.updateSettings(state.db, {

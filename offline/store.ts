@@ -614,3 +614,33 @@ export const REPORTING = {
   validatePosting,
   toAmount,
 };
+
+
+/** ثبت مانده اول دوره طرف‌حساب (فقط یک‌بار در شروع کار) */
+export function addContactOpening(
+  db: DB,
+  input: { contactId: number; amount: number; side: "debit" | "credit"; date: string },
+): DB {
+  const amount = Math.round(Math.abs(input.amount));
+  if (!input.contactId) throw new Error("طرف‌حساب را انتخاب کنید.");
+  if (amount <= 0) throw new Error("مبلغ مانده اول دوره معتبر نیست.");
+  const contact = db.contacts.find((c) => c.id === input.contactId);
+  const lines =
+    input.side === "credit"
+      ? [
+          { accountId: codeOf(db, "3100"), debit: amount, credit: 0 },
+          { accountId: codeOf(db, "2100"), debit: 0, credit: amount },
+        ]
+      : [
+          { accountId: codeOf(db, "1100"), debit: amount, credit: 0 },
+          { accountId: codeOf(db, "3100"), debit: 0, credit: amount },
+        ];
+  const posted = postEntry(db, {
+    date: input.date || todayISO(),
+    desc: `مانده اول دوره — ${contact?.name ?? "طرف‌حساب"}`,
+    source: "opening",
+    contactId: input.contactId,
+    lines,
+  });
+  return audit(posted.db, `مانده اول دوره ${contact?.name ?? ""} به مبلغ ${fmt(amount)}`, "contact");
+}
