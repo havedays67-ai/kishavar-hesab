@@ -301,3 +301,86 @@ export const agriContractPayments = pgTable("agri_contract_payments", {
   note: text("note").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ------------------------- معامله محصول و تسویه ------------------------- */
+
+/**
+ * یک معامله محصول (فروش گندم به کارخانه/سیلو یا خرید محصول).
+ * مقادیر وزنی به کیلوگرم و مبالغ به تومان ذخیره می‌شوند.
+ * ورودی و خروجی کامل موتور محاسبه در ستون‌های input/calc به‌صورت JSONB
+ * نگهداری می‌شود تا سند چاپی بعداً «همان عدد زمان امضا» را نشان دهد.
+ */
+export const cropTrades = pgTable("crop_trades", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  direction: text("direction").notNull().default("sell"), // sell | buy
+  mode: text("mode").notNull().default("factory"), // guaranteed | factory | custom
+  cropKey: text("crop_key").notNull().default("wheat"),
+  cropName: text("crop_name").notNull().default("گندم"),
+  variety: text("variety").notNull().default(""),
+  sellerName: text("seller_name").notNull().default(""),
+  sellerNationalId: text("seller_national_id").notNull().default(""),
+  sellerPhone: text("seller_phone").notNull().default(""),
+  buyerName: text("buyer_name").notNull().default(""),
+  buyerType: text("buyer_type").notNull().default("factory"),
+  buyerNationalId: text("buyer_national_id").notNull().default(""),
+  buyerPhone: text("buyer_phone").notNull().default(""),
+  province: text("province").notNull().default(""),
+  deliveryPlace: text("delivery_place").notNull().default(""),
+  vehiclePlate: text("vehicle_plate").notNull().default(""),
+  driverName: text("driver_name").notNull().default(""),
+  landId: integer("land_id").references(() => lands.id, { onDelete: "set null" }),
+  contractDate: date("contract_date").notNull(),
+  deliveryDate: date("delivery_date"),
+  dueDate: date("due_date"),
+  unit: text("unit").notNull().default("ton"),
+  quantityInput: doublePrecision("quantity_input").notNull().default(0),
+  grossKg: doublePrecision("gross_kg").notNull().default(0),
+  tareKg: doublePrecision("tare_kg").notNull().default(0),
+  netKg: doublePrecision("net_kg").notNull().default(0),
+  adjustedKg: doublePrecision("adjusted_kg").notNull().default(0),
+  moisturePct: doublePrecision("moisture_pct").notNull().default(0),
+  foreignMatterPct: doublePrecision("foreign_matter_pct").notNull().default(0),
+  brokenPct: doublePrecision("broken_pct").notNull().default(0),
+  pestPct: doublePrecision("pest_pct").notNull().default(0),
+  hectoliter: doublePrecision("hectoliter").notNull().default(0),
+  proteinPct: doublePrecision("protein_pct").notNull().default(0),
+  pricePerKgToman: bigint("price_per_kg_toman", { mode: "number" }).notNull().default(0),
+  grade: integer("grade").notNull().default(0),
+  gradeLabel: text("grade_label").notNull().default(""),
+  totalToman: bigint("total_toman", { mode: "number" }).notNull().default(0),
+  prepaidToman: bigint("prepaid_toman", { mode: "number" }).notNull().default(0),
+  paidToman: bigint("paid_toman", { mode: "number" }).notNull().default(0),
+  status: text("status").notNull().default("draft"), // draft | confirmed | settled | canceled
+  notes: text("notes").notNull().default(""),
+  terms: text("terms").notNull().default(""),
+  engineVersion: text("engine_version").notNull().default("1.0.0"),
+  input: jsonb("input").$type<Record<string, unknown>>().notNull().default({}),
+  calc: jsonb("calc").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tradePayments = pgTable("trade_payments", {
+  id: serial("id").primaryKey(),
+  tradeId: integer("trade_id")
+    .notNull()
+    .references(() => cropTrades.id, { onDelete: "cascade" }),
+  amountToman: bigint("amount_toman", { mode: "number" }).notNull().default(0),
+  paidAt: date("paid_at").notNull(),
+  method: text("method").notNull().default("bank"), // cash | bank | cheque | deduction
+  reference: text("reference").notNull().default(""),
+  note: text("note").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** سندهای رسمی صادرشده؛ هر سند شماره سریال یکتا و تصویر لحظه صدور دارد. */
+export const tradeDocuments = pgTable("trade_documents", {
+  id: serial("id").primaryKey(),
+  tradeId: integer("trade_id")
+    .notNull()
+    .references(() => cropTrades.id, { onDelete: "cascade" }),
+  docType: text("doc_type").notNull(), // contract | weighing | quality | invoice | settlement
+  serial: text("serial").notNull().unique(),
+  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+  snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull().default({}),
+});

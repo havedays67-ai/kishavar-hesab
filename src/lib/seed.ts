@@ -11,12 +11,24 @@ import {
   knowledge,
   laborLogs,
   lands,
+  cropTrades,
   settings,
   tasks,
+  tradePayments,
   transactions,
   workers,
 } from "@/db/schema";
 import { sql } from "drizzle-orm";
+import { currentJalaliYear } from "@/lib/format";
+import {
+  computeTrade,
+  defaultPolicy,
+  defaultQuality,
+  getCrop,
+  tradeCode,
+  type MarketMode,
+  type TradeInput,
+} from "@/lib/trade/engine";
 
 const iso = (offsetDays: number): string => {
   const d = new Date();
@@ -456,6 +468,192 @@ async function seedData() {
       { key: "fiscal_start", value: `${new Date().getFullYear()}-01-01` },
     ]);
   });
+
+  await seedTradeExamples();
+}
+
+type SeedTrade = {
+  mode: MarketMode;
+  cropKey: string;
+  sellerName: string;
+  buyerName: string;
+  buyerType: string;
+  quantity: number;
+  price: number;
+  quality: Partial<ReturnType<typeof defaultQuality>>;
+  policy?: Record<string, number | string | boolean>;
+  status: string;
+  payments: { amount: number; method: string; note: string }[];
+};
+
+async function seedTradeExamples() {
+  try {
+    const existing = await db.execute<{ count: number }>(sql`select count(*)::int as count from crop_trades`);
+    if (Number(existing.rows[0]?.count ?? 0) > 0) return;
+
+    const templates: SeedTrade[] = [
+      {
+        mode: "factory",
+        cropKey: "wheat",
+        sellerName: "حاج رضا محمدی",
+        buyerName: "کارخانه آرد زرین",
+        buyerType: "factory",
+        quantity: 28,
+        price: 49650,
+        quality: { moisturePct: 15.4, foreignMatterPct: 2.6, brokenPct: 3, pestPct: 0.2, hectoliter: 76, proteinPct: 11.8 },
+        policy: { transportToman: 4500000, unloadingToman: 1200000, commissionPct: 1.5, prepaidToman: 200000000, delayPenaltyPerDayPct: 0.05 },
+        status: "confirmed",
+        payments: [{ amount: 300000000, method: "bank", note: "علی‌الحساب کارخانه" }],
+      },
+      {
+        mode: "guaranteed",
+        cropKey: "wheat",
+        sellerName: "مزرعه سبز دشت",
+        buyerName: "سیلو امیدیه — شرکت بازرگانی دولتی",
+        buyerType: "silo",
+        quantity: 40,
+        price: 49650,
+        quality: { moisturePct: 13.5, foreignMatterPct: 1.2, brokenPct: 1.5, pestPct: 0.1, hectoliter: 79, proteinPct: 12.4 },
+        policy: { transportToman: 6000000 },
+        status: "settled",
+        payments: [],
+      },
+      {
+        mode: "factory",
+        cropKey: "barley",
+        sellerName: "اکبر جوکار",
+        buyerName: "شرکت خوراک دام پارس",
+        buyerType: "factory",
+        quantity: 12,
+        price: 30000,
+        quality: { moisturePct: 15.8, foreignMatterPct: 1.4, brokenPct: 2, pestPct: 0, hectoliter: 74, proteinPct: 0 },
+        policy: {},
+        status: "draft",
+        payments: [],
+      },
+    ];
+
+    let sequence = 1;
+    const year = currentJalaliYear();
+    for (const template of templates) {
+      const crop = getCrop(template.cropKey);
+      const preset = defaultPolicy(template.mode, crop);
+      const policy = { ...preset, ...(template.policy ?? {}) } as typeof preset;
+      const quality = { ...defaultQuality(crop), ...template.quality };
+      const input: TradeInput = {
+        direction: "sell",
+        mode: template.mode,
+        cropKey: template.cropKey,
+        unit: "ton",
+        quantity: template.quantity,
+        grossKg: 0,
+        tareKg: 0,
+        pricePerKgToman: template.price,
+        quality,
+        policy,
+        meta: {
+          sellerName: template.sellerName,
+          buyerName: template.buyerName,
+          contractDate: iso(-14),
+          deliveryDate: iso(-10),
+          dueDate: iso(7),
+          deliveryPlace: "محل خریدار — باسکول شماره ۲",
+        },
+      };
+      const calc = computeTrade(input);
+      const prepaid = Number(policy.prepaidToman) || 0;
+      const paid = template.payments.reduce((sum, item) => sum + item.amount, 0) + prepaid;
+      const [row] = await db
+        .insert(cropTrades)
+        .values({
+          code: tradeCode(year, sequence),
+          direction: "sell",
+          mode: template.mode,
+          cropKey: template.cropKey,
+          cropName: crop.name,
+          variety: template.cropKey === "wheat" ? "پیشتاز" : "",
+          sellerName: template.sellerName,
+          sellerNationalId: "1234567890",
+          sellerPhone: "09120000000",
+          buyerName: template.buyerName,
+          buyerType: template.buyerType,
+          buyerNationalId: "14001234567",
+          buyerPhone: "06130000000",
+          province: "خوزستان",
+          deliveryPlace: "محل خریدار — باسکول شماره ۲",
+          vehiclePlate: "۲۲ ب ۴۵۶ — ایران ۷۸",
+          driverName: "مهدی کرمی",
+          contractDate: iso(-14),
+          deliveryDate: iso(-10),
+          dueDate: iso(7),
+          unit: "ton",
+          quantityInput: template.quantity,
+          netKg: calc.weights.netKg,
+          adjustedKg: calc.weights.adjustedKg,
+          moisturePct: quality.moisturePct,
+          foreignMatterPct: quality.foreignMatterPct,
+          brokenPct: quality.brokenPct,
+          pestPct: quality.pestPct,
+          hectoliter: quality.hectoliter,
+          proteinPct: quality.proteinPct,
+          pricePerKgToman: template.price,
+          grade: calc.quality.grade,
+          gradeLabel: calc.quality.gradeLabel,
+          totalToman: calc.money.totalToman,
+          prepaidToman: prepaid,
+          paidToman: paid,
+          status: template.status,
+          notes: "نمونه اولیه برای آشنایی با اسناد و گزارش‌ها",
+          terms: "تحویل در محل خریدار و پرداخت مانده تا سررسید توافق‌شده.",
+          engineVersion: calc.engineVersion,
+          input: input as unknown as Record<string, unknown>,
+          calc: calc as unknown as Record<string, unknown>,
+        })
+        .returning({ id: cropTrades.id });
+
+      if (prepaid > 0) {
+        await db.insert(tradePayments).values({
+          tradeId: row.id,
+          amountToman: prepaid,
+          paidAt: iso(-14),
+          method: "cash",
+          note: "پیش‌پرداخت زمان قرارداد",
+        });
+      }
+      for (const payment of template.payments) {
+        await db.insert(tradePayments).values({
+          tradeId: row.id,
+          amountToman: payment.amount,
+          paidAt: iso(-4),
+          method: payment.method,
+          reference: "۱۲۳۴۵۶۷۸۹",
+          note: payment.note,
+        });
+      }
+      sequence += 1;
+    }
+
+    await db.insert(knowledge).values([
+      {
+        topic: "فروش محصول",
+        title: "پیش از فروش گندم چه چیزی را کنترل کنیم؟",
+        tags: "گندم، کیفیت، رطوبت، ناخالصی، فروش",
+        level: "پایه",
+        content:
+          "رطوبت گندم در تحویل به مراکز خرید تضمینی حداکثر ۱۴٪ است. ناخالصی مجاز معمول ۲٪ است و مازاد آن به‌صورت وزنی کسر می‌شود. وزن هکتولیتر، دانه شکسته و سن‌زدگی در درجه‌بندی اثر دارند. پیش از امضای قرارداد، نرخ روز و حق بیمه را کنترل کنید و صورت‌حساب کسورات را دریافت کنید.",
+      },
+      {
+        topic: "فروش محصول",
+        title: "تفاوت خرید تضمینی و فروش به کارخانه",
+        tags: "خرید تضمینی، کارخانه، قرارداد، افت",
+        level: "متوسط",
+        content:
+          "در خرید تضمینی، افت مفید ۳٪ و غیرمفید ۱٪ به‌همراه حق بیمه اعمال می‌شود و نرخ مصوب است. در فروش به کارخانه، قیمت، افت رطوبت، کارمزد و کرایه توافقی است؛ بنابراین محاسبه دقیق و مکتوب کسورات اهمیت بیشتری دارد. در هر دو حالت، قبض باسکول و صورتجلسه کیفیت را نگه دارید.",
+      },
+    ]);
+  } catch (error) {
+    console.error("trade seed skipped", error);
+  }
 }
 
 let seedPromise: Promise<void> | null = null;

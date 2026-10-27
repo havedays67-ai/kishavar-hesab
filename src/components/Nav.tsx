@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui";
 export const NAV_ITEMS = [
   { href: "/", label: "داشبورد", icon: "home" },
   { href: "/lands", label: "زمین و کشت", icon: "land" },
+  { href: "/trade", label: "معامله و تسویه محصول", icon: "wallet" },
   { href: "/contracts", label: "اجاره و قرارداد زمین", icon: "land" },
   { href: "/transactions", label: "دفتر عملیات", icon: "receipt" },
   { href: "/inventory", label: "انبار نهاده", icon: "box" },
@@ -53,7 +54,7 @@ export function SidebarNav() {
 
 const MOBILE_PRIMARY = [
   { href: "/", label: "داشبورد", icon: "home" },
-  { href: "/transactions", label: "دفتر", icon: "receipt" },
+  { href: "/trade", label: "معامله", icon: "wallet" },
   { href: "/contracts", label: "قرارداد", icon: "land" },
   { href: "/assistant", label: "دستیار", icon: "sparkles" },
   { href: "/reports", label: "گزارش", icon: "chart" },

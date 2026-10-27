@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui";
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[1500px]">
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-l border-[#e7e2d3] bg-white/70 px-3 py-4 backdrop-blur md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-l border-[#e7e2d3] bg-white/70 px-3 py-4 backdrop-blur print:hidden md:flex">
         <Link href="/" className="mb-5 flex items-center gap-2.5 px-2">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-farm-600 to-farm-800 text-white shadow-md">
             <Icon name="sprout" className="h-6 w-6" />
@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-[#e7e2d3] bg-[#f7f5ee]/90 px-3 py-2.5 backdrop-blur sm:px-5">
+        <header className="sticky top-0 z-30 border-b border-[#e7e2d3] bg-[#f7f5ee]/90 px-3 py-2.5 backdrop-blur print:hidden sm:px-5">
           <div className="flex items-center justify-between gap-2">
             <Link href="/" className="flex items-center gap-2 md:hidden">
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-farm-700 text-white">
@@ -62,14 +62,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 px-3 pb-24 pt-3 sm:px-5 sm:pb-10 sm:pt-5">{children}</main>
+        <main className="min-w-0 flex-1 px-3 pb-24 pt-3 print:p-0 sm:px-5 sm:pb-10 sm:pt-5">{children}</main>
 
-        <footer className="hidden border-t border-[#e7e2d3] px-5 py-4 text-[11px] text-[#84907f] sm:block">
+        <footer className="hidden border-t border-[#e7e2d3] px-5 py-4 text-[11px] text-[#84907f] print:hidden sm:block">
           کشاورزحساب — حسابداری کشاورزی با معماری سبک برای اندروید؛ هوش مصنوعی فقط به داده‌های همین نرم‌افزار دسترسی دارد.
         </footer>
       </div>
 
-      <BottomNav />
+      <div className="print:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 }
