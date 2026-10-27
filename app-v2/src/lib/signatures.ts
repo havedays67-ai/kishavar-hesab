@@ -1,10 +1,9 @@
 import { sha256, stableStringify } from "./hash";
 import type { JDate } from "./format";
-import { deviceFingerprintLabel } from "./biometric";
 
 /* --------------------------------- انواع --------------------------------- */
 
-export type SignatureMethod = "draw" | "biometric" | "draw+biometric";
+export type SignatureMethod = "draw";
 export type SignatureRole =
   | "seller"
   | "buyer"
@@ -52,12 +51,11 @@ export interface SignatureRecord {
   signerNationalId: string;
   method: SignatureMethod;
   image: string;
-  biometric: {
-    used: boolean;
-    verified: boolean;
-    device: string;
-    verifiedAt: string;
-    attempts: number;
+  crypto: {
+    algorithm: string;
+    publicKey: string;
+    signature: string;
+    keyFingerprint: string;
   };
   signedAt: JDate;
   signedAtIso: string;
@@ -99,7 +97,7 @@ export interface SignatureAudit {
   chain: ChainCheck[];
   chainValid: boolean;
   missing: SignatureRoleRequirement[];
-  tier: "simple" | "device-verified";
+  tier: "simple" | "cryptographic";
   tierLabel: string;
   legalNote: string;
 }
@@ -248,8 +246,8 @@ export function auditEntity(entity: SignableEntity, allRecords: SignatureRecord[
   const requiredRoles = entity.roles.filter((role) => role.required);
   const signedRoles = new Set(records.map((record) => record.role));
   const missing = requiredRoles.filter((role) => !signedRoles.has(role.role));
-  const biometric = records.some((record) => record.biometric.verified);
-  const tier = biometric ? "device-verified" : "simple";
+  const cryptographic = records.some((record) => Boolean(record.crypto?.signature));
+  const tier = cryptographic ? "cryptographic" : "simple";
   return {
     entityId: entity.id,
     payloadHash,
@@ -262,9 +260,9 @@ export function auditEntity(entity: SignableEntity, allRecords: SignatureRecord[
     missing,
     tier,
     tierLabel:
-      tier === "device-verified"
-        ? "امضای الکترونیکی ساده + تأیید هویت بیومتریک دستگاه"
-        : "امضای الکترونیکی ساده (بدون تأیید بیومتریک)",
+      tier === "cryptographic"
+        ? "امضای الکترونیکی ساده + امضای رمزنگاری‌شده روی دستگاه"
+        : "امضای الکترونیکی ساده",
     legalNote:
       "این امضا در برنامه ثبت می‌شود و hash محتوا، زمان، نام امضاکننده و زنجیره امضاها را نگه می‌دارد؛ برای اثبات بهتر است اسناد با QR و نسخه چاپی نگه‌داری شوند. «امضای الکترونیکی مطمئن» طبق ماده ۱۰ قانون تجارت الکترونیکی شرایط ویژه‌ای دارد و به گواهی مرکز صدور گواهی الکترونیکی معتبر نیاز دارد؛ امضای این برنامه فاقد چنین گواهی است و جایگزین سند رسمی، ثبت اسناد رسمی یا دسته‌چک کاغذی نیست.",
   };
@@ -273,7 +271,7 @@ export function auditEntity(entity: SignableEntity, allRecords: SignatureRecord[
 export function signatureTierExplanation(): string[] {
   return [
     "امضای ساده الکترونیکی: کشیدن امضا روی صفحه، نام، تلفن، زمان و hash محتوا. در دعوا می‌تواند به‌عنوان اماره و قرینه ارائه شود، اما به‌تنهایی «امضای الکترونیکی مطمئن» قانون تجارت الکترونیکی نیست.",
-    "امضای ساده + بیومتریک دستگاه: تأیید می‌کند همان لحظه، مالک گوشی با اثر انگشت/چهره خود تأیید هویت کرده است؛ ارزش اثباتی را بالا می‌برد ولی هنوز گواهی مرکز صدور گواهی (CA) ندارد و در برخی قراردادها یا اسناد رسمی کافی نیست.",
+    "امضای ساده + امضای رمزنگاری‌شده: کلید خصوصی روی همین دستگاه ساخته می‌شود و hash سند با آن امضا می‌شود؛ هر تغییری در سند یا امضا با بررسی کلید عمومی قابل کشف است. این سطح از امضای تصویری قوی‌تر است، اما هنوز گواهی مرکز صدور گواهی (CA) ندارد.",
     "امضای الکترونیکی مطمئن (ماده ۱۰ قانون تجارت الکترونیکی): نیازمند گواهی الکترونیکی معتبر و امکان تشخیص تغییر داده است؛ این برنامه علاوه بر hash، باید به مرکز صدور گواهی متصل شود تا این سطح محقق شود.",
     "برای قرارداد زمین با مبلغ بالا، چک و تعهدات سنگین، امضای حضوری و ثبت رسمی/دفتر اسناد رسمی یا سامانه‌های دولتی توصیه می‌شود. چک نیز تا وقتی دسته‌چک کاغذی و شرایط قانون صدور چک رعایت نشود، صرفاً الکترونیکی نیست.",
   ];
@@ -312,7 +310,7 @@ export function runSignatureSelfTest(): SignatureCheck[] {
     signerNationalId: "",
     method: "draw",
     image: "",
-    biometric: { used: false, verified: false, device: deviceFingerprintLabel(), verifiedAt: "", attempts: 0 },
+    crypto: { algorithm: "ECDSA-P256-SHA256", publicKey: "test", signature: "test", keyFingerprint: "test" },
     signedAt: { jy: 1405, jm: 8, jd: 5 },
     signedAtIso: base.signedAtIso,
     payloadHash,

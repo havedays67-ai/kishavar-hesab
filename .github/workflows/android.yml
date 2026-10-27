@@ -98,8 +98,7 @@ jobs:
           cat android/app/src/main/assets/capacitor.plugins.json
           grep -qi "Filesystem" android/app/src/main/assets/capacitor.plugins.json || (echo "Filesystem plugin missing" && exit 1)
           grep -qi "Share" android/app/src/main/assets/capacitor.plugins.json || (echo "Share plugin missing" && exit 1)
-          grep -qi "NativeBiometric" android/app/src/main/assets/capacitor.plugins.json || (echo "Biometric plugin missing" && exit 1)
-
+          
       - name: Configure project (minSdk 26, target 35)
         run: |
           sed -i -E 's/minSdkVersion = [0-9]+/minSdkVersion = 26/' android/variables.gradle
@@ -107,7 +106,9 @@ jobs:
           sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
-          sed -i -E 's/versionCode [0-9]+/versionCode 9/' android/app/build.gradle
+          CODE=$((1000 + GITHUB_RUN_NUMBER))
+          sed -i -E "s/versionCode [0-9]+/versionCode $CODE/" android/app/build.gradle
+          echo "versionCode=$CODE"
           sed -i -E 's/versionName "[^"]*"/versionName "1.0.0"/' android/app/build.gradle
           grep -n "versionCode\|versionName" android/app/build.gradle
 
@@ -123,11 +124,28 @@ jobs:
             echo "No KEYSTORE_BASE64 secret found — release will be signed with debug key."
           fi
 
-      - name: Install stable debug signing key
+      - name: Install stable signing key (same key for every build)
         run: |
           mkdir -p "$HOME/.android"
           cp signing/debug.keystore "$HOME/.android/debug.keystore"
-          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android | head -4
+          keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android | grep -E "Alias|SHA256|Valid" | head -5
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  kishavarStable {
+                      storeFile file(System.getenv("HOME") + "/.android/debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  debug { signingConfig signingConfigs.kishavarStable }
+                  release { signingConfig signingConfigs.kishavarStable }
+              }
+          }
+          GRADLE
 
       - name: Build APK
         env:
@@ -202,7 +220,9 @@ jobs:
           console.log('- چاپ A4 با سریال، QR، مبلغ به حروف و جای مهر و امضا');
           console.log('- دانلود واقعی PDF داخل برنامه (بدون نیاز به مرورگر)');
           console.log('- ویرایش و حذف طرف‌حساب، سند مالی، زمین، معامله و قرارداد');
-          console.log('- حذف صفحه دریافت برنامه و مشخصات کلید از داخل اپ اندروید');
+          console.log('- حذف صفحه دریافت برنامه از داخل اپ اندروید
+          console.log('- امضای ثابت APK با کلید واحد (قابل به‌روزرسانی بدون حذف نسخه قبل)');
+          console.log('- امضای دستی + امضای رمزنگاری ECDSA روی دستگاه');');
           console.log('');
           console.log('SHA-256: ' + process.env.SHA);
           console.log('حجم فایل: ' + process.env.SIZE_MB + ' مگابایت (' + process.env.SIZE + ' بایت)');

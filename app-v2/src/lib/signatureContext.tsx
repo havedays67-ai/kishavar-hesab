@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayJalali, type JDate } from "./format";
 import { entityPayloadHash, computeSignatureHash, auditEntity, type SignatureRecord, type SignableEntity, type SignatureRole, type SignatureMethod, type SignatureAudit } from "./signatures";
-import { deviceFingerprintLabel } from "./biometric";
+import { signPayloadCrypto } from "./crypto";
 
 const STORAGE_KEY = "kishavar.signatures.v2";
 
@@ -15,10 +15,8 @@ interface SignatureContextValue {
     signerNationalId?: string;
     method: SignatureMethod;
     image: string;
-    biometricVerified: boolean;
-    biometricAttempts: number;
     note?: string;
-  }) => SignatureRecord;
+  }) => Promise<SignatureRecord>;
   remove: (id: string) => void;
   audit: (entity: SignableEntity) => SignatureAudit;
   auditById: (entity: SignableEntity) => SignatureAudit;
@@ -54,7 +52,7 @@ export function SignatureProvider({ children }: { children: ReactNode }) {
       records,
       audit,
       auditById: audit,
-      sign: ({ entity, role, signerName, signerPhone, signerNationalId = "", method, image, biometricVerified, biometricAttempts, note = "" }) => {
+      sign: async ({ entity, role, signerName, signerPhone, signerNationalId = "", method, image, note = "" }) => {
         const payloadHash = entityPayloadHash(entity.payload);
         const previousRecords = [...records.filter((record) => record.entityId === entity.id)].sort((a, b) => a.signedAtIso.localeCompare(b.signedAtIso));
         const previousHash = previousRecords.length ? previousRecords[previousRecords.length - 1].signatureHash : payloadHash;
@@ -69,6 +67,7 @@ export function SignatureProvider({ children }: { children: ReactNode }) {
           previousHash,
         });
         const signedAt: JDate = todayJalali();
+        const cryptoResult = await signPayloadCrypto(JSON.stringify({ entityId: entity.id, entityType: entity.type, role, signerName, signerPhone, payloadHash, previousHash, signedAtIso }));
         const record: SignatureRecord = {
           id: `sig-${Date.now()}-${Math.floor(Math.random() * 999)}`,
           entityType: entity.type,
@@ -79,13 +78,7 @@ export function SignatureProvider({ children }: { children: ReactNode }) {
           signerNationalId,
           method,
           image,
-          biometric: {
-            used: method === "biometric" || method === "draw+biometric",
-            verified: biometricVerified,
-            device: deviceFingerprintLabel(),
-            verifiedAt: biometricVerified ? signedAtIso : "",
-            attempts: biometricAttempts,
-          },
+          crypto: cryptoResult,
           signedAt,
           signedAtIso,
           payloadHash,

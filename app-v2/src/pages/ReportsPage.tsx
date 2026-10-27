@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   AlertTriangle,
+  Sparkles,
   ArrowLeft,
   BadgeCheck,
   BarChart3,
@@ -23,6 +24,7 @@ import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotCost, plotMetrics, type CropPlot } from "../lib/samples";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
+import type { HealthReport } from "../lib/insights";
 
 type Tab = "overview" | "trades" | "crops" | "lease";
 
@@ -33,16 +35,20 @@ export function ReportsPage({
   trades,
   plots,
   contracts,
+  health,
   onOpenDocument,
   onNavigateTrade,
 }: {
   trades: CropTrade[];
   plots: CropPlot[];
   contracts: SavedContract[];
+  health: HealthReport;
   onOpenDocument: (spec: DocumentSpec) => void;
   onNavigateTrade: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
+  const [severity, setSeverity] = useState<"all" | "critical" | "warning" | "info" | "good">("all");
+  const visibleInsights = health.insights.filter((insight) => severity === "all" || insight.severity === severity);
 
   const saleValue = trades.reduce((sum, trade) => sum + trade.result.netReceipt, 0);
   const costValue = plots.reduce((sum, plot) => sum + plotCost(plot), 0);
@@ -448,6 +454,28 @@ export function ReportsPage({
           </div>
         </section>
       )}
+      <section className="glass mt-4 rounded-[22px] p-4 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-mint-300/10 text-mint-300"><Sparkles className="h-4 w-4" /></span><div><h2 className="text-[13px] font-semibold text-white">تحلیل کامل هوشمند</h2><p className="mt-0.5 text-[8px] text-[#78968a]">امتیاز سلامت {toPersianDigits(health.score)} از ۱۰۰ · {health.level} — {toPersianDigits(health.insights.length)} یافته و اقدام</p></div></div>
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.025] p-1">
+            {([["all", "همه"], ["critical", "بحرانی"], ["warning", "هشدار"], ["info", "اطلاع"], ["good", "مطلوب"]] as [typeof severity, string][]).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setSeverity(value)} className={cn("rounded-md px-2 py-1.5 text-[8px]", severity === value ? "bg-[#1d402f] font-medium text-mint-300" : "text-[#7f9b8e]")}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {visibleInsights.map((insight) => (
+            <div key={insight.code} className={cn("rounded-xl border p-2.5", insight.severity === "critical" ? "border-[#a25649]/25 bg-[#a25649]/[0.06]" : insight.severity === "warning" ? "border-sand-300/20 bg-sand-300/[0.04]" : insight.severity === "good" ? "border-mint-300/20 bg-mint-300/[0.04]" : "border-sky-300/15 bg-sky-300/[0.03]")}>
+              <div className="flex items-start justify-between gap-2"><span className="text-[9px] font-semibold text-[#dcebe2]">{insight.title}</span><span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[7px]", insight.severity === "critical" ? "bg-[#a25649]/20 text-[#efad9f]" : insight.severity === "warning" ? "bg-sand-300/10 text-sand-300" : insight.severity === "good" ? "bg-mint-300/10 text-mint-300" : "bg-sky-300/10 text-[#b3d3de]")}>{insight.severity === "critical" ? "بحرانی" : insight.severity === "warning" ? "هشدار" : insight.severity === "good" ? "مطلوب" : "اطلاع"}</span></div>
+              <p className="mt-1 text-[8px] font-light leading-4 text-[#9db8ab]">{insight.detail}</p>
+              <p className="mt-1 text-[8px] leading-4 text-mint-300/85">اقدام: {insight.action}</p>
+            </div>
+          ))}
+        </div>
+        {visibleInsights.length === 0 && <p className="rounded-xl border border-dashed border-[#355344] px-3 py-6 text-center text-[9px] text-[#78968a]">در این سطح، یافته‌ای وجود ندارد.</p>}
+        <div className="mt-3 rounded-lg border border-[#c5b97f]/20 bg-[#c5b97f]/[0.05] px-3 py-2 text-[8px] leading-5 text-[#d7cba1]">این تحلیل بر اساس قواعد قطعی و داده‌های ثبت‌شده شماست؛ نه حدس. توصیه‌های حقوقی/مالی سنگین را با مشاور خود بازبینی کنید.</div>
+      </section>
+
     </div>
   );
 }

@@ -150,7 +150,7 @@ export function ContractPreview({
                     <>
                       <img src={signature.image} alt={`امضای ${signature.signerName}`} className="mx-auto h-12 max-w-full object-contain" />
                       <div className="mt-1 text-[8px] font-medium text-[#2e4a38]">{signature.signerName}</div>
-                      <div className="text-[7px] text-[#7c877d]">{formatJalali(signature.signedAt, "short")} · کد اثر {signature.hash}</div>
+                      <div className="text-[7px] text-[#7c877d]">{formatJalali(signature.signedAt, "short")} · کد اثر {signature.crypto?.keyFingerprint || signature.hash}</div>
                     </>
                   ) : (
                     <>

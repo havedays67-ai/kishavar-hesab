@@ -12,7 +12,6 @@
     "@capacitor/core": "^7.6.9",
     "@capacitor/filesystem": "^7.1.9",
     "@capacitor/share": "^7.0.4",
-    "@capgo/capacitor-native-biometric": "^7.6.0",
     "clsx": "2.1.1",
     "html2canvas-pro": "^2.5.0",
     "jalaali-js": "^2.0.1",

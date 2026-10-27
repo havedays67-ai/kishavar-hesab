@@ -43,6 +43,10 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { SignaturesPage } from "./pages/SignaturesPage";
 import { buildDocumentRegistry } from "./lib/registry";
 import { contractTrackingCode, nextContractCode } from "./lib/contracts";
+import { useSignatures } from "./lib/signatureContext";
+import { buildSignableEntities } from "./lib/signable";
+import { buildInsights } from "./lib/insights";
+import { useMemo } from "react";
 import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./pages/RentalsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
@@ -138,6 +142,11 @@ export default function App() {
   const [signatures, setSignatures] = useState<LeaseSignature[]>(() => loadList(STORAGE_SIGNATURES, []));
   const [activeDocument, setActiveDocument] = useState<DocumentSpec | null>(null);
   const documents = buildDocumentRegistry(trades, contracts, plots);
+  const { audit } = useSignatures();
+  const health = useMemo(() => {
+    const entities = buildSignableEntities({ ledger, trades, documents });
+    return buildInsights({ ledger, trades, plots, contracts, signableEntities: entities, pendingSignatures: entities.map((entity) => { const report = audit(entity); return { entity, required: report.required, signed: report.signed, missing: report.missing.length }; }) });
+  }, [ledger, trades, documents, plots, contracts, audit]);
 
   useEffect(() => {
     document.title = `${PAGE_TITLES[page]} | کسب‌وکار من`;
@@ -264,7 +273,7 @@ export default function App() {
     <>
       <AppShell page={page} onNavigate={navigate}>
         {page === "dashboard" && (
-          <DashboardPage contracts={contracts} trades={trades} plots={plots} ledger={ledger} onNavigate={navigate} onOpenDocument={setActiveDocument} />
+          <DashboardPage contracts={contracts} trades={trades} plots={plots} health={health} onNavigate={navigate} onOpenDocument={setActiveDocument} />
         )}
         {page === "trade" && (
           <TradePage
@@ -347,7 +356,7 @@ export default function App() {
           <DocumentsPage trades={trades} contracts={contracts} plots={plots} onOpenDocument={setActiveDocument} />
         )}
         {page === "reports" && (
-          <ReportsPage trades={trades} plots={plots} contracts={contracts} onOpenDocument={setActiveDocument} onNavigateTrade={() => navigate("trade")} />
+          <ReportsPage trades={trades} plots={plots} contracts={contracts} health={health} onOpenDocument={setActiveDocument} onNavigateTrade={() => navigate("trade")} />
         )}
         {page === "backup" && (
           <BackupPage

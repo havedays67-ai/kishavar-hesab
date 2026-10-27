@@ -138,6 +138,7 @@ export interface ContractSignature {
   image: string;
   hash: string;
   signedAt: JDate;
+  crypto?: { algorithm: string; publicKey: string; signature: string; keyFingerprint: string };
 }
 
 export interface SavedContract {

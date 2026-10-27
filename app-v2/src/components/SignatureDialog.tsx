@@ -14,7 +14,6 @@ import {
 import { cn } from "../utils/cn";
 import { useProfile } from "../lib/profile";
 import { useSignatures } from "../lib/signatureContext";
-import { checkBiometric, verifyBiometric, type BiometricAvailability, type BiometricResult } from "../lib/biometric";
 import { formatJalali, toPersianDigits } from "../lib/format";
 import { signatureTierExplanation, shortHash, type SignableEntity, type SignatureRoleRequirement } from "../lib/signatures";
 import { TextField } from "./FormControls";
@@ -81,17 +80,13 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
   const [nationalId, setNationalId] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [biometric, setBiometric] = useState<BiometricAvailability | null>(null);
-  const [bioResult, setBioResult] = useState<BiometricResult | null>(null);
-  const [bioBusy, setBioBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setRole(null);
-    setBioResult(null);
     setError("");
-    void checkBiometric().then(setBiometric);
   }, [open, entity?.id]);
 
   useEffect(() => {
@@ -100,32 +95,22 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
     setPhone(role.signer === "me" ? profile.phone : "");
     setNationalId(role.signer === "me" ? profile.nationalId : "");
     setNote("");
-    setBioResult(null);
     setError("");
   }, [role, profile]);
 
   if (!open || !entity) return null;
   const report = audit(entity);
 
-  const runBiometric = async () => {
-    setBioBusy(true);
-    setBioResult(null);
-    const result = await verifyBiometric(`امضای ${role?.label ?? "سند"}: ${entity.title}`, 3);
-    setBioResult(result);
-    setBioBusy(false);
-  };
-
   const submit = (image: string) => {
     if (!role) return;
     if (name.trim().length < 3) return setError("نام امضاکننده را کامل وارد کنید.");
     if (phone.trim().length < 8) return setError("شماره تماس امضاکننده را وارد کنید.");
-    if (bioResult && !bioResult.ok && bioResult.reason !== "not_native") {
-      // امضای دستی هنوز مجاز است، ولی کاربر باید بداند تأیید بیومتریک ناموفق بوده.
-    }
-    const hasBiometric = Boolean(bioResult?.ok);
-    sign({ entity, role: role.role, signerName: name, signerPhone: phone, signerNationalId: nationalId, method: hasBiometric ? "draw+biometric" : "draw", image, biometricVerified: hasBiometric, biometricAttempts: bioResult?.attemptsUsed ?? 0, note });
-    setRole(null);
-    setToast(hasBiometric ? "امضا با تأیید بیومتریک ثبت شد" : "امضای دستی ثبت شد");
+    setBusy(true);
+    void sign({ entity, role: role.role, signerName: name, signerPhone: phone, signerNationalId: nationalId, method: "draw", image, note }).then((record) => {
+      setBusy(false);
+      setRole(null);
+      setToast(record.crypto.signature ? "امضای دستی و رمزنگاری‌شده ثبت شد" : "امضای دستی ثبت شد (امضای رمزنگاری در این دستگاه فعال نشد).");
+    });
   };
 
   return createPortal(
@@ -149,7 +134,7 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
 
         <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
           <div className="rounded-xl border border-[#c5b97f]/25 bg-[#c5b97f]/[0.05] p-3 text-[8px] leading-5 text-[#d7cba1]">
-            <b>صادقانه بدانید:</b> این امضا «امضای الکترونیکی ساده» است و با ثبت نام، زمان، اثر انگشت دستگاه و hash محتوا تقویت می‌شود.
+            <b>صادقانه بدانید:</b> این امضا «امضای الکترونیکی ساده» است و با ثبت نام، زمان، تصویر امضا، hash محتوا و امضای رمزنگاری‌شده دستگاه تقویت می‌شود.
             «امضای الکترونیکی مطمئن» طبق ماده ۱۰ قانون تجارت الکترونیکی به گواهی مرکز صدور گواهی معتبر نیاز دارد و بدون آن، در دادگاه
             به‌تنهایی مانند سند رسمی نیست. برای قرارداد زمین با مبلغ بالا، چک و تعهدات سنگین، ثبت رسمی و امضای حضوری توصیه می‌شود.
           </div>
@@ -169,7 +154,7 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
                   {record && (
                     <div className="mt-2 rounded-lg bg-[#071510]/50 px-2 py-1.5">
                       <div className="flex items-center justify-between gap-1 text-[8px]"><span className="text-[#d3e4da]">{record.signerName}</span><button type="button" onClick={() => { if (window.confirm("این امضا حذف شود؟")) { remove(record.id); setToast("امضا حذف شد"); } }} className="text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف امضا"><Trash2 className="h-3 w-3" /></button></div>
-                      <div className="mt-1 flex flex-wrap gap-2 text-[7px] text-[#78968a]"><span>{formatJalali(record.signedAt, "long")}</span><span>{record.method === "draw+biometric" ? "دستی + بیومتریک" : "دستی"}</span><span className="font-mono">{shortHash(record.signatureHash)}</span></div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[7px] text-[#78968a]"><span>{formatJalali(record.signedAt, "long")}</span><span>{record.crypto?.signature ? "دستی + رمزنگاری" : "دستی"}</span><span className="font-mono">{shortHash(record.signatureHash)}</span></div>
                     </div>
                   )}
                 </div>
@@ -183,23 +168,6 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
             </div>
           )}
 
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-[#dcebe2]"><Fingerprint className="h-3.5 w-3.5 text-mint-300" /> تأیید هویت با اثر انگشت گوشی</div>
-                <p className="mt-1 text-[8px] leading-4 text-[#78968a]">{biometric?.note ?? "در حال بررسی حسگر…"} (نوع: {biometric?.label ?? "—"})</p>
-              </div>
-              <span className={cn("rounded-full border px-2 py-0.5 text-[8px]", biometric?.status === "available" ? "border-mint-300/25 text-mint-300" : "border-sand-300/25 text-sand-300")}>{biometric?.status === "available" ? "حسگر آماده" : "بدون تأیید بیومتریک"}</span>
-            </div>
-            {role && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={runBiometric} disabled={bioBusy || biometric?.status !== "available"} className="flex items-center gap-1.5 rounded-lg border border-mint-300/25 bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300 disabled:opacity-40"><Fingerprint className="h-3 w-3" /> {bioBusy ? "منتظر تأیید حسگر…" : "تأیید با اثر انگشت (تا ۳ تلاش)"}</button>
-                {bioResult && <span className={cn("text-[8px]", bioResult.ok ? "text-mint-300" : "text-[#efad9f]")}>{bioResult.ok ? "✓ هویت بیومتریک تأیید شد" : bioResult.message}</span>}
-              </div>
-            )}
-            <p className="mt-2 text-[7px] leading-4 text-[#6f8c7f]">اندروید تصویر اثر انگشت را در اختیار برنامه قرار نمی‌دهد؛ برنامه فقط نتیجه تأیید حسگر دستگاه را ثبت می‌کند. می‌توانید چند اثر انگشت در تنظیمات گوشی ثبت کنید و هر یک در همین تأیید پذیرفته می‌شود. اثر انگشت ناخوانا یا ناموفق، به‌صراحت علامت‌گذاری می‌شود.</p>
-          </div>
-
           {role && (
             <div className="space-y-2.5 rounded-xl border border-mint-300/20 bg-mint-300/[0.03] p-3">
               <div className="grid gap-2 sm:grid-cols-2">
@@ -208,10 +176,9 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
                 <TextField label="کد ملی (اختیاری)" value={nationalId} onChange={setNationalId} numeric placeholder="۱۰ رقم" />
                 <TextField label="یادداشت امضا (اختیاری)" value={note} onChange={setNote} placeholder="مثلاً به نمایندگی از کارخانه" />
               </div>
-              <DrawPad onSave={submit} disabled={!role} />
+              <DrawPad onSave={submit} disabled={!role || busy} />
               {error && <p className="text-[9px] text-[#f0a59a]">{error}</p>}
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => { if (bioResult?.ok && !error) { submit(""); } else setError("برای ثبت بیومتریک، ابتدا اثر انگشت را تأیید کنید و نام/تلفن را وارد کنید."); }} disabled={!bioResult?.ok} className="flex items-center gap-1.5 rounded-lg bg-[#9fd4ee]/15 px-2.5 py-2 text-[9px] text-[#bfe6f7] disabled:opacity-40"><Fingerprint className="h-3.5 w-3.5" /> ثبت امضا با تأیید بیومتریک (بدون امضای دستی)</button>
                 <button type="button" onClick={() => setRole(null)} className="px-2 py-2 text-[9px] text-[#819d90]">انصراف</button>
               </div>
             </div>

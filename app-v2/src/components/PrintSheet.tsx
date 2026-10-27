@@ -101,7 +101,7 @@ function ContractSignaturesBlock({ contract }: { contract: SavedContract }) {
           return (
             <div key={slot.role} className="rounded border border-[#c8c3b5] p-2 text-center">
               <div className="mb-1 text-[8px] font-semibold text-[#4c5a51]">{slot.label}</div>
-              {signature ? <><img src={signature.image} alt={`امضای ${signature.signerName}`} className="mx-auto h-12 max-w-full object-contain" /><div className="mt-1 text-[8px] font-medium text-[#2e4a38]">{signature.signerName}</div><div className="text-[7px] text-[#7c877d]">{formatJalali(signature.signedAt, "short")} · {signature.hash}</div></> : <><div className="mb-5 border-b border-dashed border-[#a9a394]" /><div className="text-[8px] text-[#9aa096]">نام، مهر و امضا</div></>}
+              {signature ? <><img src={signature.image} alt={`امضای ${signature.signerName}`} className="mx-auto h-12 max-w-full object-contain" /><div className="mt-1 text-[8px] font-medium text-[#2e4a38]">{signature.signerName}</div><div className="text-[7px] text-[#7c877d]">{formatJalali(signature.signedAt, "short")} · کد رمزنگاری: {signature.crypto?.keyFingerprint || signature.hash}</div></> : <><div className="mb-5 border-b border-dashed border-[#a9a394]" /><div className="text-[8px] text-[#9aa096]">نام، مهر و امضا</div></>}
             </div>
           );
         })}
@@ -124,7 +124,7 @@ function SignatureStatusBlock({ spec }: { spec: DocumentSpec }) {
       {report.records.length > 0 ? (
         <table>
           <thead><tr><th className={thClass}>سمت</th><th className={thClass}>نام امضاکننده</th><th className={thClass}>تاریخ</th><th className={thClass}>روش</th><th className={thClass}>کد اصالت</th></tr></thead>
-          <tbody>{report.records.map((record) => <tr key={record.id}><td className={tdClass}>{entity.roles.find((role) => role.role === record.role)?.label ?? record.role}</td><td className={tdClass}>{record.signerName}</td><td className={tdClass}>{formatJalali(record.signedAt, "long")}</td><td className={tdClass}>{record.biometric.verified ? "دستی + بیومتریک دستگاه" : "دستی"}</td><td className={`${tdClass} font-mono`}>{record.verifyCode}</td></tr>)}</tbody>
+          <tbody>{report.records.map((record) => <tr key={record.id}><td className={tdClass}>{entity.roles.find((role) => role.role === record.role)?.label ?? record.role}</td><td className={tdClass}>{record.signerName}</td><td className={tdClass}>{formatJalali(record.signedAt, "long")}</td><td className={tdClass}>{record.crypto?.signature ? "دستی + امضای رمزنگاری" : "دستی"}</td><td className={`${tdClass} font-mono`}>{record.verifyCode}</td></tr>)}</tbody>
         </table>
       ) : <p className="text-[8px] text-[#6b7068]">هنوز امضایی ثبت نشده است؛ امضاها به‌صورت الکترونیکی در برنامه و با کد اصالت ثبت می‌شوند.</p>}
       <p className="mt-1 text-[7px] leading-4 text-[#6f7a70]">این امضا «امضای الکترونیکی ساده» است و جایگزین امضای الکترونیکی مطمئن (نیازمند گواهی معتبر) یا سند رسمی و دسته‌چک کاغذی نیست. امضاهای دستی جای خالی روی نسخه چاپی برای کسانی است که امکان امضای الکترونیکی ندارند.</p>

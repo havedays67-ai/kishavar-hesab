@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BadgeCheck,
@@ -12,17 +12,16 @@ import {
   UsersRound,
 } from "lucide-react";
 import { cn } from "../utils/cn";
+import { devicePublicKeyInfo, signPayloadCrypto, verifyPayloadCrypto } from "../lib/crypto";
 import { useSignatures } from "../lib/signatureContext";
 import { buildSignableEntities } from "../lib/signable";
 import { runSignatureSelfTest, signatureTierExplanation, type SignableEntity } from "../lib/signatures";
-import { checkBiometric, type BiometricAvailability } from "../lib/biometric";
 import type { DocumentSpec } from "../lib/documents";
 import type { LedgerState } from "../lib/ledger";
 import type { CropTrade } from "../lib/trade";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import { SignatureDialog } from "../components/SignatureDialog";
 import { Toast } from "../components/ui";
-import { useEffect } from "react";
 
 const TYPE_LABELS: Record<SignableEntity["type"], string> = {
   document: "سند",
@@ -47,11 +46,12 @@ export function SignaturesPage({
   const [filter, setFilter] = useState<"all" | "pending" | "complete" | SignableEntity["type"]>("pending");
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<SignableEntity | null>(null);
-  const [biometric, setBiometric] = useState<BiometricAvailability | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [keyInfo, setKeyInfo] = useState<{ publicKey: string; keyFingerprint: string } | null>(null);
+  const [cryptoTest, setCryptoTest] = useState<string | null>(null);
+  useEffect(() => { void devicePublicKeyInfo().then(setKeyInfo); }, []);
   const selfTests = useMemo(() => runSignatureSelfTest(), []);
 
-  useEffect(() => { void checkBiometric().then(setBiometric); }, []);
 
   const entities = useMemo(() => buildSignableEntities({ ledger, trades, documents }), [ledger, trades, documents]);
   const rows = entities.map((entity) => ({ entity, report: audit(entity) }));
@@ -68,9 +68,9 @@ export function SignaturesPage({
     <div className="animate-rise">
       <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-[10px] text-[#84a294]"><Fingerprint className="h-3.5 w-3.5 text-mint-300" />امضا و اعتبار اسناد<span className="rounded border border-mint-300/20 bg-mint-300/[0.07] px-1.5 py-0.5 text-[8px] text-mint-300">امضای الکترونیکی + بیومتریک</span></div>
+          <div className="mb-2 flex items-center gap-2 text-[10px] text-[#84a294]"><Fingerprint className="h-3.5 w-3.5 text-mint-300" />امضا و اعتبار اسناد<span className="rounded border border-mint-300/20 bg-mint-300/[0.07] px-1.5 py-0.5 text-[8px] text-mint-300">امضای دستی + رمزنگاری</span></div>
           <h1 className="text-[22px] font-extrabold tracking-tight text-white sm:text-[26px]">مرکز امضا و اعتبار</h1>
-          <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">برای هر سند و تعهد، مشخص است چه کسانی باید امضا کنند؛ امضا با اثر انگشت گوشی تقویت می‌شود و hash محتوا تغییرها را آشکار می‌کند.</p>
+          <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">برای هر سند و تعهد، مشخص است چه کسانی باید امضا کنند؛ امضای دستی روی صفحه ثبت می‌شود، با کلید رمزنگاری‌شده دستگاه امضا می‌شود و hash محتوا تغییرها را آشکار می‌کند.</p>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-[9px] text-[#a8bfb3]"><Link2 className="h-3.5 w-3.5 text-mint-300" />زنجیره هش ازتغییر جلوگیری می‌کند</div>
       </div>
@@ -80,18 +80,22 @@ export function SignaturesPage({
           { label: "کل تعهدات قابل امضا", value: toPersianDigits(rows.length), icon: FileSignature, tone: "mint" },
           { label: "امضای کامل", value: toPersianDigits(completeRows.length), icon: BadgeCheck, tone: "mint" },
           { label: "نیازمند امضا", value: toPersianDigits(pendingRows.length), icon: AlertTriangle, tone: pendingRows.length ? "sand" : "mint" },
-          { label: "هشدار زنجیره", value: toPersianDigits(invalidRows.length + (biometric?.status === "available" ? 0 : 0)), icon: AlertTriangle, tone: invalidRows.length ? "bad" : "mint" },
+          { label: "هشدار زنجیره", value: toPersianDigits(invalidRows.length), icon: AlertTriangle, tone: invalidRows.length ? "bad" : "mint" },
         ].map((stat) => { const Icon = stat.icon; return <div key={stat.label} className="glass rounded-2xl p-3.5"><div className="flex items-center justify-between"><span className="text-[9px] text-[#91ad9f]">{stat.label}</span><Icon className={cn("h-3.5 w-3.5", stat.tone === "bad" ? "text-[#efad9f]" : stat.tone === "sand" ? "text-sand-300" : "text-mint-300/80")} /></div><div className={cn("mt-1 text-lg font-bold", stat.tone === "bad" ? "text-[#efad9f]" : "text-[#eef8f1]")}>{stat.value}</div></div>; })}
       </div>
 
       <div className="mb-4 grid items-start gap-3 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-mint-300/15 bg-mint-300/[0.04] p-3.5">
-          <div className="flex items-start gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mint-300/10 text-mint-300"><Scale className="h-4 w-4" /></span><div><p className="text-[10px] font-semibold text-[#e2f1e7]">آیا امضای این برنامه رسمی است؟</p><p className="mt-1 text-[8px] leading-5 text-[#a8c3b6]">امضای ساده الکترونیکی + تأیید هویت دستگاه، شواهد قوی‌تری از توافق می‌سازد؛ اما «امضای الکترونیکی مطمئن» ماده ۱۰ قانون تجارت الکترونیکی نیست مگر گواهی معتبر مرکز صدور گواهی داشته باشد. برای قرارداد زمین، چک و مبالغ بالا، ثبت رسمی/امضای حضوری را هم انجام دهید.</p></div></div>
+          <div className="flex items-start gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mint-300/10 text-mint-300"><Scale className="h-4 w-4" /></span><div><p className="text-[10px] font-semibold text-[#e2f1e7]">آیا امضای این برنامه رسمی است؟</p><p className="mt-1 text-[8px] leading-5 text-[#a8c3b6]">امضای دستی شما با کلید خصوصی همین دستگاه به‌صورت رمزنگاری (ECDSA) به سند گره می‌خورد و تغییر سند یا امضا قابل کشف است؛ اما این هم «امضای الکترونیکی مطمئن» ماده ۱۰ قانون تجارت الکترونیکی نیست مگر کلید شما گواهی معتبر مرکز صدور گواهی داشته باشد. برای قرارداد زمین، چک و مبالغ بالا، ثبت رسمی/امضای حضوری را هم انجام دهید.</p></div></div>
         </div>
         <div className="glass rounded-2xl p-3.5">
-          <div className="flex items-center justify-between gap-2"><div className="flex items-center gap-1.5 text-[10px] font-medium text-[#dcebe2]"><Fingerprint className="h-3.5 w-3.5 text-mint-300" />حسگر اثر انگشت دستگاه</div><span className={cn("rounded px-1.5 py-0.5 text-[8px]", biometric?.status === "available" ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}>{biometric?.status === "available" ? "آماده" : "غیرفعال"}</span></div>
-          <p className="mt-1 text-[8px] leading-4 text-[#78968a]">{biometric?.note ?? "در حال بررسی…"}</p>
-          <p className="mt-1 text-[7px] leading-4 text-[#6f8c7f]">تا ۳ تلاش؛ هر اثر انگشت ثبت‌شده در گوشی پذیرفته می‌شود. تصویر اثر انگشت در برنامه ذخیره نمی‌شود.</p>
+          <div className="flex items-center justify-between gap-2"><div className="flex items-center gap-1.5 text-[10px] font-medium text-[#dcebe2]"><ShieldCheck className="h-3.5 w-3.5 text-mint-300" />کلید امضای رمزنگاری دستگاه</div><span className={cn("rounded px-1.5 py-0.5 text-[8px]", keyInfo ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}>{keyInfo ? "فعال" : "در حال ساخت/غیرفعال"}</span></div>
+          <p className="mt-1 text-[8px] leading-4 text-[#78968a]">کلید خصوصی ECDSA P-256 روی همین دستگاه ساخته می‌شود و در IndexedDB می‌ماند. اثر انگشت کلید عمومی: <span className="font-mono text-[#a9c1b5]">{keyInfo?.keyFingerprint ?? "—"}</span></p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={async () => { const payload = `KISHAVAR-CRYPTO-TEST-${Date.now()}`; const signature = await signPayloadCrypto(payload); const ok = await verifyPayloadCrypto(payload, signature); const tampered = await verifyPayloadCrypto(`${payload}-tampered`, signature); setCryptoTest(ok && !tampered ? "کلید سالم است: امضای درست تأیید و امضای دست‌کاری‌شده رد شد." : "آزمون رمزنگاری موفق نبود؛ امضای رمزنگاری را غیرفعال بدانید."); }} className="rounded-lg border border-mint-300/20 bg-mint-300/[0.07] px-2.5 py-1.5 text-[8px] text-mint-300">آزمون امضای رمزنگاری</button>
+            {cryptoTest && <span className="text-[8px] leading-4 text-[#a9c1b5]">{cryptoTest}</span>}
+          </div>
+          <p className="mt-2 text-[7px] leading-4 text-[#6f8c7f]">برای تبدیل به «امضای الکترونیکی مطمئن»، باید کلید عمومی این دستگاه را نزد مرکز مجاز صدور گواهی الکترونیکی، احراز هویت و گواهی کنید. برنامه بدون گواهی، ادعای رسمی‌بودن نمی‌کند.</p>
         </div>
       </div>
 

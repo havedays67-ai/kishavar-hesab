@@ -54,6 +54,7 @@ import { PenLine, RotateCcw } from "lucide-react";
 import { Avatar, Modal, Toast } from "./ui";
 import { profileDisplayName, useProfile } from "../lib/profile";
 import { contractSignatureHash } from "../lib/contracts";
+import { signPayloadCrypto } from "../lib/crypto";
 import { ContractPreview } from "./ContractPreview";
 
 type Errors = Record<string, string>;
@@ -709,6 +710,7 @@ export function ContractForm({ parties, contracts, onCreateParty, onCreateContra
                   onSave={(image) => {
                     if (signerName.trim().length < 3) return setSignatureError("نام امضاکننده را کامل وارد کنید.");
                     if (signerPhone.replace(/\D/g, "").length < 8) return setSignatureError("شماره تماس امضاکننده معتبر نیست.");
+                    void (async () => {
                     const signature: ContractSignature = {
                       id: `csig-${Date.now()}`,
                       role: signRole,
@@ -718,8 +720,10 @@ export function ContractForm({ parties, contracts, onCreateParty, onCreateContra
                       hash: contractSignatureHash({ code: myName, role: signRole, signerName, date: `${start.jy}/${start.jm}/${start.jd}` }),
                       signedAt: todayJalali(),
                     };
+                    signature.crypto = await signPayloadCrypto(JSON.stringify({ name: signature.signerName, role: signature.role, phone: signature.phone, hash: signature.hash, image }));
                     setSignatures((current) => [...current.filter((row) => row.role !== signRole), signature]);
                     setSignatureError("");
+                    })();
                   }}
                 />
                 {signatureError && <p className="text-[9px] text-[#f0a59a]">{signatureError}</p>}
@@ -732,7 +736,7 @@ export function ContractForm({ parties, contracts, onCreateParty, onCreateContra
                     return (
                       <div key={signatureRole} className={cn("rounded-xl border p-2.5", signature ? "border-mint-300/25 bg-mint-300/[0.05]" : "border-dashed border-white/[0.12] bg-white/[0.02]")}>
                         <div className="flex items-center justify-between gap-1"><span className="text-[8px] font-medium text-[#c7d9cf]">{signatureRole === "landlord" ? "موجر / مالک" : signatureRole === "tenant" ? "مستاجر / بهره‌بردار" : "شاهد"}</span>{signature && <button type="button" onClick={() => setSignatures((current) => current.filter((row) => row.id !== signature.id))} className="text-[8px] text-[#efad9f]">حذف</button>}</div>
-                        {signature ? <><img src={signature.image} alt={`امضای ${signature.signerName}`} className="mt-1 h-14 w-full rounded bg-white object-contain" /><div className="mt-1 text-[8px] text-[#d3e4da]">{signature.signerName}</div><div className="text-[7px] text-[#78968a]">{formatJalali(signature.signedAt, "long")} · کد اثر {signature.hash}</div></> : <div className="mt-2 flex h-14 items-center justify-center rounded bg-white/[0.02] text-[8px] text-[#6f8c7f]">هنوز امضا نشده</div>}
+                        {signature ? <><img src={signature.image} alt={`امضای ${signature.signerName}`} className="mt-1 h-14 w-full rounded bg-white object-contain" /><div className="mt-1 text-[8px] text-[#d3e4da]">{signature.signerName}</div><div className="text-[7px] text-[#78968a]">{formatJalali(signature.signedAt, "long")} · کد اثر {signature.crypto?.keyFingerprint || signature.hash}</div></> : <div className="mt-2 flex h-14 items-center justify-center rounded bg-white/[0.02] text-[8px] text-[#6f8c7f]">هنوز امضا نشده</div>}
                       </div>
                     );
                   })}

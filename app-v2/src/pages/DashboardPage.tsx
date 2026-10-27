@@ -26,16 +26,11 @@ import { cn } from "../utils/cn";
 import clsx from "clsx";
 import { CONTRACT_TYPES, type Page, type SavedContract } from "../lib/data";
 import { useProfile } from "../lib/profile";
-import { useSignatures } from "../lib/signatureContext";
-import { buildDocumentRegistry } from "../lib/registry";
-import { buildSignableEntities } from "../lib/signable";
-import { buildInsights } from "../lib/insights";
-import { useMemo } from "react";
+import type { HealthReport } from "../lib/insights";
 import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotMetrics, type CropPlot } from "../lib/samples";
 import { Avatar } from "../components/ui";
-import type { LedgerState } from "../lib/ledger";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
 
 const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
@@ -45,25 +40,19 @@ export function DashboardPage({
   contracts,
   trades,
   plots,
-  ledger,
+  health,
   onNavigate,
   onOpenDocument,
 }: {
   contracts: SavedContract[];
   trades: CropTrade[];
   plots: CropPlot[];
-  ledger: LedgerState;
+  health: HealthReport;
   onNavigate: (page: Page) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
   const { profile } = useProfile();
-  const { audit } = useSignatures();
   const today = todayJalali();
-  const health = useMemo(() => {
-    const documents = buildDocumentRegistry(trades, contracts, plots);
-    const entities = buildSignableEntities({ ledger, trades, documents });
-    return buildInsights({ ledger, trades, plots, contracts, signableEntities: entities, pendingSignatures: entities.map((entity) => { const report = audit(entity); return { entity, required: report.required, signed: report.signed, missing: report.missing.length }; }) });
-  }, [ledger, trades, contracts, plots, audit]);
   const saleValue = trades.reduce((sum, trade) => sum + trade.result.netReceipt, 0);
   const remaining = trades.reduce((sum, trade) => sum + tradeBalance(trade).remaining, 0);
   const productionCost = plots.reduce((sum, plot) => sum + plotMetrics(plot).cost, 0);

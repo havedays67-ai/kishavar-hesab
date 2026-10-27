@@ -23,8 +23,7 @@
     "@capacitor/core": "^7.6.9",
     "@capacitor/android": "^7.6.9",
     "@capacitor/filesystem": "^7.1.9",
-    "@capacitor/share": "^7.0.4",
-    "@capgo/capacitor-native-biometric": "^7.6.0"
+    "@capacitor/share": "^7.0.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",
