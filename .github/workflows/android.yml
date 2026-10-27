@@ -84,8 +84,8 @@ jobs:
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
 
-      - name: Capacitor toolchain (core + filesystem + share)
-        run: npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
+      - name: Capacitor toolchain
+        run: npm install --no-audit --no-fund
 
       - name: Add Android platform (bundled app, no remote URL)
         run: |
