@@ -17,6 +17,10 @@ on:
       - main
     tags:
       - "v*"
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - "**/*.md"
 
 concurrency:
   group: android-apk
@@ -47,11 +51,21 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Regression tests (counterparty + Jalali contract dates)
+      - name: Regression tests (accounting, counterparty, Jalali dates)
         run: npx vitest run tests/offline-engine.test.ts tests/lease.test.ts tests/lease-forms.test.ts
 
-      - name: Build offline web app
-        run: npm run build:offline
+      - name: Build advanced field app (APK payload)
+        run: |
+          cd app-v2
+          npm ci --no-audit --no-fund
+          npm run build
+          test -f dist/index.html
+          cp dist/index.html ../capacitor-web/index.html
+          rm -f ../capacitor-web/app.js
+          cd ..
+          echo "APK payload built from app-v2/dist/index.html"
+          ls -lh capacitor-web/index.html
+          grep -q "معامله محصول" capacitor-web/index.html && echo "trade module found in payload"
 
       - name: Android SDK packages (preinstalled runner SDK)
         run: |
@@ -73,10 +87,9 @@ jobs:
       - name: Capacitor toolchain
         run: npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
 
-      - name: Add Android platform
-        env:
-          CAPACITOR_SERVER_URL: ${{ github.event.inputs.server_url || vars.APP_SERVER_URL }}
+      - name: Add Android platform (bundled app, no remote URL)
         run: |
+          unset CAPACITOR_SERVER_URL
           npx cap add android
           echo "Android 8+ (minSdk 26) enforced"
 
@@ -87,7 +100,7 @@ jobs:
           sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
-          sed -i -E 's/versionCode [0-9]+/versionCode 1/' android/app/build.gradle
+          sed -i -E 's/versionCode [0-9]+/versionCode 2/' android/app/build.gradle
           sed -i -E 's/versionName "[^"]*"/versionName "1.0.0"/' android/app/build.gradle
           grep -n "versionCode\|versionName" android/app/build.gradle
 
@@ -148,31 +161,40 @@ jobs:
           path: KishavarHesab-1.0.0.apk
           retention-days: 30
 
-      - name: Prepare release notes (Jalali date, single download URL)
+      - name: Prepare release notes (Jalali date, SHA-256, single download URL)
         run: |
-          node - <<'NODE' > release-notes.md
-          const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            timeZone: 'Asia/Tehran',
+          SHA=$(sha256sum KishavarHesab-1.0.0.apk | cut -d' ' -f1)
+          SIZE=$(stat -c%s KishavarHesab-1.0.0.apk)
+          SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $SIZE/1048576}")
+          echo "$SHA" > /tmp/apk-sha.txt
+          echo "$SIZE" > /tmp/apk-size.txt
+          echo "$SIZE_MB" > /tmp/apk-size-mb.txt
+          SHA="$SHA" SIZE="$SIZE" SIZE_MB="$SIZE_MB" node - <<'NODE' > release-notes.md
+          const jalaliParts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran',
           }).formatToParts(new Date());
-          const get = (type) => parts.find((part) => part.type === type)?.value ?? '';
-          const date = `${get('weekday')} ${get('day')} ${get('month')} ${get('year')}`;
-          console.log(`نسخه اندروید کشاورزحساب ۱.۰.۰ (شماره نسخه ثابت ۱ — نسخه رسمی منتشرنشده).`);
-          console.log(``);
-          console.log(`آخرین بازسازی: ${date} — تاریخ کامل شمسی به وقت ایران.`);
-          console.log(`حداقل اندروید ۸ (API 26) · امضای debug برای نسخه آزمایشی.`);
-          console.log(``);
-          console.log(`دانلود از همین صفحه: https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk`);
-          console.log(``);
-          console.log(`اصلاحات نسخه:`);
-          console.log(`- طرف قرارداد در نصب تازه دیگر خالی نیست؛ نام مالک/مستاجر مستقیم در فرم ثبت می‌شود.`);
-          console.log(`- تاریخ شروع و پایان قرارداد زمین، شمسی و اعتبارسنجی‌شده است.`);
-          console.log(`- نوع طرف‌حساب «مالک زمین» و «مستاجر» اضافه شد.`);
+          const get = (type) => jalaliParts.find((part) => part.type === type)?.value ?? '';
+          console.log('نسخه اندروید کشاورزحساب / کسب‌وکار من — 1.0.0');
+          console.log('');
+          console.log('آخرین بازسازی: ' + [get('weekday'), get('day'), get('month'), get('year')].join(' ') + ' — به وقت ایران');
+          console.log('');
+          console.log('این بسته از اپ میدانی پیشرفته در پوشه app-v2 ساخته شده است.');
+          console.log('');
+          console.log('تازه‌ها:');
+          console.log('- ماشین‌حساب فروش محصول: وزن باسکول، افت رطوبت، افت مفید/غیرمفید، درجه کیفی، نرخ، هزینه و مالیات');
+          console.log('- قرارداد زمین با انتخاب دوطرفه طرف قرارداد و تاریخ شمسی');
+          console.log('- مرکز اسناد: قرارداد فروش، قبض باسکول، صورتجلسه کیفیت، صورت‌حساب و تسویه');
+          console.log('- زمین و کشت با بهای تمام‌شده هر کیلو و نقطه سربه‌سر');
+          console.log('- گزارش‌های مدیریتی و صفحه معماری و آزمون موتور');
+          console.log('- چاپ A4 با سریال، QR، مبلغ به حروف و جای مهر و امضا');
+          console.log('');
+          console.log('SHA-256: ' + process.env.SHA);
+          console.log('حجم فایل: ' + process.env.SIZE_MB + ' مگابایت (' + process.env.SIZE + ' بایت)');
+          console.log('');
+          console.log('دانلود رسمی: https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk');
+          console.log('');
+          console.log('نصب: اگر نسخه قبلی نصب است و پیام «برنامه نصب نشد» دیدید، نسخه قدیمی را حذف و سپس نصب کنید (کلید امضای نسخه آزمایشی در هر ساخت متفاوت است).');
           NODE
-          cat release-notes.md
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
