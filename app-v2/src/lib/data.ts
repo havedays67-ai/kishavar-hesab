@@ -13,6 +13,7 @@ export type Page =
   | "reports"
   | "backup"
   | "signatures"
+  | "reminders"
   | "profile"
   | "architecture"
   | "download";

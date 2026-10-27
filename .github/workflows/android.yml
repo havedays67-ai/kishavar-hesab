@@ -98,6 +98,7 @@ jobs:
           cat android/app/src/main/assets/capacitor.plugins.json
           grep -qi "Filesystem" android/app/src/main/assets/capacitor.plugins.json || (echo "Filesystem plugin missing" && exit 1)
           grep -qi "Share" android/app/src/main/assets/capacitor.plugins.json || (echo "Share plugin missing" && exit 1)
+          grep -qi "LocalNotifications" android/app/src/main/assets/capacitor.plugins.json || (echo "LocalNotifications plugin missing" && exit 1)
           
       - name: Configure project (minSdk 26, target 35)
         run: |
@@ -105,7 +106,7 @@ jobs:
           sed -i -E 's/targetSdkVersion = [0-9]+/targetSdkVersion = 35/' android/variables.gradle
           sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
-          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <application#' android/app/src/main/AndroidManifest.xml
           CODE=$((1000 + GITHUB_RUN_NUMBER))
           sed -i -E "s/versionCode [0-9]+/versionCode $CODE/" android/app/build.gradle
           echo "versionCode=$CODE"

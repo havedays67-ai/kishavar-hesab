@@ -153,7 +153,13 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
                   </div>
                   {record && (
                     <div className="mt-2 rounded-lg bg-[#071510]/50 px-2 py-1.5">
-                      <div className="flex items-center justify-between gap-1 text-[8px]"><span className="text-[#d3e4da]">{record.signerName}</span><button type="button" onClick={() => { if (window.confirm("این امضا حذف شود؟")) { remove(record.id); setToast("امضا حذف شد"); } }} className="text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف امضا"><Trash2 className="h-3 w-3" /></button></div>
+                      <div className="mb-1 flex items-start gap-2">
+                        {record.image ? <img src={record.image} alt={`امضای ${record.signerName}`} className="h-10 w-20 shrink-0 rounded bg-white object-contain" /> : null}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1 text-[8px]"><span className="text-[#d3e4da]">{record.signerName}</span><button type="button" onClick={() => { if (window.confirm("این امضا حذف شود؟")) { remove(record.id); setToast("امضا حذف شد"); } }} className="text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف امضا"><Trash2 className="h-3 w-3" /></button></div>
+                          <div className="mt-0.5 break-all font-mono text-[7px] text-[#6f8c7f]">{record.crypto?.keyFingerprint ? `اثر کلید: ${record.crypto.keyFingerprint}` : ""}</div>
+                        </div>
+                      </div>
                       <div className="mt-1 flex flex-wrap gap-2 text-[7px] text-[#78968a]"><span>{formatJalali(record.signedAt, "long")}</span><span>{record.crypto?.signature ? "دستی + رمزنگاری" : "دستی"}</span><span className="font-mono">{shortHash(record.signatureHash)}</span></div>
                     </div>
                   )}

@@ -41,6 +41,7 @@ import { InventoryPage } from "./pages/InventoryPage";
 import { PartiesPage } from "./pages/PartiesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SignaturesPage } from "./pages/SignaturesPage";
+import { RemindersPage } from "./lib/reminders";
 import { buildDocumentRegistry } from "./lib/registry";
 import { contractTrackingCode, nextContractCode } from "./lib/contracts";
 import { useSignatures } from "./lib/signatureContext";
@@ -64,6 +65,7 @@ const AVAILABLE_PAGES: Page[] = [
   "reports",
   "backup",
   "signatures",
+  "reminders",
   "profile",
   "architecture",
   "download",
@@ -104,6 +106,7 @@ const PAGE_TITLES: Record<Page, string> = {
   reports: "گزارش‌های مدیریتی",
   backup: "دستیار و پشتیبان",
   signatures: "امضا و اعتبار",
+  reminders: "یادآوری و هشدار",
   profile: "پروفایل",
   architecture: "معماری و فرمول‌ها",
   download: "دریافت برنامه",
@@ -150,6 +153,7 @@ export default function App() {
 
   useEffect(() => {
     document.title = `${PAGE_TITLES[page]} | کسب‌وکار من`;
+    setActiveDocument(null);
   }, [page]);
 
   useEffect(() => {
@@ -356,7 +360,7 @@ export default function App() {
           <DocumentsPage trades={trades} contracts={contracts} plots={plots} onOpenDocument={setActiveDocument} />
         )}
         {page === "reports" && (
-          <ReportsPage trades={trades} plots={plots} contracts={contracts} health={health} onOpenDocument={setActiveDocument} onNavigateTrade={() => navigate("trade")} />
+          <ReportsPage trades={trades} plots={plots} contracts={contracts} health={health} onOpenDocument={setActiveDocument} onNavigateTrade={() => navigate("trade")} ledger={ledger} />
         )}
         {page === "backup" && (
           <BackupPage
@@ -371,6 +375,7 @@ export default function App() {
             onReset={resetAll}
           />
         )}
+        {page === "reminders" && <RemindersPage />}
         {page === "profile" && <ProfilePage onBack={() => navigate("dashboard")} />}
         {page === "download" && !Capacitor.isNativePlatform() && <DownloadPage />}
       </AppShell>

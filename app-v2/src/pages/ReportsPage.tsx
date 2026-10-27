@@ -25,8 +25,10 @@ import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotCost, plotMetrics, type CropPlot } from "../lib/samples";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
 import type { HealthReport } from "../lib/insights";
+import { agingBuckets, cashForecast, contractRiskScores, cropRanking, partyRiskScores, reorderSuggestions, signatureCompliance } from "../lib/forecast";
+import type { LedgerState } from "../lib/ledger";
 
-type Tab = "overview" | "trades" | "crops" | "lease";
+type Tab = "overview" | "trades" | "crops" | "lease" | "risk";
 
 const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
 const money = (value: number) => `${fa(value)} تومان`;
@@ -36,6 +38,7 @@ export function ReportsPage({
   plots,
   contracts,
   health,
+  ledger,
   onOpenDocument,
   onNavigateTrade,
 }: {
@@ -43,11 +46,19 @@ export function ReportsPage({
   plots: CropPlot[];
   contracts: SavedContract[];
   health: HealthReport;
+  ledger: LedgerState;
   onOpenDocument: (spec: DocumentSpec) => void;
   onNavigateTrade: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [severity, setSeverity] = useState<"all" | "critical" | "warning" | "info" | "good">("all");
+  const forecast = cashForecast(ledger, trades);
+  const risks = partyRiskScores(ledger);
+  const contractRisks = contractRiskScores(contracts);
+  const rankings = cropRanking(plots);
+  const reorders = reorderSuggestions(ledger);
+  const aging = agingBuckets(ledger);
+  const compliance = signatureCompliance(contracts);
   const visibleInsights = health.insights.filter((insight) => severity === "all" || insight.severity === severity);
 
   const saleValue = trades.reduce((sum, trade) => sum + trade.result.netReceipt, 0);
@@ -160,6 +171,7 @@ export function ReportsPage({
           ["trades", "معاملات محصول", Scale],
           ["crops", "زمین و بهای تمام‌شده", Sprout],
           ["lease", "اجاره زمین", Landmark],
+          ["risk", "پیش‌بینی و ریسک", Sparkles],
         ].map(([value, label, Icon]) => {
           const TabIcon = Icon as typeof BarChart3;
           return (
@@ -475,6 +487,73 @@ export function ReportsPage({
         {visibleInsights.length === 0 && <p className="rounded-xl border border-dashed border-[#355344] px-3 py-6 text-center text-[9px] text-[#78968a]">در این سطح، یافته‌ای وجود ندارد.</p>}
         <div className="mt-3 rounded-lg border border-[#c5b97f]/20 bg-[#c5b97f]/[0.05] px-3 py-2 text-[8px] leading-5 text-[#d7cba1]">این تحلیل بر اساس قواعد قطعی و داده‌های ثبت‌شده شماست؛ نه حدس. توصیه‌های حقوقی/مالی سنگین را با مشاور خود بازبینی کنید.</div>
       </section>
+
+      {tab === "risk" && (
+        <section className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            {forecast.map((bucket) => (
+              <div key={bucket.label} className="glass rounded-2xl p-3.5">
+                <div className="text-[9px] text-[#91ad9f]">{bucket.label}</div>
+                <div className={cn("mt-1 text-sm font-bold", bucket.net >= 0 ? "text-mint-300" : "text-[#efad9f]")}>{money(bucket.net)}</div>
+                <div className="mt-1 flex justify-between text-[8px] text-[#78968a]"><span>ورودی {fa(bucket.inflow)}</span><span>خروجی {fa(bucket.outflow)}</span></div>
+                <div className="mt-1 text-[7px] leading-4 text-[#6f8c7f]">{bucket.items.slice(0, 2).join(" · ") || "موردی زمان‌بندی نشده"}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="glass rounded-[22px] p-4">
+              <h2 className="mb-2 text-[11px] font-semibold text-white">ریسک طرف‌حساب‌ها (امتیاز ۰ تا ۱۰۰)</h2>
+              <div className="space-y-2">
+                {risks.slice(0, 6).map((risk) => (
+                  <div key={risk.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5">
+                    <div className="flex items-center justify-between gap-2"><span className="text-[9px] text-[#dcebe2]">{risk.name}</span><span className={cn("rounded px-1.5 py-0.5 text-[8px]", risk.level === "زیاد" ? "bg-[#a25649]/15 text-[#efad9f]" : risk.level === "متوسط" ? "bg-sand-300/10 text-sand-300" : "bg-mint-300/10 text-mint-300")}>{risk.level} · {toPersianDigits(risk.score)}</span></div>
+                    <div className="mt-1 text-[8px] text-[#78968a]">مانده {money(risk.balance)} {risk.reasons.length ? `· ${risk.reasons.join("، ")}` : ""}</div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><div className={cn("h-full rounded-full", risk.score >= 60 ? "bg-[#c47a68]" : risk.score >= 30 ? "bg-sand-300" : "bg-mint-400")} style={{ width: `${Math.max(3, risk.score)}%` }} /></div>
+                  </div>
+                ))}
+                {risks.length === 0 && <p className="text-[9px] text-[#78968a]">طرف‌حسابی ثبت نشده.</p>}
+              </div>
+            </div>
+            <div className="glass rounded-[22px] p-4">
+              <h2 className="mb-2 text-[11px] font-semibold text-white">ریسک قراردادها · وضعیت امضا {toPersianDigits(compliance.percent)}٪</h2>
+              <div className="space-y-2">
+                {contractRisks.slice(0, 6).map((risk) => (
+                  <div key={risk.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5">
+                    <div className="flex items-center justify-between gap-2"><span className="text-[9px] text-[#dcebe2]">{risk.title}</span><span className={cn("rounded px-1.5 py-0.5 text-[8px]", risk.level === "زیاد" ? "bg-[#a25649]/15 text-[#efad9f]" : risk.level === "متوسط" ? "bg-sand-300/10 text-sand-300" : "bg-mint-300/10 text-mint-300")}>{risk.level} · {toPersianDigits(risk.score)}</span></div>
+                    <div className="mt-1 text-[8px] text-[#78968a]">{risk.code} · {risk.reasons.join("، ") || "ریسک شناخته‌شده‌ای ندارد"}</div>
+                  </div>
+                ))}
+                {contractRisks.length === 0 && <p className="text-[9px] text-[#78968a]">قراردادی ثبت نشده.</p>}
+              </div>
+            </div>
+            <div className="glass rounded-[22px] p-4">
+              <h2 className="mb-2 text-[11px] font-semibold text-white">رتبه‌بندی سود زمین‌ها</h2>
+              <div className="space-y-2">
+                {rankings.map((row) => (
+                  <div key={row.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] px-2.5 py-2 text-[8px]">
+                    <span className="w-5 text-mint-300">{toPersianDigits(row.rank)}</span>
+                    <span className="flex-1 truncate text-[#d3e4da]">{row.title} · {row.crop}</span>
+                    <span className={cn(row.profit >= 0 ? "text-mint-300" : "text-[#efad9f]")}>{money(row.profit)}</span>
+                    <span className="text-[#78968a]">حاشیه {toPersianDigits(row.margin.toFixed(0))}٪</span>
+                  </div>
+                ))}
+                {rankings.length === 0 && <p className="text-[9px] text-[#78968a]">زمینی ثبت نشده.</p>}
+              </div>
+            </div>
+            <div className="glass rounded-[22px] p-4">
+              <h2 className="mb-2 text-[11px] font-semibold text-white">سفارش پیشنهادی انبار و سن مطالبات</h2>
+              <div className="space-y-1.5">
+                {reorders.map((row) => <div key={row.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[8px]"><span className="text-[#d3e4da]">{row.name}</span><span className="text-[#78968a]">موجودی {fa(row.stock)} / حد {fa(row.min)}</span><span className="text-sand-300">خرید {fa(row.qty)} {row.unit}</span><span className="text-[#9fbfae]">{money(row.cost)}</span></div>)}
+                {reorders.length === 0 && <p className="text-[8px] text-[#78968a]">همه اقلام بالای حد سفارش‌اند.</p>}
+                <div className="mt-2 space-y-1.5 border-t border-white/[0.06] pt-2">
+                  {aging.map((bucket) => <div key={bucket.label} className="flex items-center justify-between gap-2 text-[8px]"><span className="text-[#78968a]">{bucket.label}</span><span className="text-[#d3e4da]">{money(bucket.amount)}</span><span className="text-[#6f8c7f]">{toPersianDigits(bucket.count)} حساب</span></div>)}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[#c5b97f]/20 bg-[#c5b97f]/[0.05] px-3.5 py-2.5 text-[8px] leading-5 text-[#d7cba1]">پیش‌بینی نقدینگی از سررسید چک‌ها، اقساط وام، مانده معاملات و بدهی/طلب‌ها محاسبه شده است؛ تخمین مدیریتی است و جایگزین صورت‌حساب بانکی نیست.</div>
+        </section>
+      )}
 
     </div>
   );

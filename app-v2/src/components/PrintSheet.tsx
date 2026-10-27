@@ -19,7 +19,7 @@ import { documentEntity } from "../lib/signable";
 import { SignatureDialog } from "./SignatureDialog";
 import { Fingerprint } from "lucide-react";
 import type { DocumentSpec } from "../lib/documents";
-import { verificationData, verificationPayload } from "../lib/documents";
+import { verificationData } from "../lib/documents";
 import { deliverDocumentPdf, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
 import {
   formatJalali,
@@ -53,12 +53,17 @@ function kg(value: number): string {
   return `${toPersianDigits(formatNumber(Math.round(value * 100) / 100))} کیلوگرم`;
 }
 
+/** مبالغ داخلی به تومان ذخیره می‌شوند؛ در سند رسمی به ریال (واحد رسمی قانون پولی و بانکی) نمایش داده می‌شوند. */
+export function rialOf(toman: number): number {
+  return Math.round((Number(toman) || 0) * 10);
+}
+
 function money(value: number): string {
-  return `${num(value)} تومان`;
+  return `${num(rialOf(value))} ریال`;
 }
 
 function words(value: number): string {
-  return `${numberToPersianWords(Math.round(value))} تومان`;
+  return `${numberToPersianWords(rialOf(value))} ریال`;
 }
 
 function Row({ label, value, strong }: { label: string; value: ReactNode; strong?: boolean }) {
@@ -139,7 +144,8 @@ function SignatureBoxes({ roles }: { roles: string[] }) {
         <div key={role} className="rounded border border-[#c8c3b5] p-2">
           <div className="mb-6 text-[9px] font-semibold text-[#4c5a51]">{role}</div>
           <div className="border-b border-dashed border-[#a9a394] pb-1 text-center text-[8px] text-[#8a9188]">نام، مهر و امضا</div>
-          <div className="mt-1 text-center text-[8px] text-[#8a9188]">تاریخ: ...... / ...... / ۱۴......</div>
+          <div className="mt-1 text-center text-[8px] text-[#8a9188]">تاریخ: .... / .... / ....</div>
+          <div className="mt-0.5 text-center text-[7px] text-[#a09c8f]">این کادر برای امضای دستی روی نسخه کاغذی است</div>
         </div>
       ))}
     </div>
@@ -170,7 +176,7 @@ function VerificationQR({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center gap-1">
       {src ? <img src={src} alt="QR استعلام سند" className="h-[86px] w-[86px]" /> : <QrCode className="h-[86px] w-[86px] text-[#41594b]" />}
-      <span className="text-[7px] text-[#69756c]">اسکن برای استعلام</span>
+      <span className="text-[7px] text-[#69756c]">کد کنترل سند</span>
     </div>
   );
 }
@@ -332,7 +338,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
               <div>
                 <h1 className="text-[13px] font-extrabold leading-5 text-[#173c2b]">{profileDisplayName(profile)}</h1>
                 <p className="mt-0.5 text-[8px] text-[#67736a]">دفتر کل آرام مزرعه · {profile.businessName || "کسب‌وکار کشاورزی"}</p>
-                <p className="mt-0.5 text-[7px] text-[#879085]">{profileFarmLine(profile)}{profile.nationalId ? ` · شناسه ملی ${profile.nationalId}` : ""}</p>
+                <p className="mt-0.5 text-[7px] text-[#879085]">{[profile.address, profile.city, profile.province].filter(Boolean).join("، ") || profileFarmLine(profile)}{profile.nationalId ? ` · شناسه ملی ${profile.nationalId}` : ""}</p>
               </div>
             </div>
             <div className="text-center">
@@ -345,7 +351,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
             <div className="min-w-[120px] text-left text-[8px] leading-5 text-[#5b685e]">
               <div>شماره سند: <b className="font-mono text-[9px] text-[#203d2d]">{spec.serial}</b></div>
               <div>تاریخ: <b>{formatJalali(spec.date, "long")}</b></div>
-              <div>کد استعلام: <b className="font-mono">{spec.verificationCode}</b></div>
+              <div>کد کنترل سند: <b className="font-mono">{verificationData(spec).check}</b></div>
               <div>صفحه: ۱ از ۱</div>
             </div>
           </div>
@@ -424,7 +430,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
               </div>
             </Section>
             <div className="mt-3 rounded border border-[#cdbf8b] bg-[#f8f3e2] p-2.5 text-[9px] leading-6">
-              <b>مبلغ خالص قابل پرداخت به حروف:</b> {words(result.netReceipt)}
+              <b>مبلغ خالص قابل پرداخت به حروف (ریال):</b> {words(result.netReceipt)} <span className="text-[7px] text-[#7a847b]">(معادل {num(result.netReceipt)} تومان)</span>
             </div>
             <div className="mt-2 rounded border border-[#ddd8ca] p-2.5">
               <div className="grid gap-2 sm:grid-cols-3">
@@ -586,7 +592,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 </tbody>
               </table>
               <div className="mt-2 rounded border border-[#cdbf8b] bg-[#f8f3e2] p-2.5 text-[9px] leading-6">
-                <b>مبلغ به حروف:</b> {words(result.netReceipt)}
+                <b>مبلغ به حروف (ریال):</b> {words(result.netReceipt)} <span className="text-[7px] text-[#7a847b]">(معادل {num(result.netReceipt)} تومان)</span>
               </div>
               <div className="mt-2 rounded border border-[#ddd8ca] p-2.5">
                 <Row label="روش پرداخت" value={PAYMENT_METHOD_LABELS[trade.paymentMethod]} />
@@ -666,11 +672,12 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 این سند بر پایه <b>{spec.meta.legalBasis}</b> و به‌عنوان سند اداری/داخلی تنظیم شده است. اعتبار در برابر
                 اشخاص ثالث، تابع ثبت رسمی یا سامانه دولتی مربوط است؛ نسخه چاپی با مهر و امضای دو طرف، مبنای توافق است.
               </p>
-              <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · استعلام: havedays67-ai.github.io/kishavar-hesab/verify · صادرشده توسط {profileDisplayName(profile)}</p>
-              <p className="mt-1">آدرس: اردبیل، پارس‌آباد، مزرعه سبز دشت مغان · تلفن: {profile.phone || "—"} · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
+              <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · صادرکننده: {profileDisplayName(profile)}</p>
+              <p className="mt-1">نشانی: {[profile.address, profile.city, profile.province].filter(Boolean).join("، ") || "ثبت نشده"} · تلفن: {profile.phone || "ثبت نشده"} · کد پستی: {profile.postalCode || "—"} · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
+              <p className="mt-1">مبالغ این سند به ریال (واحد رسمی پول ایران) است. هر تومان معادل ۱۰ ریال.</p>
             </div>
             <div className="flex items-end gap-2">
-              <VerificationQR text={verificationPayload(spec)} />
+              <VerificationQR text={`سند ${spec.serial} | کد کنترل ${verificationData(spec).check} | تاریخ ${formatJalali(spec.date, "short")} | مبلغ ${rialOf(spec.payload.trade?.result.netReceipt ?? spec.payload.contract?.rent ?? 0)} ریال`} />
               <div className="mb-1 rounded border border-[#c8c3b5] px-3 py-2 text-center text-[7px] text-[#7a847b]">
                 مهر و امضای واحد
                 <div className="mt-2 h-7 w-16 rounded-sm border border-dashed border-[#b5af9f]" />
@@ -711,7 +718,7 @@ function LeaseDocumentBody({ spec, contract }: { spec: DocumentSpec; contract: S
             <Row label="شرح" value="مال‌الاجاره دوره جاری زمین کشاورزی" />
           </div>
           <div className="mt-2 rounded border border-[#cdbf8b] bg-[#f8f3e2] p-2.5 text-[9px] leading-6">
-            <b>مبلغ به حروف:</b> {contract.rent > 0 ? words(installment) : `${toPersianDigits(contract.cropShare)} درصد سهم از محصول — بدون مبلغ نقدی در این دوره`}
+            <b>مبلغ به حروف (ریال):</b> {contract.rent > 0 ? words(installment) : `${toPersianDigits(contract.cropShare)} درصد سهم از محصول — بدون مبلغ نقدی در این دوره`}
           </div>
           <p className="mt-2 text-[8px] leading-5 text-[#66736a]">
             امضای دریافت‌کننده به‌معنای دریافت کامل مبلغ در تاریخ این رسید است. ودیعه قابل استرداد تعهد جداگانه است و در این مبلغ لحاظ نشده.
