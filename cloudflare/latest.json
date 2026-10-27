@@ -25,7 +25,16 @@
     "name": "Hamio/kishavar-hesab-dataset",
     "url": "https://huggingface.co/datasets/Hamio/kishavar-hesab-dataset",
     "revision": "8f64775",
-    "rows": { "train": 529, "val": 88, "test": 117, "hard": 50 }
+    "rows": {
+      "train": 529,
+      "val": 88,
+      "test": 117,
+      "hard": 50
+    }
   },
-  "serverRequired": true
+  "serverRequired": true,
+  "links": {
+    "chat": "https://chat.tivachat-vflash-ai.ir",
+    "download": "https://kishavar.tivachat-vflash-ai.ir"
+  }
 }
