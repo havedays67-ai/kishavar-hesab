@@ -1,7 +1,7 @@
 {
-  "name": "kishavar-field-app",
+  "name": "react-vite-tailwind",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,8 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/filesystem": "^7.1.9",
+    "@capacitor/share": "^7.0.4",
     "clsx": "2.1.1",
+    "html2canvas-pro": "^2.5.0",
     "jalaali-js": "^2.0.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.62.0",
     "qrcode": "^1.5.4",
     "react": "19.2.6",

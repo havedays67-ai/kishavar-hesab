@@ -151,7 +151,8 @@
   }
 
   .animate-rise {
-    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    /* بدون fill-mode until پایان: transform باقی‌مانده نباید modals را حبس کند */
+    animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .animate-fade {
@@ -251,4 +252,10 @@
   .print-sheet table { page-break-inside: auto; }
   .print-sheet tr { page-break-inside: avoid; }
   .print-sheet section { page-break-inside: avoid; }
+}
+
+
+/* لایه‌های شناور باید مستقل از transform صفحات عمل کنند */
+[role="dialog"] {
+  isolation: isolate;
 }

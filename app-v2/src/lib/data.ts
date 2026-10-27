@@ -4,10 +4,14 @@ export type Page =
   | "dashboard"
   | "trade"
   | "contracts"
+  | "rentals"
   | "crops"
-  | "documents"
+  | "finance"
   | "parties"
+  | "inventory"
+  | "documents"
   | "reports"
+  | "backup"
   | "architecture"
   | "download";
 export type Role = "tenant" | "landlord";

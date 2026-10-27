@@ -336,6 +336,19 @@ export function DashboardPage({
         </div>
       </div>
 
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {([
+          ["دفتر مالی", "درآمد، هزینه، چک و قسط", "finance"],
+          ["بدهکار و بستانکار", "مانده، دلیل و دفتر معین", "parties"],
+          ["اجاره و اقساط", "پرداخت اجاره و امضا", "rentals"],
+          ["انبار و بودجه", "موجودی، دارایی و استهلاک", "inventory"],
+        ] as [string, string, "finance" | "parties" | "rentals" | "inventory"][]).map(([title, subtitle, target]) => (
+          <button key={title} type="button" onClick={() => onNavigate(target)} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-3 text-right transition hover:border-mint-300/25 hover:bg-white/[0.045]">
+            <span><span className="block text-[10px] font-medium text-[#dcebe2]">{title}</span><span className="mt-0.5 block text-[8px] text-[#6f8c7f]">{subtitle}</span></span>
+            <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-mint-300" />
+          </button>
+        ))}
+      </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-white/[0.015] px-4 py-3 text-[8px] text-[#718e81]">
         <span className="flex items-center gap-1.5"><BadgeCheck className="h-3 w-3 text-mint-300" /> همه محاسبات از موتور قطعی، بدون تخمین ذهنی</span>
         <span className="flex items-center gap-1.5"><Avatar name={MY_BUSINESS.owner} size="sm" /> {MY_BUSINESS.owner} · مدیر مزرعه</span>

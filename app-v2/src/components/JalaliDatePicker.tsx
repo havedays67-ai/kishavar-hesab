@@ -22,6 +22,7 @@ export function JalaliDatePicker({
   minDate,
   error,
   disabled,
+  quickToday = true,
 }: {
   value: JDate | null;
   onChange: (date: JDate) => void;
@@ -29,6 +30,7 @@ export function JalaliDatePicker({
   minDate?: JDate | null;
   error?: string;
   disabled?: boolean;
+  quickToday?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const today = todayJalali();
@@ -58,7 +60,19 @@ export function JalaliDatePicker({
       <div className="label">
         <CalendarDays className="h-3.5 w-3.5 text-[#7fa294]" />
         {label}
-        <span className="mr-auto rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-light text-[#7f9c8e]">شمسی</span>
+        <span className="mr-auto flex items-center gap-1">
+          {quickToday && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(todayJalali())}
+              className="rounded-md border border-mint-300/20 bg-mint-300/[0.07] px-1.5 py-0.5 text-[9px] font-medium text-mint-300 transition hover:bg-mint-300/[0.14] disabled:opacity-50"
+            >
+              امروز
+            </button>
+          )}
+          <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-light text-[#7f9c8e]">شمسی</span>
+        </span>
       </div>
       <button
         type="button"

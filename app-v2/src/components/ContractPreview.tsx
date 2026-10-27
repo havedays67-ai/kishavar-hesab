@@ -3,7 +3,7 @@ import type { SavedContract } from "../lib/data";
 import { formatJalali, formatNumber, numberToPersianWords, toPersianDigits } from "../lib/format";
 import { Modal } from "./ui";
 import { CONTRACT_TYPES } from "../lib/data";
-import { printDocumentSheet } from "../lib/print";
+import { printSheetInPage } from "../lib/pdf";
 
 export function ContractPreview({
   open,
@@ -166,7 +166,7 @@ export function ContractPreview({
         </button>
         <button
           type="button"
-          onClick={() => printDocumentSheet(`قرارداد ${contract.code}`)}
+          onClick={() => printSheetInPage(document.getElementById("print-root"), `قرارداد ${contract.code}`)}
           className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-4 py-2.5 text-[11px] text-[#c7dad0] transition hover:bg-white/[0.05]"
         >
           <Printer className="h-3.5 w-3.5" />

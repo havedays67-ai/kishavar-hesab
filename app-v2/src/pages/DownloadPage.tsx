@@ -30,10 +30,10 @@ type ReleaseInfo = {
 };
 
 const FALLBACK_RELEASE: ReleaseInfo = {
-  date: "2026-10-27T14:03:38Z",
-  size: 4087973,
+  date: "2026-10-27T14:45:46Z",
+  size: 4216099,
   downloads: 0,
-  digest: "a3a222b6670a0b3202b2e42f0cee4a5deb4d50328a377569baec49163ea9512f",
+  digest: "ea801e1c9eaa2515353a189c475b27b9e98c718fa5c0994fe565ba1871ebd759",
 };
 
 export function DownloadPage() {

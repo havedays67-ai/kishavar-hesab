@@ -6,16 +6,20 @@ import {
   BookOpen,
   CalendarDays,
   ChevronDown,
+  CreditCard,
   FileText,
   Files,
+  Landmark,
   LayoutDashboard,
   Leaf,
   Menu,
+  Package,
   Scale,
   ShieldCheck,
   Smartphone,
   Sprout,
   UsersRound,
+  Wallet,
   X,
 } from "lucide-react";
 import { cn } from "../utils/cn";
@@ -34,10 +38,14 @@ const NAV_ITEMS: {
   { id: "dashboard", label: "پیشخوان مزرعه", short: "پیشخوان", icon: LayoutDashboard, group: "work" },
   { id: "trade", label: "معامله محصول", short: "معامله", icon: Scale, badge: "جدید", group: "work" },
   { id: "contracts", label: "قرارداد زمین", short: "قرارداد", icon: FileText, group: "work" },
+  { id: "rentals", label: "اجاره و اقساط", short: "اجاره", icon: Landmark, group: "work" },
   { id: "crops", label: "زمین و کشت", short: "زمین", icon: Sprout, group: "work" },
+  { id: "finance", label: "دفتر مالی", short: "مالی", icon: Wallet, group: "ledger" },
+  { id: "parties", label: "بدهکار و بستانکار", short: "طرف‌حساب", icon: UsersRound, group: "ledger" },
+  { id: "inventory", label: "انبار، دارایی، بودجه", short: "انبار", icon: Package, group: "ledger" },
   { id: "documents", label: "اسناد و چاپ", short: "اسناد", icon: Files, badge: "A4", group: "ledger" },
-  { id: "parties", label: "طرف‌حساب‌ها", short: "طرف‌حساب", icon: UsersRound, group: "ledger" },
   { id: "reports", label: "گزارش‌های مدیریتی", short: "گزارش", icon: BarChart3, group: "ledger" },
+  { id: "backup", label: "دستیار و پشتیبان", short: "پشتیبان", icon: CreditCard, group: "system" },
   { id: "architecture", label: "معماری و فرمول‌ها", short: "معماری", icon: BookOpen, group: "system" },
   { id: "download", label: "دریافت برنامه", short: "دریافت اپ", icon: Smartphone, group: "system" },
 ];
@@ -46,10 +54,14 @@ const PAGE_LABELS: Record<Page, string> = {
   dashboard: "پیشخوان",
   trade: "معامله محصول",
   contracts: "قرارداد زمین",
+  rentals: "اجاره و اقساط",
   crops: "زمین و کشت",
+  finance: "دفتر مالی",
+  parties: "بدهکار و بستانکار",
+  inventory: "انبار، دارایی و بودجه",
   documents: "اسناد و چاپ",
-  parties: "طرف‌حساب‌ها",
   reports: "گزارش‌ها",
+  backup: "دستیار و پشتیبان",
   architecture: "معماری",
   download: "دریافت برنامه",
 };
@@ -60,7 +72,7 @@ const GROUPS: { key: "work" | "ledger" | "system"; label: string }[] = [
   { key: "system", label: "راهنما و برنامه" },
 ];
 
-const MOBILE_PRIMARY: Page[] = ["dashboard", "trade", "contracts", "documents"];
+const MOBILE_PRIMARY: Page[] = ["dashboard", "trade", "parties", "documents"];
 
 export function AppShell({
   page,

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import {
   ArrowLeft,
@@ -14,7 +15,7 @@ import {
 import { MY_BUSINESS, type SavedContract } from "../lib/data";
 import type { DocumentSpec } from "../lib/documents";
 import { verificationPayload } from "../lib/documents";
-import { printDocumentSheet } from "../lib/print";
+import { deliverDocumentPdf, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
 import {
   formatJalali,
   formatNumber,
@@ -126,21 +127,22 @@ export function DocumentDialog({
 }: {
   spec: DocumentSpec;
   onClose: () => void;
-  onPrint: () => void;
+  onPrint?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const printNow = () => {
-    printDocumentSheet(`${spec.meta.title} — ${spec.serial}`);
-  };
+  const [zoom, setZoom] = useState<"fit" | "large">("fit");
+  const [busy, setBusy] = useState<"pdf" | "html" | null>(null);
+  const [status, setStatus] = useState<{ tone: "ok" | "err" | "info"; text: string } | null>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
+    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previous;
       window.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
@@ -148,81 +150,95 @@ export function DocumentDialog({
   const downloadHtml = () => {
     const sheet = document.getElementById("print-root")?.outerHTML ?? "";
     const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${spec.meta.title} — ${spec.serial}</title><style>${PRINT_CSS}</style></head><body>${sheet}</body></html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${spec.serial}.html`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const ok = deliverHtmlFile(html, spec.serial);
+    setStatus(ok ? { tone: "ok", text: "فایل HTML ذخیره شد؛ در مرورگر باز و چاپ کنید." } : { tone: "err", text: "ذخیره فایل ممکن نشد." });
+  };
+
+  const downloadPdf = async () => {
+    setBusy("pdf");
+    setStatus({ tone: "info", text: "در حال ساخت PDF…" });
+    const result = await deliverDocumentPdf(document.getElementById("print-root"), spec.serial);
+    setBusy(null);
+    setStatus({ tone: result.ok ? "ok" : "err", text: result.message });
   };
 
   const copyCode = () => {
     void navigator.clipboard?.writeText(spec.verificationCode);
     setCopied(true);
+    setStatus({ tone: "ok", text: "کد استعلام کپی شد." });
     window.setTimeout(() => setCopied(false), 2200);
   };
 
-  return (
-    <div className="doc-overlay fixed inset-0 z-[100] flex flex-col bg-[#07110d]/95 backdrop-blur-sm">
-      <div className="no-print flex flex-wrap items-center gap-2 border-b border-white/10 bg-[#0b1a13] px-3 py-3 sm:px-5">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/20 bg-mint-300/10 text-mint-300">
-            <FileCheck2 className="h-[18px] w-[18px]" />
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate text-[12px] font-semibold text-white sm:text-sm">{spec.meta.title}</h2>
-            <p className="mt-0.5 truncate text-[9px] text-[#89a396]">
-              {spec.serial} · {formatJalali(spec.date, "long")} · نسخه {toPersianDigits(1)}
-            </p>
+  const printNow = () => {
+    onPrint?.();
+    const done = printSheetInPage(document.getElementById("print-root"), `${spec.meta.title} — ${spec.serial}`);
+    setStatus(
+      done
+        ? { tone: "info", text: "پنجره چاپ باز شد. برای ذخیره، «Save as PDF» را انتخاب کنید. اگر باز نشد از «دانلود PDF» استفاده کنید." }
+        : { tone: "err", text: "چاپ در این دستگاه پشتیبانی نشد؛ از «دانلود PDF» استفاده کنید." }
+    );
+  };
+
+  return createPortal(
+    <div className="doc-overlay fixed inset-0 z-[100] flex flex-col bg-[#07110d]/95" role="dialog" aria-modal="true" aria-label={`پیش‌نمایش ${spec.meta.title}`}>
+      <div className="no-print shrink-0 border-b border-white/10 bg-[#0b1a13]">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/20 bg-mint-300/10 text-mint-300">
+              <FileCheck2 className="h-[18px] w-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-[12px] font-semibold text-white sm:text-sm">{spec.meta.title}</h2>
+              <p className="mt-0.5 truncate text-[9px] text-[#89a396]">{spec.serial} · {formatJalali(spec.date, "long")}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" onClick={downloadPdf} disabled={busy !== null} className="flex items-center gap-1.5 rounded-lg bg-mint-400 px-3 py-2 text-[9px] font-bold text-[#07110d] transition hover:bg-mint-300 disabled:opacity-60">
+              <Download className="h-3.5 w-3.5" />
+              {busy === "pdf" ? "در حال ساخت…" : "دانلود PDF"}
+            </button>
+            <button type="button" onClick={printNow} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#d4e5db] transition hover:bg-white/[0.08]">
+              <Printer className="h-3.5 w-3.5" />
+              چاپ
+            </button>
+            <button type="button" onClick={downloadHtml} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#b9cec3] transition hover:bg-white/[0.08]">
+              <FileCheck2 className="h-3.5 w-3.5" />
+              ذخیره HTML
+            </button>
+            <button type="button" onClick={copyCode} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#b9cec3] transition hover:bg-white/[0.08]">
+              {copied ? <Check className="h-3.5 w-3.5 text-mint-300" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "کپی شد" : "کد استعلام"}
+            </button>
+            <button type="button" onClick={() => setZoom((current) => (current === "fit" ? "large" : "fit"))} className="hidden items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-2 text-[9px] text-[#b9cec3] sm:flex">
+              <QrCode className="h-3.5 w-3.5" />
+              {zoom === "fit" ? "بزرگ‌نمایی" : "تناسب صفحه"}
+            </button>
+            <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-[#9fb6aa] transition hover:bg-white/5 hover:text-white" aria-label="بستن پیش‌نمایش">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={copyCode}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#b9cec3] transition hover:bg-white/[0.08]"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-mint-300" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "کپی شد" : "کد استعلام"}
-          </button>
-          <button
-            type="button"
-            onClick={downloadHtml}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#b9cec3] transition hover:bg-white/[0.08]"
-          >
-            <Download className="h-3.5 w-3.5" />
-            ذخیره فایل
-          </button>
-          <button
-            type="button"
-            onClick={() => { onPrint(); printNow(); }}
-            className="flex items-center gap-1.5 rounded-lg bg-mint-400 px-3 py-2 text-[9px] font-bold text-[#07110d] transition hover:bg-mint-300"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            چاپ / ذخیره PDF
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-[#9fb6aa] transition hover:bg-white/5 hover:text-white"
-            aria-label="بستن پیش‌نمایش"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        {status && (
+          <div className={`flex items-start gap-2 px-3 pb-2 text-[9px] leading-5 sm:px-5 ${status.tone === "err" ? "text-[#f0a99c]" : status.tone === "ok" ? "text-[#a9dfbf]" : "text-[#c9d7cd]"}`}>
+            <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>{status.text}</span>
+          </div>
+        )}
       </div>
 
-      <div className="doc-scroll flex-1 overflow-y-auto bg-[#dfddd4] p-3 sm:p-6">
-        <div className="mx-auto mb-3 flex max-w-[820px] flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-[9px] text-[#4d5a51]">
-          <span>پیش‌نمایش A4 — در چاپ، مهر و امضاها جای واقعی دارند.</span>
-          <span className="font-mono text-[8px] tracking-wider">VERIFY: {spec.verificationCode}</span>
+      <div className="doc-scroll flex-1 overflow-auto bg-[#dfddd4] p-2 sm:p-6">
+        <div className="mx-auto mb-2 flex max-w-[820px] flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-1.5 text-[8px] text-[#4d5a51]">
+          <span>پیش‌نمایش A4 — «دانلود PDF» فایل واقعی می‌سازد؛ «چاپ» همان سند را به چاپگر می‌فرستد.</span>
+          <span className="font-mono tracking-wider">VERIFY: {spec.verificationCode}</span>
         </div>
-        <div id="print-root">
-          <DocumentSheet spec={spec} />
+        <div className="mx-auto" style={zoom === "large" ? { width: 794 } : { width: "100%", maxWidth: 794 }}>
+          <div id="print-root">
+            <DocumentSheet spec={spec} />
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

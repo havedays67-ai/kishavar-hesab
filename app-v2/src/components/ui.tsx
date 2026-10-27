@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Check, Wheat, X } from "lucide-react";
 import { cn } from "../utils/cn";
 import type { ContractStatus, Role } from "../lib/data";
@@ -138,7 +139,7 @@ export function Modal({
     lg: "max-w-4xl",
   }[size];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-5" role="dialog" aria-modal="true" aria-label={title}>
       <button
         type="button"
@@ -168,9 +169,10 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className="overflow-y-auto">{children}</div>
+        <div className="overflow-y-auto overscroll-contain">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -193,7 +195,7 @@ export function Toast({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="animate-toast fixed bottom-24 right-1/2 z-[90] w-[calc(100%-2rem)] max-w-sm translate-x-1/2 sm:bottom-7 sm:right-7 sm:translate-x-0">
       <div className="flex items-center gap-3 rounded-2xl border border-mint-300/25 bg-[#163629] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint-400 text-[#092016]">
@@ -207,7 +209,8 @@ export function Toast({
           <X className="h-4 w-4" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
