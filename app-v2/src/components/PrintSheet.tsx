@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { MY_BUSINESS, type SavedContract } from "../lib/data";
+import type { SavedContract } from "../lib/data";
+import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import type { DocumentSpec } from "../lib/documents";
 import { verificationData, verificationPayload } from "../lib/documents";
 import { deliverDocumentPdf, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
@@ -243,6 +244,7 @@ export function DocumentDialog({
 }
 
 function DocumentSheet({ spec }: { spec: DocumentSpec }) {
+  const { profile } = useProfile();
   const trade = spec.payload.trade;
   const contract = spec.payload.contract;
   const isDraft = trade?.status === "draft";
@@ -265,9 +267,9 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-[13px] font-extrabold leading-5 text-[#173c2b]">کسب‌وکار من</h1>
-                <p className="mt-0.5 text-[8px] text-[#67736a]">دفتر کل آرام مزرعه · مزرعه سبز دشت مغان</p>
-                <p className="mt-0.5 text-[7px] text-[#879085]">اربیل، پارس‌آباد · شناسه ملی {MY_BUSINESS.nationalId}</p>
+                <h1 className="text-[13px] font-extrabold leading-5 text-[#173c2b]">{profileDisplayName(profile)}</h1>
+                <p className="mt-0.5 text-[8px] text-[#67736a]">دفتر کل آرام مزرعه · {profile.businessName || "کسب‌وکار کشاورزی"}</p>
+                <p className="mt-0.5 text-[7px] text-[#879085]">{profileFarmLine(profile)}{profile.nationalId ? ` · شناسه ملی ${profile.nationalId}` : ""}</p>
               </div>
             </div>
             <div className="text-center">
@@ -601,7 +603,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 اشخاص ثالث، تابع ثبت رسمی یا سامانه دولتی مربوط است؛ نسخه چاپی با مهر و امضای دو طرف، مبنای توافق است.
               </p>
               <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · استعلام: havedays67-ai.github.io/kishavar-hesab/verify · صادرشده توسط کسب‌وکار من</p>
-              <p className="mt-1">آدرس: اردبیل، پارس‌آباد، مزرعه سبز دشت مغان · تلفن: ۰۹۱۴ ۲۲۲ ۸۸۷۷ · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
+              <p className="mt-1">آدرس: اردبیل، پارس‌آباد، مزرعه سبز دشت مغان · تلفن: {profile.phone || "—"} · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
             </div>
             <div className="flex items-end gap-2">
               <VerificationQR text={verificationPayload(spec)} />

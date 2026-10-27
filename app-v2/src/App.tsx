@@ -29,7 +29,7 @@ import {
 import { todayJalali, toPersianDigits } from "./lib/format";
 import { makeDocument, type DocumentSpec } from "./lib/documents";
 import type { CropTrade } from "./lib/trade";
-import { ArchitecturePage } from "./pages/ArchitecturePage";
+
 import { BackupPage, type BackupBundle } from "./pages/BackupPage";
 import { ContractsPage } from "./pages/ContractsPage";
 import { CropsPage } from "./pages/CropsPage";
@@ -39,6 +39,7 @@ import { DownloadPage } from "./pages/DownloadPage";
 import { FinancePage } from "./pages/FinancePage";
 import { InventoryPage } from "./pages/InventoryPage";
 import { PartiesPage } from "./pages/PartiesPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./pages/RentalsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
@@ -55,6 +56,7 @@ const AVAILABLE_PAGES: Page[] = [
   "documents",
   "reports",
   "backup",
+  "profile",
   "architecture",
   "download",
 ];
@@ -93,6 +95,7 @@ const PAGE_TITLES: Record<Page, string> = {
   documents: "اسناد و چاپ",
   reports: "گزارش‌های مدیریتی",
   backup: "دستیار و پشتیبان",
+  profile: "پروفایل",
   architecture: "معماری و فرمول‌ها",
   download: "دریافت برنامه",
 };
@@ -100,6 +103,7 @@ const PAGE_TITLES: Record<Page, string> = {
 function readPageFromHash(): Page {
   const hash = window.location.hash.replace("#", "").split("?")[0] as Page;
   if (hash === "download" && Capacitor.isNativePlatform()) return "dashboard";
+  if (hash === "architecture") return "dashboard";
   return AVAILABLE_PAGES.includes(hash) ? hash : "dashboard";
 }
 
@@ -136,7 +140,11 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => setPage(readPageFromHash());
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener("popstate", onHashChange);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("popstate", onHashChange);
+    };
   }, []);
 
   const persist = (key: string, value: unknown) => {
@@ -254,6 +262,7 @@ export default function App() {
         {page === "trade" && (
           <TradePage
             trades={trades}
+            contacts={ledger.parties.map((party) => ({ name: party.name, phone: party.phone }))}
             onSaveTrade={(trade) => setTrades((current) => [trade, ...current])}
             onDeleteTrade={(id) => setTrades((current) => current.filter((trade) => trade.id !== id))}
             onUpdateTrade={(id, patch) => setTrades((current) => current.map((trade) => (trade.id === id ? { ...trade, ...patch } : trade)))}
@@ -345,7 +354,7 @@ export default function App() {
             onReset={resetAll}
           />
         )}
-        {page === "architecture" && <ArchitecturePage />}
+        {page === "profile" && <ProfilePage onBack={() => navigate("dashboard")} />}
         {page === "download" && !Capacitor.isNativePlatform() && <DownloadPage />}
       </AppShell>
 

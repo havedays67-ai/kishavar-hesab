@@ -4,6 +4,7 @@ import { cn } from "../utils/cn";
 import { initialParties, type Party, type Role } from "../lib/data";
 import { Avatar, Modal } from "./ui";
 import { TextField } from "./FormControls";
+import { useProfile } from "../lib/profile";
 
 function compatibleRole(role: Role): Role {
   return role === "tenant" ? "landlord" : "tenant";
@@ -143,6 +144,7 @@ export function AddPartyModal({
   onCreate: (party: Omit<Party, "id">) => void;
   allowRoleSwitch?: boolean;
 }) {
+  const { profile } = useProfile();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
@@ -229,6 +231,7 @@ export function AddPartyModal({
             onChange={setName}
             placeholder="مثلاً علی احمدی"
             required
+            suggestions={[profile.fullName, ...initialParties.map((party) => party.name)]}
           />
           <TextField
             label="شماره تماس"
@@ -237,6 +240,7 @@ export function AddPartyModal({
             numeric
             placeholder="۰۹۱۲۱۲۳۴۵۶۷"
             required
+            suggestions={[profile.phone, ...initialParties.map((party) => party.phone)]}
           />
           <div className="grid grid-cols-2 gap-3">
             <TextField label="شهر / روستا" value={city} onChange={setCity} placeholder="پارس‌آباد" />

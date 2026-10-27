@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   ArrowUpLeft,
   BadgeCheck,
-  BarChart3,
   CalendarCheck,
   CalendarDays,
   Check,
@@ -24,7 +23,8 @@ import {
   Wheat,
 } from "lucide-react";
 import { cn } from "../utils/cn";
-import { CONTRACT_TYPES, MY_BUSINESS, type Page, type SavedContract } from "../lib/data";
+import { CONTRACT_TYPES, type Page, type SavedContract } from "../lib/data";
+import { useProfile } from "../lib/profile";
 import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotMetrics, type CropPlot } from "../lib/samples";
@@ -47,6 +47,7 @@ export function DashboardPage({
   onNavigate: (page: Page) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
+  const { profile } = useProfile();
   const today = todayJalali();
   const saleValue = trades.reduce((sum, trade) => sum + trade.result.netReceipt, 0);
   const remaining = trades.reduce((sum, trade) => sum + tradeBalance(trade).remaining, 0);
@@ -91,11 +92,11 @@ export function DashboardPage({
         <Wheat className="pointer-events-none absolute -bottom-12 left-5 h-60 w-60 rotate-[-16deg] text-[#dbeab0]/[0.045] sm:left-16" strokeWidth={0.8} />
         <div className="relative max-w-[660px]">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full border border-[#c5df9c]/20 bg-[#cadfa6]/[0.08] px-2.5 py-1 text-[9px] text-[#d2e8b2]"><MapPin className="h-3 w-3" />{MY_BUSINESS.farm}</span>
+            <span className="flex items-center gap-1.5 rounded-full border border-[#c5df9c]/20 bg-[#cadfa6]/[0.08] px-2.5 py-1 text-[9px] text-[#d2e8b2]"><MapPin className="h-3 w-3" />{profile.farmName || "مزرعه شما"}</span>
             <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] text-[#b5cbbd]"><Leaf className="h-3 w-3 text-mint-300" />فصل زراعی ۱۴۰۵–۱۴۰۶</span>
           </div>
           <h2 className="text-lg font-extrabold leading-8 text-[#f1f7eb] sm:text-2xl sm:leading-10">
-            سلام محمدرضا؛
+            سلام {profile.fullName.split(" ")[0] || "کشاورز"}؛
             <br />
             <span className="text-[#d7e8ad]">این بار همه‌چیز حساب‌شده است.</span>
           </h2>
@@ -326,13 +327,7 @@ export function DashboardPage({
             </div>
           </section>
 
-          <button type="button" onClick={() => onNavigate("architecture")} className="flex w-full items-center justify-between gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 text-right transition hover:border-mint-300/20">
-            <span>
-              <span className="block text-[10px] font-medium text-[#dcebe2]">معماری و آزمون‌های موتور</span>
-              <span className="mt-0.5 block text-[8px] text-[#718e81]">۱۰ آزمون قطعی · فرمول‌ها و منابع</span>
-            </span>
-            <BarChart3 className="h-4 w-4 text-mint-300" />
-          </button>
+
         </div>
       </div>
 
@@ -351,7 +346,7 @@ export function DashboardPage({
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-white/[0.015] px-4 py-3 text-[8px] text-[#718e81]">
         <span className="flex items-center gap-1.5"><BadgeCheck className="h-3 w-3 text-mint-300" /> همه محاسبات از موتور قطعی، بدون تخمین ذهنی</span>
-        <span className="flex items-center gap-1.5"><Avatar name={MY_BUSINESS.owner} size="sm" /> {MY_BUSINESS.owner} · مدیر مزرعه</span>
+        <span className="flex items-center gap-1.5"><Avatar name={profile.fullName || "کاربر"} color={profile.color} size="sm" /> {profile.fullName || "کاربر"} · {profile.role || "مدیر مزرعه"}</span>
       </div>
     </div>
   );

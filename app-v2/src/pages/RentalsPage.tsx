@@ -30,6 +30,7 @@ import { makeDocument, type DocumentKind, type DocumentSpec } from "../lib/docum
 import { AmountField, SelectField, TextField } from "../components/FormControls";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Modal, Toast } from "../components/ui";
+import { useProfile } from "../lib/profile";
 
 const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
 const money = (value: number) => `${fa(value)} تومان`;
@@ -79,10 +80,10 @@ function hashSignature(data: string): string {
   return `S${hash.toString(16).toUpperCase()}`;
 }
 
-function SignaturePad({ onSave, defaultName }: { onSave: (data: string, name: string) => void; defaultName: string }) {
+function SignaturePad({ onSave, suggestions = [] }: { onSave: (data: string, name: string) => void; suggestions?: string[] }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
-  const [name, setName] = useState(defaultName);
+  const [name, setName] = useState("");
   const [empty, setEmpty] = useState(true);
 
   const position = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -147,6 +148,9 @@ function SignaturePad({ onSave, defaultName }: { onSave: (data: string, name: st
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="نام امضاکننده" className="field max-w-[220px] py-2 text-[10px]" />
+        {suggestions.filter(Boolean).map((suggestion) => (
+          <button key={suggestion} type="button" onClick={() => setName(suggestion)} className="rounded-md border border-mint-300/15 bg-mint-300/[0.06] px-2 py-1 text-[8px] text-mint-300">پیشنهاد: {suggestion}</button>
+        ))}
         <button type="button" onClick={clear} className="rounded-lg border border-white/[0.09] px-2.5 py-2 text-[9px] text-[#a8bfb3]">پاک کردن</button>
         <button
           type="button"
@@ -206,6 +210,7 @@ export function RentalsPage({
     paid: payments.reduce((sum, payment) => sum + payment.amount, 0),
   }), [contracts, payments]);
 
+  const { profile } = useProfile();
   const openDoc = (contract: SavedContract, kind: DocumentKind) => onOpenDocument(makeDocument(kind, { contract }));
 
   return (
@@ -398,7 +403,7 @@ export function RentalsPage({
         <Modal open onClose={() => setSignRole(null)} title={`ثبت امضای ${signRole === "landlord" ? "موجر" : signRole === "tenant" ? "مستاجر" : "شاهد"}`} description="با انگشت یا ماوس روی کادر بکشید." size="sm">
           <div className="p-5">
             <SignaturePad
-              defaultName={signRole === "witness" ? "" : signRole === "landlord" ? (detail.partyRole === "landlord" ? detail.partyName : "کسب‌وکار من") : (detail.partyRole === "tenant" ? detail.partyName : "کسب‌وکار من")}
+              suggestions={[profile.fullName, detail.partyName]}
               onSave={(image, signerName) => {
                 onAddSignature({ id: `sig-${Date.now()}`, contractId: detail.id, role: signRole, signerName: signerName || "امضاکننده", image, hash: hashSignature(image), date: todayJalali() });
                 setSignRole(null);

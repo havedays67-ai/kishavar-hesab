@@ -17,7 +17,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { cn } from "../utils/cn";
-import { MY_BUSINESS, type SavedContract } from "../lib/data";
+import type { SavedContract } from "../lib/data";
+import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import {
   chequeTotals,
@@ -71,6 +72,7 @@ export function BackupPage({
   onReset: () => void;
   onLoadDemo: () => void;
 }) {
+  const { profile } = useProfile();
   const [tab, setTab] = useState<Tab>("assistant");
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string }[]>([
@@ -217,7 +219,8 @@ export function BackupPage({
     { title: "انبار، دارایی، بودجه", text: "گردش انبار، حد سفارش، استهلاک خط مستقیم و کنترل بودجه." },
     { title: "اسناد و چاپ", text: "اسناد A4 با سریال، QR، مبلغ به حروف و دانلود PDF." },
     { title: "گزارش‌ها", text: "فروش به تفکیک محصول، دفتر معاملات، بهای تمام‌شده و اجاره." },
-    { title: "معماری", text: "فرمول‌ها، آزمون‌های موتور و منابع." },
+    { title: "پشتیبان", text: "خروجی و بازیابی کامل داده‌ها؛ داده نمونه فقط برای آزمایش." },
+    { title: "پروفایل", text: "نام، تلفن، کسب‌وکار، نشانی و مشخصات شما؛ قابل ویرایش و پیشنهاد در فیلدها." },
   ];
 
   const tabs: { id: Tab; label: string; icon: typeof Bot }[] = [
@@ -302,9 +305,12 @@ export function BackupPage({
       {tab === "settings" && (
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <section className="glass rounded-[22px] p-4">
-            <h2 className="mb-3 text-[11px] font-semibold text-white">مشخصات کسب‌وکار</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-[11px] font-semibold text-white">مشخصات پروفایل</h2>
+              <a href="#profile" className="rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2.5 py-1 text-[8px] text-mint-300">ویرایش پروفایل</a>
+            </div>
             <div className="space-y-2">
-              {[["نام کسب‌وکار", MY_BUSINESS.name], ["مالک / مدیر", MY_BUSINESS.owner], ["شناسه ملی", MY_BUSINESS.nationalId], ["مزرعه", MY_BUSINESS.farm], ["موقعیت", MY_BUSINESS.location], ["نسخه برنامه", toPersianDigits("1.0.0")], ["موتور معامله", toPersianDigits("1.0.0")], ["تاریخ امروز", formatJalali(todayJalali(), "long")]].map(([label, value]) => <div key={label} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-2.5 py-2 text-[9px]"><span className="text-[#819d90]">{label}</span><span className="text-[#d3e4da]">{value}</span></div>)}
+              {(() => { const rows: [string, string][] = [["نام کسب‌وکار", profileDisplayName(profile)], ["مالک / مدیر", profile.fullName || "—"], ["شناسه ملی", profile.nationalId || "—"], ["مزرعه", profile.farmName || "—"], ["موقعیت", profileFarmLine(profile)], ["نسخه برنامه", toPersianDigits("1.0.0")], ["تاریخ امروز", formatJalali(todayJalali(), "long")]]; return rows.map(([label, value]) => <div key={label} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-2.5 py-2 text-[9px]"><span className="text-[#819d90]">{label}</span><span className="text-[#d3e4da]">{value}</span></div>); })()}
             </div>
           </section>
           <section className="glass rounded-[22px] p-4">

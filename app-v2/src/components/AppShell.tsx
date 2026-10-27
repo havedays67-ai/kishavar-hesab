@@ -4,7 +4,6 @@ import { Capacitor } from "@capacitor/core";
 import {
   BarChart3,
   Bell,
-  BookOpen,
   CalendarDays,
   ChevronDown,
   CreditCard,
@@ -19,12 +18,14 @@ import {
   ShieldCheck,
   Smartphone,
   Sprout,
+  UserRound,
   UsersRound,
   Wallet,
   X,
 } from "lucide-react";
 import { cn } from "../utils/cn";
-import { MY_BUSINESS, type Page } from "../lib/data";
+import { type Page } from "../lib/data";
+import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import { Avatar, BrandMark } from "./ui";
 
@@ -47,7 +48,7 @@ const NAV_ITEMS: {
   { id: "documents", label: "اسناد و چاپ", short: "اسناد", icon: Files, badge: "A4", group: "ledger" },
   { id: "reports", label: "گزارش‌های مدیریتی", short: "گزارش", icon: BarChart3, group: "ledger" },
   { id: "backup", label: "دستیار و پشتیبان", short: "پشتیبان", icon: CreditCard, group: "system" },
-  { id: "architecture", label: "معماری و فرمول‌ها", short: "معماری", icon: BookOpen, group: "system" },
+  { id: "profile", label: "پروفایل من", short: "پروفایل", icon: UserRound, group: "system" },
   { id: "download", label: "دریافت برنامه", short: "دریافت اپ", icon: Smartphone, group: "system" },
 ];
 
@@ -63,6 +64,7 @@ const PAGE_LABELS: Record<Page, string> = {
   documents: "اسناد و چاپ",
   reports: "گزارش‌ها",
   backup: "دستیار و پشتیبان",
+  profile: "پروفایل",
   architecture: "معماری",
   download: "دریافت برنامه",
 };
@@ -87,6 +89,9 @@ export function AppShell({
   const today = todayJalali();
   const [moreOpen, setMoreOpen] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+  const { profile } = useProfile();
+  const displayName = profileDisplayName(profile);
+  const farmLine = profileFarmLine(profile);
   const items = isNative ? NAV_ITEMS.filter((item) => item.id !== "download") : NAV_ITEMS;
 
   const go = (next: Page) => {
@@ -100,7 +105,7 @@ export function AppShell({
         <button type="button" onClick={() => go("dashboard")} className="mb-4 flex items-center gap-3 px-1 text-right">
           <BrandMark />
           <span className="min-w-0">
-            <span className="block text-[17px] font-extrabold tracking-tight text-white">کسب‌وکار من</span>
+            <span className="block truncate text-[17px] font-extrabold tracking-tight text-white">{displayName}</span>
             <span className="mt-0.5 block text-[10px] font-light tracking-wide text-[#87a497]">
               دفتر کل آرام · حسابداری کشاورزی
             </span>
@@ -116,8 +121,8 @@ export function AppShell({
             <Leaf className="h-[18px] w-[18px]" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-semibold text-[#e7f4ec]">{MY_BUSINESS.farm}</span>
-            <span className="mt-0.5 block truncate text-[10px] text-[#78968a]">{MY_BUSINESS.location}</span>
+            <span className="block truncate text-xs font-semibold text-[#e7f4ec]">{profile.farmName || "مزرعه شما"}</span>
+            <span className="mt-0.5 block truncate text-[10px] text-[#78968a]">{farmLine}</span>
           </span>
           <ChevronDown className="h-4 w-4 text-[#69887b]" />
         </button>
@@ -187,9 +192,9 @@ export function AppShell({
             </button>
           </div>
           <div className="flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2.5">
-            <Avatar name={MY_BUSINESS.owner} color="sand" size="sm" />
+            <Avatar name={profile.fullName || "کاربر"} color="sand" size="sm" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-medium text-[#dcebe2]">{MY_BUSINESS.owner}</p>
+              <p className="truncate text-[11px] font-medium text-[#dcebe2]">{profile.fullName || "کاربر"}</p>
               <p className="mt-0.5 truncate text-[9px] text-[#78968a]"></p>
             </div>
             <span className="h-1.5 w-1.5 rounded-full bg-mint-400" />
@@ -206,7 +211,7 @@ export function AppShell({
             <div className="flex items-center gap-2.5 lg:hidden">
               <BrandMark size="sm" />
               <div>
-                <p className="text-[13px] font-extrabold leading-4 text-white">کسب‌وکار من</p>
+                <p className="truncate text-[13px] font-extrabold leading-4 text-white">{displayName}</p>
                 <p className="mt-0.5 text-[9px] text-[#78968a]">{PAGE_LABELS[page]}</p>
               </div>
             </div>
@@ -240,11 +245,11 @@ export function AppShell({
               </button>
               <button
                 type="button"
-                onClick={() => go("parties")}
+                onClick={() => go("profile")}
                 className="rounded-full ring-offset-2 ring-offset-[#07110d] transition hover:ring-1 hover:ring-mint-300/40"
                 aria-label="پروفایل"
               >
-                <Avatar name={MY_BUSINESS.owner} color="sand" size="sm" />
+                <Avatar name={profile.fullName || "کاربر"} color="sand" size="sm" />
               </button>
             </div>
           </div>
@@ -306,7 +311,7 @@ export function AppShell({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-white">همه بخش‌ها</h2>
-                <p className="mt-0.5 text-[9px] text-[#78968a]">{MY_BUSINESS.farm} · </p>
+                <p className="mt-0.5 text-[9px] text-[#78968a]">{profile.farmName || "مزرعه شما"} · </p>
               </div>
               <button
                 type="button"

@@ -245,6 +245,7 @@ export function TextField({
   numeric,
   dir,
   maxLength,
+  suggestions,
 }: {
   label: string;
   value: string;
@@ -260,7 +261,16 @@ export function TextField({
   numeric?: boolean;
   dir?: "rtl" | "ltr";
   maxLength?: number;
+  suggestions?: string[];
 }) {
+  const [focused, setFocused] = useState(false);
+  const normalizedSuggestion = (text: string) => text.replace(/[يى]/g, "ی").replace(/ك/g, "ک").trim();
+  const visibleSuggestions = (suggestions ?? [])
+    .map((item) => item.trim())
+    .filter((item, index, all) => item && all.indexOf(item) === index)
+    .filter((item) => !normalizedSuggestion(value) || normalizedSuggestion(item).includes(normalizedSuggestion(value)))
+    .filter((item) => item !== value)
+    .slice(0, 5);
   const sharedClass = cn("field text-right", error && "field-error", textarea && "min-h-[98px] resize-y leading-6");
   return (
     <div>
@@ -282,6 +292,8 @@ export function TextField({
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => window.setTimeout(() => setFocused(false), 160)}
           placeholder={placeholder}
           className={cn(sharedClass, numeric && "tabular-nums")}
           aria-label={label}
@@ -291,6 +303,16 @@ export function TextField({
           maxLength={maxLength}
           pattern={numeric ? "[0-9۰-۹٠-٩]*" : undefined}
         />
+      )}
+      {focused && !textarea && visibleSuggestions.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1.5">
+          <span className="px-1 text-[8px] text-[#6f8c7f]">پیشنهاد:</span>
+          {visibleSuggestions.map((item) => (
+            <button key={item} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(item); setFocused(false); }} className="rounded-md border border-mint-300/15 bg-mint-300/[0.06] px-2 py-0.5 text-[9px] text-mint-300">
+              {item}
+            </button>
+          ))}
+        </div>
       )}
       {error ? (
         <p className="mt-1.5 text-[11px] text-[#ef9c8f]">{error}</p>

@@ -97,14 +97,14 @@ export function DocumentsPage({
         profit: metrics.profit,
       };
     });
-    rows.push({
+    if (trades.length > 0) rows.push({
       spec: makeDocument("trades-report", { trades }),
       sourceLabel: "گزارش کامل معاملات محصول",
       sourceMeta: `${toPersianDigits(trades.length)} محموله · تا ${formatJalali(todayJalali(), "long")}`,
       status: "گزارش مدیریتی",
       family: "report",
     });
-    rows.push({
+    if (plots.length > 0) rows.push({
       spec: makeDocument("cost-report", { costRows }),
       sourceLabel: "گزارش بهای تمام‌شده و سود زمین‌ها",
       sourceMeta: `${toPersianDigits(plots.length)} زمین · ${toPersianDigits(plots.reduce((sum, plot) => sum + plot.areaHa, 0))} هکتار`,
@@ -144,28 +144,16 @@ export function DocumentsPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              const costRows = plots.map((plot) => {
-                const metrics = plotMetrics(plot);
-                return { title: plot.title, areaHa: plot.areaHa, crop: plot.crop, totalCost: metrics.cost, yieldKg: metrics.yieldKg, revenue: metrics.revenue, profit: metrics.profit };
-              });
-              onOpenDocument(makeDocument("cost-report", { costRows }));
-            }}
-            className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2.5 text-[9px] text-[#b9cec3] transition hover:text-white"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            چاپ گزارش زمین‌ها
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenDocument(makeDocument("trades-report", { trades }))}
-            className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            چاپ گزارش معاملات
-          </button>
+          {plots.length > 0 && (
+            <button type="button" onClick={() => { const costRows = plots.map((plot) => { const metrics = plotMetrics(plot); return { title: plot.title, areaHa: plot.areaHa, crop: plot.crop, totalCost: metrics.cost, yieldKg: metrics.yieldKg, revenue: metrics.revenue, profit: metrics.profit }; }); onOpenDocument(makeDocument("cost-report", { costRows })); }} className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2.5 text-[9px] text-[#b9cec3] transition hover:text-white">
+              <Printer className="h-3.5 w-3.5" /> چاپ گزارش زمین‌ها
+            </button>
+          )}
+          {trades.length > 0 && (
+            <button type="button" onClick={() => onOpenDocument(makeDocument("trades-report", { trades }))} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]">
+              <Printer className="h-3.5 w-3.5" /> چاپ گزارش معاملات
+            </button>
+          )}
         </div>
       </div>
 
@@ -297,8 +285,8 @@ export function DocumentsPage({
       {visible.length === 0 && (
         <div className="rounded-2xl border border-dashed border-[#355344] bg-white/[0.015] px-5 py-14 text-center">
           <Search className="mx-auto mb-2 h-7 w-7 text-[#6f8e80]" />
-          <p className="text-xs text-[#c2d6cb]">سندی با این مشخصات پیدا نشد.</p>
-          <p className="mt-1 text-[9px] text-[#78968a]">جست‌وجو یا فیلتر را تغییر دهید.</p>
+          <p className="text-xs text-[#c2d6cb]">هنوز سندی برای چاپ وجود ندارد.</p>
+          <p className="mt-1 text-[9px] leading-5 text-[#78968a]">با ثبت معامله محصول، قرارداد زمین یا افزودن زمین، اسناد مربوط به‌صورت خودکار اینجا ساخته می‌شوند. گزارش‌های خالی نمایش داده نمی‌شوند.</p>
         </div>
       )}
 

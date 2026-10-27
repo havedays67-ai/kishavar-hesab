@@ -12,6 +12,7 @@ export type Page =
   | "documents"
   | "reports"
   | "backup"
+  | "profile"
   | "architecture"
   | "download";
 export type Role = "tenant" | "landlord";

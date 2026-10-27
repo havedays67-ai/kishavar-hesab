@@ -34,6 +34,7 @@ import {
 import { AmountField, SelectField, TextField } from "../components/FormControls";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Avatar, Modal, Toast } from "../components/ui";
+import { useProfile } from "../lib/profile";
 
 const fa = (value: number) => toPersianDigits(value.toLocaleString("en-US"));
 const money = (value: number) => `${fa(Math.round(value))} تومان`;
@@ -59,6 +60,7 @@ export function PartiesPage({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const { profile } = useProfile();
   const [addOpen, setAddOpen] = useState(false);
   const [editParty, setEditParty] = useState<DebtParty | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -213,10 +215,12 @@ export function PartiesPage({
         دلیل و تاریخ هر ثبت در دفتر معین و صورتحساب قابل کپی نمایش داده می‌شود.
       </div>
 
-      <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} onCreate={(party) => { onAddParty(party); setAddOpen(false); setToast("طرف‌حساب ثبت شد"); }} />
+      <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} nameSuggestions={[profile.fullName, ...ledger.parties.map((party) => party.name)]} phoneSuggestions={[profile.phone, ...ledger.parties.map((party) => party.phone)]} onCreate={(party) => { onAddParty(party); setAddOpen(false); setToast("طرف‌حساب ثبت شد"); }} />
       <AddPartyModal
         open={Boolean(editParty)}
         initial={editParty}
+        nameSuggestions={[profile.fullName, ...ledger.parties.map((party) => party.name)]}
+        phoneSuggestions={[profile.phone, ...ledger.parties.map((party) => party.phone)]}
         onClose={() => setEditParty(null)}
         onCreate={(party) => {
           onUpdateParty(party);
@@ -245,7 +249,7 @@ export function PartiesPage({
   );
 }
 
-function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; onClose: () => void; onCreate: (party: DebtParty) => void; initial?: DebtParty | null }) {
+function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [], phoneSuggestions = [] }: { open: boolean; onClose: () => void; onCreate: (party: DebtParty) => void; initial?: DebtParty | null; nameSuggestions?: string[]; phoneSuggestions?: string[] }) {
   const [kind, setKind] = useState<PartyKind>("debtor");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -310,8 +314,8 @@ function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; on
           ))}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <TextField label="نام طرف‌حساب" value={name} onChange={setName} placeholder="مثلاً نهاده‌های زاگرس" required />
-          <TextField label="شماره تماس" value={phone} onChange={setPhone} placeholder="۰۹۱۲۱۲۳۴۵۶۷" numeric />
+          <TextField label="نام طرف‌حساب" value={name} onChange={setName} placeholder="مثلاً نهاده‌های زاگرس" required suggestions={nameSuggestions} />
+          <TextField label="شماره تماس" value={phone} onChange={setPhone} placeholder="۰۹۱۲۱۲۳۴۵۶۷" numeric suggestions={phoneSuggestions} />
           <TextField label="شهر / روستا" value={city} onChange={setCity} placeholder="پارس‌آباد" />
           <AmountField label="مبلغ اولیه" value={amount} onChange={setAmount} required helper={`${numberToPersianWords(amount)} تومان`} />
           <JalaliDatePicker label="تاریخ ثبت بدهی / طلب" value={date} onChange={setDate} />

@@ -55,6 +55,7 @@ import { makeDocument, type DocumentKind, type DocumentSpec } from "../lib/docum
 import { AmountField, SegmentedOptions, SelectField, TextField } from "../components/FormControls";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Modal, Toast } from "../components/ui";
+import { useProfile } from "../lib/profile";
 
 
 type Tab = "calc" | "list" | "standards";
@@ -352,17 +353,20 @@ function EmptyTrades({ onStart }: { onStart: () => void }) {
 
 export function TradePage({
   trades,
+  contacts,
   onSaveTrade,
   onUpdateTrade,
   onDeleteTrade,
   onOpenDocument,
 }: {
   trades: CropTrade[];
+  contacts: { name: string; phone: string }[];
   onSaveTrade: (trade: CropTrade) => void;
   onUpdateTrade: (id: string, patch: Partial<CropTrade>) => void;
   onDeleteTrade: (id: string) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
+  const { profile: userProfile } = useProfile();
   const [tab, setTab] = useState<Tab>("calc");
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<FormState>(initialForm);
@@ -502,9 +506,9 @@ export function TradePage({
       productId: form.productId ?? "wheat",
       date: form.date,
       createdAt: todayJalali(),
-      sellerName: "محمدرضا کریمی — مزرعه سبز دشت مغان",
-      sellerNationalId: "۰۴۵-۹۸۷۶۵۴۳-۲",
-      sellerPhone: "۰۹۱۴ ۲۲۲ ۸۸۷۷",
+      sellerName: `${userProfile.fullName || "کاربر"}${userProfile.farmName ? ` — ${userProfile.farmName}` : ""}`,
+      sellerNationalId: userProfile.nationalId || "—",
+      sellerPhone: userProfile.phone || "—",
       buyerName: form.buyerName.trim(),
       buyerNationalId: form.buyerNationalId,
       buyerAddress: form.buyerAddress,
@@ -678,8 +682,15 @@ export function TradePage({
                       })}
                     </div>
                     {errors.productId && <p className="mt-2 text-[10px] text-[#ef9c8f]">{errors.productId}</p>}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[8px] text-[#8aa79a]">
+                      <span>فروشنده (از پروفایل):</span>
+                      <span className="text-[#d3e4da]">{userProfile.fullName || "—"}</span>
+                      <span className="text-[#4f6b5e]">·</span>
+                      <span>{userProfile.phone || "شماره ثبت نشده"}</span>
+                      <a href="#profile" className="mr-auto text-mint-300">ویرایش پروفایل</a>
+                    </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <TextField label="نام خریدار / کارخانه" value={form.buyerName} onChange={(value) => update("buyerName", value)} placeholder="مثلاً کارخانه آرد آذربایجان" icon={<Building2 className="h-3.5 w-3.5 text-[#7fa294]" />} error={errors.buyerName} required />
+                      <TextField label="نام خریدار / کارخانه" value={form.buyerName} onChange={(value) => update("buyerName", value)} placeholder="مثلاً کارخانه آرد آذربایجان" icon={<Building2 className="h-3.5 w-3.5 text-[#7fa294]" />} error={errors.buyerName} required suggestions={contacts.map((contact) => contact.name)} />
                       <SelectField label="نوع خریدار" value={form.buyerType} onChange={(value) => update("buyerType", value === "__custom__" ? "" : value)} options={BUYER_TYPES.filter((type) => type !== "سایر").map((type) => ({ value: type, label: type }))} searchable allowCustom customValue={form.buyerType} onCustomChange={(value) => update("buyerType", value)} customPlaceholder="نام نوع خریدار را بنویسید…" />
                       <TextField label="شناسه ملی / اقتصادی خریدار" value={form.buyerNationalId} onChange={(value) => update("buyerNationalId", value)} placeholder="مثلاً ۱۴۰۰۳۲۵۶۷۸۹" numeric />
                       <TextField label="نشانی تحویل" value={form.buyerAddress} onChange={(value) => update("buyerAddress", value)} placeholder="مثلاً شهرک صنعتی، جاده سیلو" />
