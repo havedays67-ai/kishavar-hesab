@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { MY_BUSINESS, type SavedContract } from "../lib/data";
 import type { DocumentSpec } from "../lib/documents";
-import { verificationPayload } from "../lib/documents";
+import { verificationData, verificationPayload } from "../lib/documents";
 import { deliverDocumentPdf, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
 import {
   formatJalali,
@@ -103,7 +103,7 @@ function VerificationQR({ text }: { text: string }) {
   const [src, setSrc] = useState("");
   useEffect(() => {
     let cancelled = false;
-    QRCode.toDataURL(text, { margin: 1, width: 160, color: { dark: "#14251c", light: "#ffffff" } })
+    QRCode.toDataURL(text, { errorCorrectionLevel: "M", margin: 1, width: 320, color: { dark: "#14251c", light: "#ffffff" } })
       .then((url) => {
         if (!cancelled) setSrc(url);
       })
@@ -114,8 +114,8 @@ function VerificationQR({ text }: { text: string }) {
   }, [text]);
   return (
     <div className="flex flex-col items-center gap-1">
-      {src ? <img src={src} alt="QR استعلام سند" className="h-[62px] w-[62px]" /> : <QrCode className="h-[62px] w-[62px] text-[#41594b]" />}
-      <span className="text-[7px] text-[#69756c]">استعلام داخلی</span>
+      {src ? <img src={src} alt="QR استعلام سند" className="h-[86px] w-[86px]" /> : <QrCode className="h-[86px] w-[86px] text-[#41594b]" />}
+      <span className="text-[7px] text-[#69756c]">اسکن برای استعلام</span>
     </div>
   );
 }
@@ -581,6 +581,18 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
           <CostReportBody spec={spec} />
         )}
 
+        {spec.kind === "party-statement" && (
+          <PartyStatementBody spec={spec} />
+        )}
+
+        {spec.kind === "finance-report" && (
+          <FinanceReportBody spec={spec} />
+        )}
+
+        {spec.kind === "inventory-report" && (
+          <InventoryReportBody spec={spec} />
+        )}
+
         <footer className="mt-5 border-t border-[#d4cfc0] pt-3">
           <div className="flex items-start justify-between gap-4">
             <div className="max-w-[70%] text-[7px] leading-4 text-[#727c73]">
@@ -588,7 +600,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 این سند بر پایه <b>{spec.meta.legalBasis}</b> و به‌عنوان سند اداری/داخلی تنظیم شده است. اعتبار در برابر
                 اشخاص ثالث، تابع ثبت رسمی یا سامانه دولتی مربوط است؛ نسخه چاپی با مهر و امضای دو طرف، مبنای توافق است.
               </p>
-              <p className="mt-1">{spec.meta.copies} · کد استعلام داخلی: <span className="font-mono">{spec.verificationCode}</span> · صادرشده توسط کسب‌وکار من</p>
+              <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · استعلام: havedays67-ai.github.io/kishavar-hesab/verify · صادرشده توسط کسب‌وکار من</p>
               <p className="mt-1">آدرس: اردبیل، پارس‌آباد، مزرعه سبز دشت مغان · تلفن: ۰۹۱۴ ۲۲۲ ۸۸۷۷ · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
             </div>
             <div className="flex items-end gap-2">
@@ -871,5 +883,126 @@ export function PrintDocumentPreview({ spec, onBack }: { spec: DocumentSpec; onB
       </div>
       <DocumentSheet spec={spec} />
     </div>
+  );
+}
+
+
+function PartyStatementBody({ spec }: { spec: DocumentSpec }) {
+  const parties = spec.payload.parties ?? [];
+  const party = spec.payload.party;
+  const payments = spec.payload.payments ?? [];
+
+  if (party && party.id !== "all") {
+    const rows = payments.filter((payment) => payment.partyId === party.id);
+    const paid = rows.reduce((sum, payment) => sum + payment.amount, 0);
+    const balance = Math.max(0, party.amount - paid);
+    return (
+      <>
+        <Section number="۱" title="مشخصات طرف‌حساب">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded border border-[#ddd8ca] p-2.5">
+              <Row label="نام" value={party.name} />
+              <Row label="تلفن" value={party.phone || "—"} />
+              <Row label="شهر" value={party.city || "—"} />
+            </div>
+            <div className="rounded border border-[#ddd8ca] p-2.5">
+              <Row label="نوع حساب" value={party.kind === "debtor" ? "بدهکار به ما (طلب ما)" : "بستانکار از ما (بدهی ما)"} />
+              <Row label="تاریخ ثبت" value={formatJalali(party.date, "long")} />
+              <Row label="یادآوری پیگیری" value={party.dueDate ? formatJalali(party.dueDate, "long") : "تعیین نشده"} />
+            </div>
+          </div>
+        </Section>
+        <Section number="۲" title="دلیل و مبلغ">
+          <div className="rounded border border-[#ddd8ca] p-2.5 text-[9px] leading-6">
+            <p><b>دلیل ثبت:</b> {party.reason || "—"}</p>
+            {party.note && <p><b>یادداشت:</b> {party.note}</p>}
+          </div>
+          <table className="mt-2">
+            <thead><tr><th className={thClass}>مبلغ اولیه</th><th className={thClass}>پرداخت‌شده</th><th className={thClass}>مانده</th></tr></thead>
+            <tbody><tr className="text-center"><td className={tdClass}>{money(party.amount)}</td><td className={tdClass}>{money(paid)}</td><td className={`${tdClass} font-bold`}>{money(balance)}</td></tr></tbody>
+          </table>
+        </Section>
+        <Section number="۳" title="گردش پرداخت‌ها (با تاریخ)">
+          {rows.length === 0 ? <p className="rounded border border-[#ddd8ca] px-3 py-3 text-center text-[9px] text-[#6d796e]">پرداختی ثبت نشده است. هنگام تسویه، تاریخ و مبلغ پرداخت در همین سند ثبت می‌شود.</p> : (
+            <table>
+              <thead><tr><th className={thClass}>تاریخ پرداخت</th><th className={thClass}>مبلغ</th><th className={thClass}>روش</th><th className={thClass}>توضیح</th></tr></thead>
+              <tbody>{rows.map((payment) => <tr key={payment.id}><td className={tdClass}>{formatJalali(payment.date, "long")}</td><td className={tdClass}>{money(payment.amount)}</td><td className={tdClass}>{payment.method}</td><td className={tdClass}>{payment.note || "—"}</td></tr>)}</tbody>
+            </table>
+          )}
+        </Section>
+        <SignatureBoxes roles={spec.meta.signatureRoles} />
+      </>
+    );
+  }
+
+  const debtorTotal = parties.filter((row) => row.kind === "debtor").reduce((sum, row) => sum + row.amount, 0);
+  const creditorTotal = parties.filter((row) => row.kind === "creditor").reduce((sum, row) => sum + row.amount, 0);
+  return (
+    <>
+      <Section number="۱" title="خلاصه دفتر">
+        <div className="grid grid-cols-3 gap-2">
+          {[["تعداد طرف‌حساب", toPersianDigits(parties.length)], ["جمع طلب", money(debtorTotal)], ["جمع بدهی", money(creditorTotal)]].map(([label, value]) => (
+            <div key={label} className="rounded border border-[#ddd8ca] p-2 text-center"><div className="text-[8px] text-[#75816f]">{label}</div><div className="mt-1 text-[10px] font-bold">{value}</div></div>
+          ))}
+        </div>
+      </Section>
+      <Section number="۲" title="فهرست بدهکاران و بستانکاران">
+        <table>
+          <thead><tr><th className={thClass}>نام</th><th className={thClass}>تلفن</th><th className={thClass}>نوع</th><th className={thClass}>تاریخ ثبت</th><th className={thClass}>دلیل</th><th className={thClass}>مبلغ (تومان)</th></tr></thead>
+          <tbody>{parties.map((row) => <tr key={row.id}><td className={tdClass}>{row.name}</td><td className={tdClass}>{row.phone || "—"}</td><td className={tdClass}>{row.kind === "debtor" ? "بدهکار" : "بستانکار"}</td><td className={tdClass}>{formatJalali(row.date, "short")}</td><td className={tdClass}>{row.reason}</td><td className={`${tdClass} font-bold`}>{formatNumber(row.amount)}</td></tr>)}</tbody>
+        </table>
+      </Section>
+      <SignatureBoxes roles={spec.meta.signatureRoles} />
+    </>
+  );
+}
+
+function FinanceReportBody({ spec }: { spec: DocumentSpec }) {
+  const entries = spec.payload.entries ?? [];
+  const income = entries.filter((entry) => entry.kind === "income").reduce((sum, entry) => sum + entry.amount, 0);
+  const expense = entries.filter((entry) => entry.kind === "expense").reduce((sum, entry) => sum + entry.amount, 0);
+  return (
+    <>
+      <Section number="۱" title="خلاصه دوره">
+        <div className="grid grid-cols-3 gap-2">{[["درآمد", money(income)], ["هزینه", money(expense)], ["سود / زیان", money(income - expense)]].map(([label, value]) => <div key={label} className="rounded border border-[#ddd8ca] p-2 text-center"><div className="text-[8px] text-[#75816f]">{label}</div><div className="mt-1 text-[10px] font-bold">{value}</div></div>)}</div>
+      </Section>
+      <Section number="۲" title="فهرست اسناد">
+        <table>
+          <thead><tr><th className={thClass}>تاریخ</th><th className={thClass}>نوع</th><th className={thClass}>دلیل</th><th className={thClass}>دسته</th><th className={thClass}>روش</th><th className={thClass}>مبلغ</th></tr></thead>
+          <tbody>{entries.map((entry) => <tr key={entry.id}><td className={tdClass}>{formatJalali(entry.date, "short")}</td><td className={tdClass}>{entry.kind === "income" ? "درآمد" : "هزینه"}</td><td className={tdClass}>{entry.reason}</td><td className={tdClass}>{entry.category}</td><td className={tdClass}>{entry.method}</td><td className={`${tdClass} font-bold`}>{formatNumber(entry.amount)}</td></tr>)}</tbody>
+        </table>
+      </Section>
+      <SignatureBoxes roles={spec.meta.signatureRoles} />
+    </>
+  );
+}
+
+function InventoryReportBody({ spec }: { spec: DocumentSpec }) {
+  const items = spec.payload.items ?? [];
+  const assets = spec.payload.assets ?? [];
+  const budgets = spec.payload.budgets ?? [];
+  const entries = spec.payload.entries ?? [];
+  return (
+    <>
+      <Section number="۱" title="موجودی انبار">
+        <table>
+          <thead><tr><th className={thClass}>کالا</th><th className={thClass}>نوع</th><th className={thClass}>واحد</th><th className={thClass}>موجودی</th><th className={thClass}>حد سفارش</th><th className={thClass}>بهای واحد</th><th className={thClass}>ارزش</th></tr></thead>
+          <tbody>{items.map((item) => <tr key={item.id}><td className={tdClass}>{item.name}</td><td className={tdClass}>{item.kind === "input" ? "نهاده" : "محصول"}</td><td className={tdClass}>{item.unit}</td><td className={tdClass}>{formatNumber(item.stock)}</td><td className={tdClass}>{formatNumber(item.min)}</td><td className={tdClass}>{formatNumber(item.cost)}</td><td className={`${tdClass} font-bold`}>{formatNumber(item.stock * item.cost)}</td></tr>)}</tbody>
+        </table>
+      </Section>
+      <Section number="۲" title="دارایی و استهلاک">
+        <table>
+          <thead><tr><th className={thClass}>دارایی</th><th className={thClass}>بهای خرید</th><th className={thClass}>اسقاط</th><th className={thClass}>عمر (ماه)</th><th className={thClass}>تاریخ خرید</th><th className={thClass}>توضیح</th></tr></thead>
+          <tbody>{assets.map((asset) => <tr key={asset.id}><td className={tdClass}>{asset.name}</td><td className={tdClass}>{formatNumber(asset.cost)}</td><td className={tdClass}>{formatNumber(asset.salvage)}</td><td className={tdClass}>{toPersianDigits(asset.lifeMonths)}</td><td className={tdClass}>{formatJalali(asset.purchase, "short")}</td><td className={tdClass}>{asset.note || "—"}</td></tr>)}</tbody>
+        </table>
+      </Section>
+      <Section number="۳" title="بودجه در برابر هزینه">
+        <table>
+          <thead><tr><th className={thClass}>سرفصل</th><th className={thClass}>سقف بودجه</th><th className={thClass}>هزینه واقعی</th><th className={thClass}>مانده</th></tr></thead>
+          <tbody>{budgets.map((budget) => { const spent = entries.filter((entry) => entry.kind === "expense" && entry.category === budget.category).reduce((sum, entry) => sum + entry.amount, 0); return <tr key={budget.id}><td className={tdClass}>{budget.category}</td><td className={tdClass}>{formatNumber(budget.limit)}</td><td className={tdClass}>{formatNumber(spent)}</td><td className={`${tdClass} font-bold`}>{formatNumber(budget.limit - spent)}</td></tr>; })}</tbody>
+        </table>
+      </Section>
+      <SignatureBoxes roles={spec.meta.signatureRoles} />
+    </>
   );
 }

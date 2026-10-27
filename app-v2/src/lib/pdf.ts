@@ -33,6 +33,26 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+/** کلون سند با عرض ثابت A4 برای جلوگیری از خروجی باریک/بریده در موبایل */
+function buildPrintClone(element: HTMLElement): HTMLDivElement {
+  const host = document.createElement("div");
+  host.setAttribute("aria-hidden", "true");
+  host.style.position = "fixed";
+  host.style.left = "-10000px";
+  host.style.top = "0";
+  host.style.width = "794px";
+  host.style.background = "#ffffff";
+  host.style.zIndex = "-1";
+  host.setAttribute("dir", "rtl");
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.width = "794px";
+  clone.style.maxWidth = "none";
+  clone.style.margin = "0";
+  host.appendChild(clone);
+  document.body.appendChild(host);
+  return host;
+}
+
 async function renderElementToPdf(element: HTMLElement): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
@@ -47,13 +67,27 @@ async function renderElementToPdf(element: HTMLElement): Promise<Blob> {
     }
   }
 
-  const canvas = await html2canvas(element, {
-    scale: Math.min(2, Math.max(1.4, window.devicePixelRatio || 1.5)),
-    backgroundColor: "#ffffff",
-    useCORS: true,
-    logging: false,
-    windowWidth: Math.max(element.scrollWidth, 794),
-  });
+  const host = buildPrintClone(element);
+  const target = host.firstElementChild as HTMLElement;
+  // اطمینان از بارگذاری QR و فونت‌ها پیش از عکس‌برداری
+  const images = Array.from(target.querySelectorAll("img"));
+  await Promise.all(images.map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve) => { image.onload = () => resolve(); image.onerror = () => resolve(); })));
+  let canvas: HTMLCanvasElement;
+  try {
+    canvas = await html2canvas(target, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      logging: false,
+      width: 794,
+      height: target.scrollHeight,
+      windowWidth: 794,
+      scrollX: 0,
+      scrollY: 0,
+    });
+  } finally {
+    host.remove();
+  }
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const imageWidth = A4_WIDTH_MM;
@@ -168,6 +202,10 @@ export function printSheetInPage(element: HTMLElement | null, title: string): bo
     window.print();
     return false;
   }
+  const clone = buildPrintClone(element);
+  const cloneHtml = (clone.firstElementChild as HTMLElement).outerHTML;
+  clone.remove();
+
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
@@ -196,7 +234,7 @@ export function printSheetInPage(element: HTMLElement | null, title: string): bo
     html,body{margin:0!important;padding:0!important;background:#fff!important}
     .print-sheet{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
     .no-print{display:none!important}
-  </style></head><body>${element.innerHTML}</body></html>`);
+  </style></head><body>${cloneHtml}</body></html>`);
   frameDocument.close();
 
   window.setTimeout(() => {

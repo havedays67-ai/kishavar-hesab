@@ -128,7 +128,7 @@ export function partyTotals(party: DebtParty, payments: PartyPayment[]) {
   const balance = Math.max(0, party.amount - paid);
   const ratio = party.amount > 0 ? Math.min(100, Math.round((paid / party.amount) * 100)) : 0;
   const dueInDays = party.dueDate ? daysBetween(todayJalali(), party.dueDate) : null;
-  const overdue = Boolean(party.dueDate && balance > 0 && dueInDays === 0 && daysBetween(party.dueDate, todayJalali()) > 0);
+  const overdue = Boolean(party.dueDate && balance > 0 && daysBetween(party.dueDate, todayJalali()) > 0);
   return { original: party.amount, paid, balance, ratio, dueInDays, overdue };
 }
 
@@ -215,13 +215,14 @@ export function buildLedgerAccountText(party: DebtParty, payments: PartyPayment[
     `نوع: ${party.kind === "debtor" ? "بدهکار" : "بستانکار"} — ${label}`,
     `دلیل/شرح: ${party.reason}`,
     `تاریخ ایجاد: ${formatJalali(party.date, "long")}`,
-    party.dueDate ? `سررسید: ${formatJalali(party.dueDate, "long")}` : "سررسید: ندارد",
+    party.dueDate ? `یادآوری پیگیری: ${formatJalali(party.dueDate, "long")}` : "",
     `مبلغ اولیه: ${party.amount.toLocaleString("en-US")} تومان`,
     `پرداخت‌شده: ${totals.paid.toLocaleString("en-US")} تومان`,
     `مانده: ${totals.balance.toLocaleString("en-US")} تومان`,
     "",
-    "گردش پرداخت‌ها:",
-    ...payments.filter((payment) => payment.partyId === party.id).map((payment) => `${formatJalali(payment.date, "short")} — ${payment.amount.toLocaleString("en-US")} تومان — ${PAYMENT_METHODS[payment.method]}${payment.note ? ` — ${payment.note}` : ""}`),
+    "گردش پرداخت‌ها (تاریخ پرداخت):",
+    ...payments.filter((payment) => payment.partyId === party.id).map((payment) => `${formatJalali(payment.date, "long")} — ${payment.amount.toLocaleString("en-US")} تومان — ${PAYMENT_METHODS[payment.method]}${payment.note ? ` — ${payment.note}` : ""}`),
+    payments.filter((payment) => payment.partyId === party.id).length === 0 ? "پرداختی ثبت نشده است." : "",
   ];
   return lines.join("\n");
 }

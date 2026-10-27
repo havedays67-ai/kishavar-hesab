@@ -8,6 +8,7 @@ import {
   CircleDollarSign,
   CreditCard,
   Landmark,
+  Printer,
   Plus,
   Receipt,
   Scale,
@@ -56,6 +57,7 @@ export function FinancePage({
   onAddLoan,
   onPayLoan,
   onDeleteLoan,
+  onPrintReport,
 }: {
   ledger: LedgerState;
   onAddEntry: (entry: FinanceEntry) => void;
@@ -67,6 +69,7 @@ export function FinancePage({
   onAddLoan: (loan: Loan) => void;
   onPayLoan: (id: string) => void;
   onDeleteLoan: (id: string) => void;
+  onPrintReport: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("entries");
   const [entryOpen, setEntryOpen] = useState(false);
@@ -98,6 +101,7 @@ export function FinancePage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onPrintReport} className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2.5 text-[9px] text-[#b9cec3]"><Printer className="h-3.5 w-3.5" /> چاپ گزارش</button>
           <button type="button" onClick={() => setEntryOpen(true)} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]"><Plus className="h-3.5 w-3.5" /> ثبت درآمد / هزینه</button>
           <button type="button" onClick={() => setChequeOpen(true)} className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2.5 text-[9px] text-[#b9cec3]"><Plus className="h-3.5 w-3.5" /> ثبت چک</button>
           <button type="button" onClick={() => setLoanOpen(true)} className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2.5 text-[9px] text-[#b9cec3]"><Plus className="h-3.5 w-3.5" /> ثبت وام</button>
@@ -289,7 +293,7 @@ function EntryModal({ open, onClose, onSubmit, initial }: { open: boolean; onClo
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <AmountField label="مبلغ" value={amount} onChange={setAmount} required />
-          <SelectField label="دسته" value={category} onChange={setCategory} options={categories.map((item) => ({ value: item, label: item }))} />
+          <SelectField label="دسته" value={categories.includes(category) ? category : "__custom__"} onChange={(value) => setCategory(value === "__custom__" ? "" : value)} options={categories.filter((item) => !item.startsWith("سایر")).map((item) => ({ value: item, label: item }))} searchable allowCustom customValue={categories.includes(category) ? "" : category} onCustomChange={setCategory} customPlaceholder="نام دسته دلخواه را بنویسید…" />
           <TextField label="دلیل / شرح" value={reason} onChange={setReason} placeholder="مثلاً فروش گندم یا خرید کود" required />
           <SelectField label="روش پرداخت" value={method} onChange={(value) => setMethod(value as PaymentMethod)} options={Object.entries(PAYMENT_METHODS).map(([value, label]) => ({ value, label }))} />
           <JalaliDatePicker label="تاریخ" value={date} onChange={setDate} />

@@ -27,7 +27,7 @@ import {
   type PartyPayment,
 } from "./lib/ledger";
 import { todayJalali, toPersianDigits } from "./lib/format";
-import type { DocumentSpec } from "./lib/documents";
+import { makeDocument, type DocumentSpec } from "./lib/documents";
 import type { CropTrade } from "./lib/trade";
 import { ArchitecturePage } from "./pages/ArchitecturePage";
 import { BackupPage, type BackupBundle } from "./pages/BackupPage";
@@ -272,6 +272,7 @@ export default function App() {
             onDeletePayment={(id) => setRentPayments((current) => current.filter((payment) => payment.id !== id))}
             onAddSignature={(signature) => setSignatures((current) => [signature, ...current])}
             onDeleteContract={(id) => setContracts((current) => current.filter((contract) => contract.id !== id))}
+            onDeleteSignature={(id) => setSignatures((current) => current.filter((signature) => signature.id !== id))}
             onOpenDocument={setActiveDocument}
           />
         )}
@@ -296,6 +297,7 @@ export default function App() {
             onAddLoan={addLoan}
             onPayLoan={payLoan}
             onDeleteLoan={deleteLoan}
+            onPrintReport={() => setActiveDocument(makeDocument("finance-report", { entries: ledger.entries }))}
           />
         )}
         {page === "parties" && (
@@ -306,6 +308,7 @@ export default function App() {
             onDeleteParty={deletePartyAccount}
             onAddPayment={addPartyPayment}
             onDeletePayment={deletePartyPayment}
+            onPrintParty={(party) => setActiveDocument(makeDocument("party-statement", party.id === "all" ? { parties: ledger.parties, payments: ledger.payments } : { party, payments: ledger.payments }))}
           />
         )}
         {page === "inventory" && (
@@ -319,6 +322,8 @@ export default function App() {
             onDeleteAsset={deleteAsset}
             onAddBudget={addBudget}
             onDeleteBudget={deleteBudget}
+            onDeleteMove={(id) => updateLedger({ moves: ledger.moves.filter((move) => move.id !== id) })}
+            onPrintReport={() => setActiveDocument(makeDocument("inventory-report", { items: ledger.items, assets: ledger.assets, budgets: ledger.budgets, entries: ledger.entries }))}
           />
         )}
         {page === "documents" && (

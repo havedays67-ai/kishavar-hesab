@@ -234,7 +234,8 @@ export function AddPartyModal({
             label="شماره تماس"
             value={phone}
             onChange={setPhone}
-            placeholder="۰۹۱۲ ۰۰۰ ۰۰۰۰"
+            numeric
+            placeholder="۰۹۱۲۱۲۳۴۵۶۷"
             required
           />
           <div className="grid grid-cols-2 gap-3">

@@ -18,6 +18,11 @@ export function SelectField({
   icon,
   error,
   required,
+  searchable,
+  allowCustom,
+  customValue = "",
+  onCustomChange,
+  customPlaceholder = "نام دلخواه را بنویسید…",
 }: {
   label: string;
   value: string;
@@ -27,11 +32,24 @@ export function SelectField({
   icon?: ReactNode;
   error?: string;
   required?: boolean;
+  searchable?: boolean;
+  allowCustom?: boolean;
+  customValue?: string;
+  onCustomChange?: (value: string) => void;
+  customPlaceholder?: string;
 }) {
+  const CUSTOM = "__custom__";
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [customMode, setCustomMode] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
-  const [highlighted, setHighlighted] = useState(() => Math.max(0, options.findIndex((option) => option.value === value)));
+  const isCustom = Boolean(allowCustom && (value === CUSTOM || customMode || (customValue.trim() !== "" && !options.some((option) => option.value === value))));
+  const shownLabel = isCustom ? (customValue.trim() || "سایر — وارد کردن دستی") : (selected?.label ?? placeholder);
+  const withCustom = allowCustom ? [...options, { value: CUSTOM, label: "سایر (وارد کردن دستی)", hint: "اگر در فهرست نیست، خودتان بنویسید" }] : options;
+  const normalized = (text: string) => text.replace(/[يى]/g, "ی").replace(/ك/g, "ک").trim();
+  const filtered = withCustom.filter((option) => !query.trim() || normalized(`${option.label} ${option.hint ?? ""} ${option.value}`).includes(normalized(query)));
 
   useEffect(() => {
     if (!open) return;
@@ -42,18 +60,20 @@ export function SelectField({
       if (event.key === "Escape") setOpen(false);
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setHighlighted((current) => Math.min(options.length - 1, current + 1));
+        setHighlighted((current) => Math.min(filtered.length - 1, current + 1));
       }
       if (event.key === "ArrowUp") {
         event.preventDefault();
         setHighlighted((current) => Math.max(0, current - 1));
       }
-      if (event.key === "Enter" && open) {
+      if (event.key === "Enter" && open && filtered.length > 0) {
         event.preventDefault();
-        const option = options[highlighted];
+        const option = filtered[Math.min(highlighted, filtered.length - 1)];
         if (option) {
           onChange(option.value);
+          setCustomMode(option.value === CUSTOM);
           setOpen(false);
+          setQuery("");
         }
       }
     };
@@ -63,7 +83,7 @@ export function SelectField({
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, options, highlighted, onChange]);
+  }, [open, filtered, highlighted, onChange]);
 
   return (
     <div ref={rootRef} className="relative">
@@ -74,50 +94,74 @@ export function SelectField({
       </div>
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => { setOpen((current) => !current); setQuery(""); setHighlighted(0); }}
         className={cn("field flex items-center justify-between gap-2 text-right", error && "field-error")}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={cn("truncate", selected ? "text-[#eef8f2]" : "text-[#6f8e80]")}>
-          {selected?.label ?? placeholder}
-        </span>
+        <span className={cn("truncate", selected || isCustom ? "text-[#eef8f2]" : "text-[#6f8e80]")}>{shownLabel}</span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#6f9584] transition", open && "rotate-180 text-mint-300")} />
       </button>
       {error && <p className="mt-1.5 text-[11px] text-[#ef9c8f]">{error}</p>}
 
+      {isCustom && onCustomChange && (
+        <input
+          value={customValue}
+          onChange={(event) => onCustomChange(event.target.value)}
+          placeholder={customPlaceholder}
+          className="field mt-2 text-right text-[11px]"
+          aria-label={`مقدار دستی ${label}`}
+          autoFocus
+        />
+      )}
+
       {open && (
-        <div
-          className="animate-fade absolute inset-x-0 top-[calc(100%+7px)] z-40 overflow-hidden rounded-xl border border-[#345746] bg-[#10251c] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
-          role="listbox"
-        >
-          {options.map((option, index) => {
-            const active = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={active}
-                onMouseEnter={() => setHighlighted(index)}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-right text-xs transition",
-                  highlighted === index ? "bg-white/[0.07]" : "hover:bg-white/[0.05]",
-                  active ? "font-medium text-mint-300" : "text-[#d4e5db]"
-                )}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">{option.label}</span>
-                  {option.hint && <span className="mt-0.5 block text-[9px] font-normal text-[#7d9b8d]">{option.hint}</span>}
-                </span>
-                {active && <Check className="h-3.5 w-3.5 shrink-0" />}
-              </button>
-            );
-          })}
+        <div className="animate-fade absolute inset-x-0 top-[calc(100%+7px)] z-40 overflow-hidden rounded-xl border border-[#345746] bg-[#10251c] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]" role="listbox">
+          {(searchable || withCustom.length > 7) && (
+            <div className="sticky top-0 z-10 mb-1 rounded-lg bg-[#10251c] p-1">
+              <input
+                value={query}
+                onChange={(event) => { setQuery(event.target.value); setHighlighted(0); }}
+                placeholder="جستجو در فهرست…"
+                className="field min-h-0 py-2 text-[10px]"
+                aria-label={`جستجو در ${label}`}
+                autoFocus
+              />
+            </div>
+          )}
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.map((option, index) => {
+              const active = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onMouseEnter={() => setHighlighted(index)}
+                  onClick={() => { onChange(option.value); setCustomMode(option.value === CUSTOM); setOpen(false); setQuery(""); }}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-right text-xs transition",
+                    highlighted === index ? "bg-white/[0.07]" : "hover:bg-white/[0.05]",
+                    active ? "font-medium text-mint-300" : "text-[#d4e5db]",
+                    option.value === CUSTOM && "mt-1 border-t border-white/[0.08] pt-2.5"
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{option.label}</span>
+                    {option.hint && <span className="mt-0.5 block text-[9px] font-normal text-[#7d9b8d]">{option.hint}</span>}
+                  </span>
+                  {active && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="px-2 py-3 text-center text-[10px] text-[#78968a]">
+                موردی پیدا نشد.
+                {allowCustom && <button type="button" onClick={() => { onChange(CUSTOM); setCustomMode(true); setOpen(false); }} className="mt-1 block w-full text-mint-300">ثبت «{query}» به‌صورت دستی</button>}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -197,6 +241,10 @@ export function TextField({
   hint,
   textarea,
   rows = 3,
+  inputMode,
+  numeric,
+  dir,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -208,6 +256,10 @@ export function TextField({
   hint?: string;
   textarea?: boolean;
   rows?: number;
+  inputMode?: "text" | "numeric" | "decimal" | "tel" | "email" | "url" | "search";
+  numeric?: boolean;
+  dir?: "rtl" | "ltr";
+  maxLength?: number;
 }) {
   const sharedClass = cn("field text-right", error && "field-error", textarea && "min-h-[98px] resize-y leading-6");
   return (
@@ -231,8 +283,13 @@ export function TextField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className={sharedClass}
+          className={cn(sharedClass, numeric && "tabular-nums")}
           aria-label={label}
+          inputMode={numeric ? "numeric" : inputMode}
+          type={numeric ? "tel" : "text"}
+          dir={dir}
+          maxLength={maxLength}
+          pattern={numeric ? "[0-9۰-۹٠-٩]*" : undefined}
         />
       )}
       {error ? (

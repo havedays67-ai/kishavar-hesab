@@ -173,6 +173,7 @@ export function RentalsPage({
   onDeletePayment,
   onAddSignature,
   onDeleteContract,
+  onDeleteSignature,
   onOpenDocument,
 }: {
   contracts: SavedContract[];
@@ -182,6 +183,7 @@ export function RentalsPage({
   onDeletePayment: (id: string) => void;
   onAddSignature: (signature: LeaseSignature) => void;
   onDeleteContract: (id: string) => void;
+  onDeleteSignature: (id: string) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -360,7 +362,10 @@ export function RentalsPage({
                     <img src={signature.image} alt={`امضای ${signature.signerName}`} className="h-14 w-full rounded bg-white object-contain" />
                     <div className="mt-1.5 text-[8px] font-medium text-[#d3e4da]">{signature.signerName}</div>
                     <div className="text-[7px] text-[#78968a]">{signature.role === "landlord" ? "موجر" : signature.role === "tenant" ? "مستاجر" : "شاهد"} · {formatJalali(signature.date, "short")}</div>
-                    <div className="font-mono text-[7px] text-[#6f8c7f]">اثر: {signature.hash}</div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-mono text-[7px] text-[#6f8c7f]">اثر: {signature.hash}</span>
+                      <button type="button" onClick={() => onDeleteSignature(signature.id)} className="text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف امضا"><Trash2 className="h-3 w-3" /></button>
+                    </div>
                   </div>
                 ))}
                 {detailSignatures.length === 0 && <p className="text-[8px] text-[#78968a]">امضایی ثبت نشده است.</p>}

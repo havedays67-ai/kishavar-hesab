@@ -8,6 +8,7 @@ import {
   Copy,
   HandCoins,
   Phone,
+  Printer,
   Plus,
   Scale,
   Search,
@@ -18,7 +19,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "../utils/cn";
-import { formatJalali, numberToPersianWords, toPersianDigits, todayJalali } from "../lib/format";
+import { formatJalali, numberToPersianWords, toPersianDigits, todayJalali, type JDate } from "../lib/format";
 import {
   PAYMENT_METHODS,
   buildLedgerAccountText,
@@ -46,6 +47,7 @@ export function PartiesPage({
   onDeleteParty,
   onAddPayment,
   onDeletePayment,
+  onPrintParty,
 }: {
   ledger: LedgerState;
   onAddParty: (party: DebtParty) => void;
@@ -53,6 +55,7 @@ export function PartiesPage({
   onDeleteParty: (id: string) => void;
   onAddPayment: (payment: PartyPayment) => void;
   onDeletePayment: (id: string) => void;
+  onPrintParty: (party: DebtParty) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -96,10 +99,15 @@ export function PartiesPage({
             جدا ثبت و مانده هر طرف‌حساب خودکار به‌روز می‌شود.
           </p>
         </div>
-        <button type="button" onClick={() => setAddOpen(true)} className="flex items-center justify-center gap-2 rounded-xl bg-mint-400 px-4 py-2.5 text-[10px] font-bold text-[#07110d] transition hover:bg-mint-300">
-          <Plus className="h-3.5 w-3.5" />
-          ثبت بدهکار / بستانکار
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => onPrintParty({ id: "all", name: "گزارش بدهکاران و بستانکاران", phone: "", city: "", kind: "debtor", amount: 0, reason: "گزارش کامل دفتر", date: todayJalali(), dueDate: null, note: "", color: "mint" })} className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2.5 text-[9px] text-[#b9cec3]">
+            <Printer className="h-3.5 w-3.5" /> چاپ گزارش کل
+          </button>
+          <button type="button" onClick={() => setAddOpen(true)} className="flex items-center justify-center gap-2 rounded-xl bg-mint-400 px-4 py-2.5 text-[10px] font-bold text-[#07110d] transition hover:bg-mint-300">
+            <Plus className="h-3.5 w-3.5" />
+            ثبت بدهکار / بستانکار
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
@@ -167,7 +175,7 @@ export function PartiesPage({
                 <p className="mt-1 line-clamp-2 min-h-[30px] text-[9px] leading-5 text-[#c5d9cf]">{party.reason || "بدون توضیح"}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-2 text-[8px]">
                   <div><span className="text-[#6f8c7f]">تاریخ ایجاد: </span><span className="text-[#b7cdc1]">{formatJalali(party.date, "short")}</span></div>
-                  <div><span className="text-[#6f8c7f]">سررسید: </span><span className="text-[#b7cdc1]">{party.dueDate ? formatJalali(party.dueDate, "short") : "ندارد"}</span></div>
+                  <div><span className="text-[#6f8c7f]">یادآوری: </span><span className="text-[#b7cdc1]">{party.dueDate ? formatJalali(party.dueDate, "short") : "—"}</span></div>
                 </div>
               </div>
 
@@ -218,7 +226,7 @@ export function PartiesPage({
       />
 
       <Modal open={Boolean(details)} onClose={() => setDetailId(null)} title={details ? `دفتر معین — ${details.name}` : ""} description="گردش کامل بدهی/طلب، دلیل ثبت و پرداخت‌ها" size="lg">
-        {details && <PartyLedger party={details} payments={ledger.payments} onCopy={() => copyStatement(details)} copied={copied} onDeletePayment={onDeletePayment} onSettle={() => { setDetailId(null); setSettleId(details.id); }} onDelete={() => { onDeleteParty(details.id); setDetailId(null); setToast("طرف‌حساب حذف شد"); }} />}
+        {details && <PartyLedger party={details} payments={ledger.payments} onCopy={() => copyStatement(details)} copied={copied} onDeletePayment={onDeletePayment} onSettle={() => setSettleId(details.id)} onDelete={() => { onDeleteParty(details.id); setDetailId(null); setToast("طرف‌حساب حذف شد"); }} onPrint={() => { onPrintParty(details); setDetailId(null); }} />}
       </Modal>
 
       <SettleModal
@@ -245,13 +253,13 @@ function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; on
   const [amount, setAmount] = useState(0);
   const [reason, setReason] = useState("");
   const [date, setDate] = useState(todayJalali());
-  const [dueDate, setDueDate] = useState(todayJalali());
+  const [reminder, setReminder] = useState<JDate | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
 
   const reset = () => {
     setKind("debtor"); setName(""); setPhone(""); setCity(""); setAmount(0); setReason("");
-    setDate(todayJalali()); setDueDate(todayJalali()); setNote(""); setError("");
+    setDate(todayJalali()); setReminder(null); setNote(""); setError("");
   };
 
   useEffect(() => {
@@ -259,7 +267,7 @@ function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; on
     if (initial) {
       setKind(initial.kind); setName(initial.name); setPhone(initial.phone === "—" ? "" : initial.phone);
       setCity(initial.city === "—" ? "" : initial.city); setAmount(initial.amount); setReason(initial.reason);
-      setDate(initial.date); setDueDate(initial.dueDate ?? initial.date); setNote(initial.note); setError("");
+      setDate(initial.date); setReminder(initial.dueDate); setNote(initial.note); setError("");
       return;
     }
     reset();
@@ -280,7 +288,7 @@ function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; on
       amount,
       reason: reason.trim(),
       date,
-      dueDate,
+      dueDate: reminder,
       note: note.trim(),
       color: colors[Math.floor(Math.random() * colors.length)],
     });
@@ -303,14 +311,21 @@ function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; on
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField label="نام طرف‌حساب" value={name} onChange={setName} placeholder="مثلاً نهاده‌های زاگرس" required />
-          <TextField label="شماره تماس" value={phone} onChange={setPhone} placeholder="۰۹۱۲…" />
+          <TextField label="شماره تماس" value={phone} onChange={setPhone} placeholder="۰۹۱۲۱۲۳۴۵۶۷" numeric />
           <TextField label="شهر / روستا" value={city} onChange={setCity} placeholder="پارس‌آباد" />
           <AmountField label="مبلغ اولیه" value={amount} onChange={setAmount} required helper={`${numberToPersianWords(amount)} تومان`} />
-          <JalaliDatePicker label="تاریخ ایجاد بدهی / طلب" value={date} onChange={setDate} />
-          <JalaliDatePicker label="سررسید (اختیاری)" value={dueDate} onChange={setDueDate} minDate={date} />
+          <JalaliDatePicker label="تاریخ ثبت بدهی / طلب" value={date} onChange={setDate} />
         </div>
         <TextField label="دلیل بدهی / طلب" value={reason} onChange={setReason} placeholder="مثلاً خرید ۱۸ کیسه کود اوره — فاکتور ۴۴۸۲" textarea rows={2} required hint="این متن در صورتحساب و دفتر معین نمایش داده می‌شود." />
         <TextField label="یادداشت تکمیلی" value={note} onChange={setNote} placeholder="شماره چک، توافق پرداخت، …" />
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-medium text-[#c7d9cf]">تاریخ یادآوری پیگیری (اختیاری)</span>
+            {reminder && <button type="button" onClick={() => setReminder(null)} className="text-[8px] text-[#efad9f]">حذف</button>}
+          </div>
+          <p className="mb-2 text-[8px] leading-4 text-[#78968a]">این تاریخ برای آماده‌سازی طلب/بدهی است و ثبت آن اختیاری است. پرداخت با تاریخ خودش ثبت می‌شود.</p>
+          {reminder ? <JalaliDatePicker label="تاریخ یادآوری" value={reminder} onChange={(value) => setReminder(value)} minDate={date} quickToday={false} /> : <button type="button" onClick={() => setReminder(todayJalali())} className="rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2.5 py-1.5 text-[9px] text-mint-300">تعیین تاریخ یادآوری</button>}
+        </div>
         {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a]">{error}</p>}
         <div className="flex gap-2 pt-1">
           <button type="button" onClick={submit} className="flex-1 rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">{initial ? "ذخیره تغییرات" : "ثبت طرف‌حساب"}</button>
@@ -321,7 +336,7 @@ function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; on
   );
 }
 
-function PartyLedger({ party, payments, onCopy, copied, onDeletePayment, onSettle, onDelete }: {
+function PartyLedger({ party, payments, onCopy, copied, onDeletePayment, onSettle, onDelete, onPrint }: {
   party: DebtParty;
   payments: PartyPayment[];
   onCopy: () => void;
@@ -329,6 +344,7 @@ function PartyLedger({ party, payments, onCopy, copied, onDeletePayment, onSettl
   onDeletePayment: (id: string) => void;
   onSettle: () => void;
   onDelete: () => void;
+  onPrint: () => void;
 }) {
   const rows = payments.filter((payment) => payment.partyId === party.id);
   const totals = partyTotals(party, payments);
@@ -338,7 +354,8 @@ function PartyLedger({ party, payments, onCopy, copied, onDeletePayment, onSettl
         <span className={cn("rounded-full px-2.5 py-1 text-[9px]", party.kind === "debtor" ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}>
           {party.kind === "debtor" ? "بدهکار به شما" : "شما بدهکار هستید"} · {formatJalali(party.date, "long")}
         </span>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={onPrint} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300">{copied ? <Check className="h-3 w-3" /> : <Printer className="h-3 w-3" />} چاپ / PDF صورتحساب</button>
           <button type="button" onClick={onCopy} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]">{copied ? <Check className="h-3 w-3 text-mint-300" /> : <Copy className="h-3 w-3" />} کپی صورتحساب</button>
           <button type="button" onClick={onSettle} disabled={totals.balance === 0} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300 disabled:opacity-40"><HandCoins className="h-3 w-3" /> ثبت پرداخت</button>
         </div>

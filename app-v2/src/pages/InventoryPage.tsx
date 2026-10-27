@@ -4,6 +4,7 @@ import {
   Check,
   Package,
   Plus,
+  Printer,
   Target,
   Trash2,
   TrendingDown,
@@ -41,6 +42,8 @@ export function InventoryPage({
   onDeleteAsset,
   onAddBudget,
   onDeleteBudget,
+  onDeleteMove,
+  onPrintReport,
 }: {
   ledger: LedgerState;
   onAddItem: (item: InventoryItem) => void;
@@ -51,6 +54,8 @@ export function InventoryPage({
   onDeleteAsset: (id: string) => void;
   onAddBudget: (budget: Budget) => void;
   onDeleteBudget: (id: string) => void;
+  onDeleteMove: (id: string) => void;
+  onPrintReport: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("stock");
   const [itemOpen, setItemOpen] = useState(false);
@@ -74,6 +79,7 @@ export function InventoryPage({
           <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">موجودی نهاده، ورود و خروج انبار، استهلاک دارایی و کنترل بودجه هر سرفصل هزینه.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onPrintReport} className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] px-3 py-2.5 text-[9px] text-[#b9cec3]"><Printer className="h-3.5 w-3.5" /> چاپ گزارش</button>
           {tab === "stock" && <><button type="button" onClick={() => setItemOpen(true)} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]"><Plus className="h-3.5 w-3.5" /> کالای جدید</button><button type="button" onClick={() => setMoveOpen(true)} className="flex items-center gap-1.5 rounded-xl border border-white/[0.09] px-3 py-2.5 text-[9px] text-[#b9cec3]"><Plus className="h-3.5 w-3.5" /> ورود/خروج</button></>}
           {tab === "assets" && <button type="button" onClick={() => setAssetOpen(true)} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]"><Plus className="h-3.5 w-3.5" /> دارایی جدید</button>}
           {tab === "budget" && <button type="button" onClick={() => setBudgetOpen(true)} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]"><Plus className="h-3.5 w-3.5" /> بودجه جدید</button>}
@@ -129,7 +135,7 @@ export function InventoryPage({
                   <span className={cn("rounded px-1.5 py-0.5 text-[8px]", low ? "bg-[#a25649]/15 text-[#efad9f]" : "bg-mint-300/10 text-mint-300")}>{low ? "کمبود موجودی" : "موجودی کافی"}</span>
                   <span className="text-[8px] text-[#6f8c7f]">{toPersianDigits(moves.length)} گردش ثبت‌شده</span>
                 </div>
-                {moves.length > 0 && <div className="mt-2 space-y-1">{moves.slice(-3).map((move) => <div key={move.id} className="flex justify-between text-[8px] text-[#7f9b8e]"><span>{formatJalali(move.date, "short")} · {move.kind === "in" ? "ورود" : "خروج"} {fa(move.qty)}</span><span>{move.note || "—"}</span></div>)}</div>}
+                {moves.length > 0 && <div className="mt-2 space-y-1">{moves.slice(-3).map((move) => <div key={move.id} className="flex items-center justify-between gap-2 text-[8px] text-[#7f9b8e]"><span>{formatJalali(move.date, "short")} · {move.kind === "in" ? "ورود" : "خروج"} {fa(move.qty)}</span><span className="truncate">{move.note || "—"}</span><button type="button" onClick={() => onDeleteMove(move.id)} className="shrink-0 text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف گردش"><Trash2 className="h-3 w-3" /></button></div>)}</div>}
               </article>
             );
           })}

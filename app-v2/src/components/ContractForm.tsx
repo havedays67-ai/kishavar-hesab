@@ -161,23 +161,21 @@ function RoleCard({
 export function ContractForm({ parties, onCreateParty, onCreateContract }: ContractFormProps) {
   const dates = useMemo(() => defaultContractDates(), []);
   const [role, setRole] = useState<Role>("tenant");
-  const [partyId, setPartyId] = useState(() => parties.find((party) => party.role === "landlord")?.id ?? "");
+  const [partyId, setPartyId] = useState("");
   const [contractType, setContractType] = useState<ContractTypeId>("cash");
-  const [landTitle, setLandTitle] = useState("قطعه شمالی — چشمه");
-  const [crop, setCrop] = useState("گندم");
-  const [area, setArea] = useState("12.5");
-  const [plaque, setPlaque] = useState("۱۴۰۲/۸۴");
+  const [landTitle, setLandTitle] = useState("");
+  const [crop, setCrop] = useState("");
+  const [area, setArea] = useState("");
+  const [plaque, setPlaque] = useState("");
   const [start, setStart] = useState<JDate>(dates.start);
   const [end, setEnd] = useState<JDate>(dates.end);
-  const [rent, setRent] = useState(360000000);
-  const [deposit, setDeposit] = useState(100000000);
-  const [period, setPeriod] = useState("ماهانه");
+  const [rent, setRent] = useState(0);
+  const [deposit, setDeposit] = useState(0);
+  const [period, setPeriod] = useState("سالانه");
   const [cropShare, setCropShare] = useState(0);
-  const [waterShare, setWaterShare] = useState("۶ ساعت در هفته از چاه مشترک");
+  const [waterShare, setWaterShare] = useState("");
   const [utilities, setUtilities] = useState("مستاجر");
-  const [obligations, setObligations] = useState(
-    "بهره‌بردار متعهد است زمین را فقط برای کشت محصول توافق‌شده استفاده کند و پس از برداشت، زمین را در وضعیت قابل کشت تحویل دهد."
-  );
+  const [obligations, setObligations] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewContract, setPreviewContract] = useState<SavedContract | null>(null);
@@ -279,23 +277,21 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
   const resetForm = () => {
     const freshDates = defaultContractDates();
     setRole("tenant");
-    setPartyId(parties.find((party) => party.role === "landlord")?.id ?? "");
+    setPartyId("");
     setContractType("cash");
-    setLandTitle("قطعه شمالی — چشمه");
-    setCrop("گندم");
-    setArea("12.5");
-    setPlaque("۱۴۰۲/۸۴");
+    setLandTitle("");
+    setCrop("");
+    setArea("");
+    setPlaque("");
     setStart(freshDates.start);
     setEnd(freshDates.end);
-    setRent(360000000);
-    setDeposit(100000000);
-    setPeriod("ماهانه");
+    setRent(0);
+    setDeposit(0);
+    setPeriod("سالانه");
     setCropShare(0);
-    setWaterShare("۶ ساعت در هفته از چاه مشترک");
+    setWaterShare("");
     setUtilities("مستاجر");
-    setObligations(
-      "بهره‌بردار متعهد است زمین را فقط برای کشت محصول توافق‌شده استفاده کند و پس از برداشت، زمین را در وضعیت قابل کشت تحویل دهد."
-    );
+    setObligations("");
     setErrors({});
     setSuccessContract(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -436,15 +432,20 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
               />
               <SelectField
                 label="محصول"
-                value={crop}
+                value={CROPS.includes(crop) ? crop : crop ? "__custom__" : ""}
                 onChange={(value) => {
-                  setCrop(value);
+                  setCrop(value === "__custom__" ? "" : value);
                   clearError("crop");
                 }}
-                options={CROPS.map((item) => ({ value: item, label: item }))}
+                options={CROPS.filter((item) => item !== "سایر").map((item) => ({ value: item, label: item }))}
                 icon={<Leaf className="h-3.5 w-3.5 text-[#7fa294]" />}
                 error={errors.crop}
                 required
+                searchable
+                allowCustom
+                customValue={CROPS.includes(crop) ? "" : crop}
+                onCustomChange={(value) => { setCrop(value); clearError("crop"); }}
+                customPlaceholder="نام محصول را بنویسید (مثلاً کینوا)…"
               />
               <TextField
                 label="مساحت (هکتار)"
@@ -593,7 +594,7 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
               label="شرایط و تعهدات طرفین"
               value={obligations}
               onChange={setObligations}
-              placeholder="تعهدات، شرایط فسخ، نحوه تحویل زمین و …"
+              placeholder="مثلاً زمین شخم‌زده تحویل شود؛ تغییر کاربری ممنوع؛ شرایط فسخ…"
               textarea
               rows={4}
               hint={`${toPersianDigits(obligations.length)} نویسه — سند پیش‌نویس است و جایگزین سند رسمی نیست.`}

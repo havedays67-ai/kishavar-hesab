@@ -17,7 +17,10 @@ export type DocumentKind =
   | "lease-receipt"
   | "lease-handover"
   | "trades-report"
-  | "cost-report";
+  | "cost-report"
+  | "party-statement"
+  | "finance-report"
+  | "inventory-report";
 
 export type DocumentFamily = "trade" | "lease" | "report";
 
@@ -114,6 +117,36 @@ export const DOCUMENT_TYPES: DocumentMeta[] = [
     needsStamp: false,
   },
   {
+    kind: "party-statement",
+    family: "report",
+    title: "صورتحساب بدهکار / بستانکار",
+    description: "دلیل بدهی، تاریخ ثبت، پرداخت‌های انجام‌شده با تاریخ و مانده روز.",
+    legalBasis: "مواد ۲۹۵ (وفای به عهد)، ۳۰۱ و ۳۰۴ قانون مدنی و ماده ۱۶۹ قانون مالیات‌های مستقیم",
+    copies: "دو نسخه: طرف‌حساب و بایگانی",
+    signatureRoles: ["صادرکننده", "طرف‌حساب"],
+    needsStamp: true,
+  },
+  {
+    kind: "finance-report",
+    family: "report",
+    title: "گزارش دفتر مالی",
+    description: "فهرست درآمدها و هزینه‌ها با دلیل، تاریخ، دسته و روش پرداخت.",
+    legalBasis: "گزارش داخلی مدیریتی — سوابق معاملات و ماده ۱۶۹ قانون مالیات‌های مستقیم",
+    copies: "یک نسخه برای بایگانی مدیریت",
+    signatureRoles: ["مدیر مالی"],
+    needsStamp: false,
+  },
+  {
+    kind: "inventory-report",
+    family: "report",
+    title: "گزارش انبار، دارایی و بودجه",
+    description: "موجودی، ارزش انبار، استهلاک دارایی‌ها و بودجه در برابر هزینه واقعی.",
+    legalBasis: "گزارش داخلی مدیریتی — رویه‌های حسابداری مدیریت",
+    copies: "یک نسخه برای بایگانی مدیریت",
+    signatureRoles: ["مدیر مزرعه"],
+    needsStamp: false,
+  },
+  {
     kind: "trades-report",
     family: "report",
     title: "گزارش مدیریتی معاملات محصول",
@@ -152,6 +185,32 @@ export interface DocumentPayload {
     revenue: number;
     profit: number;
   }[];
+  party?: {
+    id: string;
+    name: string;
+    phone: string;
+    city: string;
+    kind: "debtor" | "creditor";
+    amount: number;
+    reason: string;
+    date: JDate;
+    dueDate: JDate | null;
+    note: string;
+  };
+  payments?: { id: string; partyId: string; date: JDate; amount: number; method: string; note: string }[];
+  parties?: {
+    id: string;
+    name: string;
+    kind: "debtor" | "creditor";
+    amount: number;
+    reason: string;
+    date: JDate;
+    phone: string;
+  }[];
+  entries?: { id: string; kind: string; date: JDate; amount: number; reason: string; category: string; method: string }[];
+  items?: { id: string; name: string; unit: string; kind: string; stock: number; min: number; cost: number }[];
+  assets?: { id: string; name: string; cost: number; salvage: number; lifeMonths: number; purchase: JDate; note: string }[];
+  budgets?: { id: string; category: string; limit: number }[];
 }
 
 export interface DocumentSpec {
@@ -188,6 +247,9 @@ export function makeDocument(kind: DocumentKind, payload: DocumentPayload, seria
     "lease-handover": "LHV",
     "trades-report": "RPT",
     "cost-report": "CST",
+    "party-statement": "PST",
+    "finance-report": "FIN",
+    "inventory-report": "INV2",
   }[kind];
   const serial = serialOverride ?? `KSH-${prefix}-${suffix}-${source}`;
   const verificationCode = fnvHash(
@@ -196,16 +258,43 @@ export function makeDocument(kind: DocumentKind, payload: DocumentPayload, seria
   return { kind, meta, serial, date: payload.trade?.date ?? today, verificationCode, payload };
 }
 
+export const VERIFY_BASE_URL = "https://havedays67-ai.github.io/kishavar-hesab/verify/";
+
+/** کد کنترل قطعی و کوتاه برای تطبیق داده سند (checksum داخلی، نه امضای حقوقی) */
+export function documentChecksum(serial: string, kind: string, dateShort: string, amount: number): string {
+  const text = `${serial}|${kind}|${dateShort}|${Math.round(amount)}`;
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash.toString(36).toUpperCase().padStart(6, "0").slice(-6);
+}
+
+export function verificationData(spec: DocumentSpec) {
+  const amount = Math.round(
+    spec.payload.trade?.result.netReceipt ??
+    spec.payload.contract?.rent ??
+    spec.payload.party?.amount ??
+    spec.payload.parties?.reduce((sum, party) => sum + party.amount, 0) ??
+    0
+  );
+  const dateShort = formatJalali(spec.date, "short");
+  const check = documentChecksum(spec.serial, spec.kind, dateShort, amount);
+  return { serial: spec.serial, kind: spec.kind, title: spec.meta.title, dateShort, amount, check };
+}
+
+/** لینک واقعی صفحه استعلام؛ برای هر اسکنر QR قابل باز شدن است */
 export function verificationPayload(spec: DocumentSpec): string {
-  return JSON.stringify({
-    v: 1,
-    org: "کسب‌وکار من",
-    serial: spec.serial,
-    kind: spec.kind,
-    date: formatJalali(spec.date, "short"),
-    code: spec.verificationCode,
-    amount: spec.payload.trade?.result.netReceipt ?? spec.payload.contract?.rent ?? 0,
+  const data = verificationData(spec);
+  const params = new URLSearchParams({
+    s: data.serial,
+    k: data.kind,
+    d: data.dateShort,
+    a: String(data.amount),
+    c: data.check,
   });
+  return `${VERIFY_BASE_URL}?${params.toString()}`;
 }
 
 export function contractDocumentKind(kind: DocumentKind): boolean {

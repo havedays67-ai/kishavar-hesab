@@ -61,7 +61,7 @@ type Tab = "calc" | "list" | "standards";
 type Step = 1 | 2 | 3 | 4;
 
 interface FormState {
-  productId: ProductId;
+  productId: ProductId | null;
   buyerName: string;
   buyerType: string;
   buyerNationalId: string;
@@ -98,7 +98,10 @@ interface FormState {
   weighbridgeNo: string;
 }
 
-const BUYER_TYPES = ["کارخانه آرد", "سیلو", "دامداری", "کارخانه روغن‌کشی", "بازار محلی", "صادرکننده", "سایر"];
+const BUYER_TYPES = [
+  "کارخانه آرد", "سیلو", "انبار غله", "دامداری", "مرغداری", "کارخانه روغن‌کشی", "کارخانه قند", "کارخانه نشاسته",
+  "کارخانه خوراک دام", "بازار محلی", "میوه‌فروشی", "سردخانه", "تعاونی روستایی", "صادرکننده", "واسطه / دلال", "سایر",
+];
 
 const QUALITY_PRESETS: { label: string; patch: Partial<FormState>; hint: string }[] = [
   {
@@ -119,41 +122,41 @@ const QUALITY_PRESETS: { label: string; patch: Partial<FormState>; hint: string 
 ];
 
 const initialForm: FormState = {
-  productId: "wheat",
-  buyerName: "کارخانه آرد آذربایجان",
-  buyerType: "کارخانه آرد",
-  buyerNationalId: "۱۴۰۰۳۲۵۶۷۸۹",
-  buyerAddress: "پارس‌آباد، شهرک صنعتی، جاده سیلو",
-  farmTitle: "قطعه شمالی — گندم چمران",
+  productId: null,
+  buyerName: "",
+  buyerType: "",
+  buyerNationalId: "",
+  buyerAddress: "",
+  farmTitle: "",
   date: todayJalali(),
-  grossKg: 30_420,
-  tareKg: 11_980,
-  moisture: 15.2,
-  usefulLossPercent: 3,
-  nonUsefulLossPercent: 1.2,
-  impurity: 1.1,
-  sprouted: 0.6,
-  broken: 2.2,
-  hectoliter: 77,
-  protein: 12.1,
-  unitPrice: PRODUCT_PROFILES.wheat.basePrice,
-  transport: 12_000_000,
-  loading: 4_500_000,
-  commissionRate: 0.5,
+  grossKg: 0,
+  tareKg: 0,
+  moisture: 0,
+  usefulLossPercent: 0,
+  nonUsefulLossPercent: 0,
+  impurity: 0,
+  sprouted: 0,
+  broken: 0,
+  hectoliter: 0,
+  protein: 0,
+  unitPrice: 0,
+  transport: 0,
+  loading: 0,
+  commissionRate: 0,
   insurance: 0,
   delayPenalty: 0,
-  other: 1_500_000,
+  other: 0,
   taxExempt: true,
-  taxRate: 10,
-  paymentMethod: "cheque",
+  taxRate: 0,
+  paymentMethod: "cash",
   paid: 0,
-  chequeNo: "۴۵۲۱۹۸۷",
+  chequeNo: "",
   dueDate: addJalaliMonths(todayJalali(), 1),
-  notes: "تحویل به سیلوی خریدار؛ نمونه‌برداری در حضور نماینده فروشنده.",
-  vehiclePlate: "۱۴ ع ۲۵۷ / ایران ۲۱",
-  driverName: "رحیم علیزاده",
-  driverPhone: "۰۹۱۲ ۵۵۵ ۴۴۳۳",
-  weighbridgeNo: "B-1403",
+  notes: "",
+  vehiclePlate: "",
+  driverName: "",
+  driverPhone: "",
+  weighbridgeNo: "",
 };
 
 const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
@@ -372,7 +375,7 @@ export function TradePage({
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  const profile = PRODUCT_PROFILES[form.productId];
+  const profile = form.productId ? PRODUCT_PROFILES[form.productId] : PRODUCT_PROFILES.wheat;
 
   const openTradeDoc = (kind: DocumentKind, trade: CropTrade) => onOpenDocument(makeDocument(kind, { trade }));
 
@@ -400,7 +403,7 @@ export function TradePage({
   const result = useMemo(
     () =>
       calculateTrade({
-        productId: form.productId,
+        productId: form.productId ?? "wheat",
         quality,
         unitPrice: form.unitPrice,
         costs,
@@ -439,6 +442,7 @@ export function TradePage({
 
   const stepOneValid = () => {
     const next: Record<string, string> = {};
+    if (!form.productId) next.productId = "محصول را انتخاب کنید.";
     if (form.buyerName.trim().length < 3) next.buyerName = "نام خریدار یا کارخانه را وارد کنید.";
     if (!form.farmTitle.trim()) next.farmTitle = "عنوان زمین / منشأ محموله را وارد کنید.";
     setErrors(next);
@@ -494,8 +498,8 @@ export function TradePage({
     const sequence = trades.filter((trade) => trade.date.jy === form.date.jy && trade.date.jm === form.date.jm && trade.date.jd === form.date.jd).length + 1;
     const created: CropTrade = {
       id: `trade-${Date.now()}`,
-      serial: makeTradeSerial(form.date, form.productId, sequence),
-      productId: form.productId,
+      serial: makeTradeSerial(form.date, form.productId ?? "wheat", sequence),
+      productId: form.productId ?? "wheat",
       date: form.date,
       createdAt: todayJalali(),
       sellerName: "محمدرضا کریمی — مزرعه سبز دشت مغان",
@@ -673,12 +677,13 @@ export function TradePage({
                         );
                       })}
                     </div>
+                    {errors.productId && <p className="mt-2 text-[10px] text-[#ef9c8f]">{errors.productId}</p>}
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <TextField label="نام خریدار / کارخانه" value={form.buyerName} onChange={(value) => update("buyerName", value)} placeholder="کارخانه آرد آذربایجان" icon={<Building2 className="h-3.5 w-3.5 text-[#7fa294]" />} error={errors.buyerName} required />
-                      <SelectField label="نوع خریدار" value={form.buyerType} onChange={(value) => update("buyerType", value)} options={BUYER_TYPES.map((type) => ({ value: type, label: type }))} />
-                      <TextField label="شناسه ملی / اقتصادی خریدار" value={form.buyerNationalId} onChange={(value) => update("buyerNationalId", value)} placeholder="۱۴۰۰…" />
-                      <TextField label="نشانی تحویل" value={form.buyerAddress} onChange={(value) => update("buyerAddress", value)} placeholder="شهرک صنعتی، سیلو …" />
-                      <TextField label="عنوان زمین / منشأ محموله" value={form.farmTitle} onChange={(value) => update("farmTitle", value)} placeholder="قطعه شمالی — گندم چمران" error={errors.farmTitle} icon={<Wheat className="h-3.5 w-3.5 text-[#7fa294]" />} required />
+                      <TextField label="نام خریدار / کارخانه" value={form.buyerName} onChange={(value) => update("buyerName", value)} placeholder="مثلاً کارخانه آرد آذربایجان" icon={<Building2 className="h-3.5 w-3.5 text-[#7fa294]" />} error={errors.buyerName} required />
+                      <SelectField label="نوع خریدار" value={form.buyerType} onChange={(value) => update("buyerType", value === "__custom__" ? "" : value)} options={BUYER_TYPES.filter((type) => type !== "سایر").map((type) => ({ value: type, label: type }))} searchable allowCustom customValue={form.buyerType} onCustomChange={(value) => update("buyerType", value)} customPlaceholder="نام نوع خریدار را بنویسید…" />
+                      <TextField label="شناسه ملی / اقتصادی خریدار" value={form.buyerNationalId} onChange={(value) => update("buyerNationalId", value)} placeholder="مثلاً ۱۴۰۰۳۲۵۶۷۸۹" numeric />
+                      <TextField label="نشانی تحویل" value={form.buyerAddress} onChange={(value) => update("buyerAddress", value)} placeholder="مثلاً شهرک صنعتی، جاده سیلو" />
+                      <TextField label="عنوان زمین / منشأ محموله" value={form.farmTitle} onChange={(value) => update("farmTitle", value)} placeholder="مثلاً قطعه شمالی — گندم چمران" error={errors.farmTitle} icon={<Wheat className="h-3.5 w-3.5 text-[#7fa294]" />} required />
                       <JalaliDatePicker label="تاریخ معامله" value={form.date} onChange={(value) => update("date", value)} />
                     </div>
                   </CardSection>
@@ -844,7 +849,7 @@ export function TradePage({
                         ["خریدار", form.buyerName],
                         ["محصول", `${profile.name} — ${form.farmTitle}`],
                         ["تاریخ", formatJalali(form.date, "long")],
-                        ["شماره سریال", makeTradeSerial(form.date, form.productId, trades.length + 1)],
+                        ["شماره سریال", makeTradeSerial(form.date, form.productId ?? "wheat", trades.length + 1)],
                         ["وزن قابل پرداخت", mass(result.payableKg)],
                         ["درجه کیفی", `${result.quality.label} (ضریب ${toPersianDigits(result.quality.factor)})`],
                         ["خالص دریافتی", money(result.netReceipt)],
