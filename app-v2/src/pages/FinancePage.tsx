@@ -18,6 +18,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "../utils/cn";
+import { Fingerprint } from "lucide-react";
+import { chequeEntity, loanEntity } from "../lib/signable";
+import { SignatureDialog } from "../components/SignatureDialog";
+import { useSignatures } from "../lib/signatureContext";
+
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import {
   EXPENSE_CATEGORIES,
@@ -78,6 +83,8 @@ export function FinancePage({
   const [loanOpen, setLoanOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [signTarget, setSignTarget] = useState<{ kind: "cheque"; id: string } | { kind: "loan"; id: string } | null>(null);
+  const { audit } = useSignatures();
 
   const totals = financeTotals(ledger.entries);
   const cheques = chequeTotals(ledger.cheques);
@@ -193,6 +200,7 @@ export function FinancePage({
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/[0.05] pt-2.5">
+                <button type="button" onClick={() => setSignTarget({ kind: "cheque", id: cheque.id })} className="flex items-center gap-1 rounded-lg border border-[#9fd4ee]/25 bg-[#9fd4ee]/[0.07] px-2.5 py-1.5 text-[8px] text-[#bfe6f7]"><Fingerprint className="h-3 w-3" /> امضا ({toPersianDigits(audit(chequeEntity(cheque)).signed)}/{toPersianDigits(audit(chequeEntity(cheque)).required)})</button>
                 {cheque.status === "pending" && (
                   <>
                     <button type="button" onClick={() => onSetChequeStatus(cheque.id, "cleared")} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300"><Check className="h-3 w-3" /> وصول شد</button>
@@ -230,6 +238,7 @@ export function FinancePage({
                   <div className="rounded-lg bg-white/[0.02] p-2"><div className="text-[7px] text-[#78968a]">کل بازپرداخت</div><div className="mt-0.5 text-[9px] text-[#d3e4da]">{money(schedule.reduce((sum, row) => sum + row.amount, 0))}</div></div>
                 </div>
                 <div className="mt-3 flex items-center gap-2 border-t border-white/[0.05] pt-2.5">
+                  <button type="button" onClick={() => setSignTarget({ kind: "loan", id: loan.id })} className="flex items-center gap-1 rounded-lg border border-[#9fd4ee]/25 bg-[#9fd4ee]/[0.07] px-2.5 py-1.5 text-[8px] text-[#bfe6f7]"><Fingerprint className="h-3 w-3" /> امضا وام ({toPersianDigits(audit(loanEntity(loan)).signed)}/{toPersianDigits(audit(loanEntity(loan)).required)})</button>
                   <button type="button" disabled={!next} onClick={() => onPayLoan(loan.id)} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300 disabled:opacity-40"><CircleDollarSign className="h-3 w-3" /> پرداخت قسط بعدی</button>
                   <button type="button" onClick={() => onDeleteLoan(loan.id)} className="mr-auto flex items-center gap-1 text-[8px] text-[#78968a] hover:text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف</button>
                 </div>
@@ -248,6 +257,7 @@ export function FinancePage({
       <EntryModal open={entryOpen} initial={editingEntry} onClose={() => { setEntryOpen(false); setEditingEntry(null); }} onSubmit={(entry) => { if (editingEntry) { onUpdateEntry(entry); setToast("تغییرات سند ذخیره شد"); } else { onAddEntry(entry); setToast("سند مالی ثبت شد"); } setEntryOpen(false); setEditingEntry(null); }} />
       <ChequeModal open={chequeOpen} onClose={() => setChequeOpen(false)} onSubmit={(cheque) => { onAddCheque(cheque); setChequeOpen(false); setToast("چک ثبت شد"); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} onSubmit={(loan) => { onAddLoan(loan); setLoanOpen(false); setToast("وام و جدول اقساط ساخته شد"); }} />
+      <SignatureDialog entity={signTarget ? signTarget.kind === "cheque" ? chequeEntity(ledger.cheques.find((cheque) => cheque.id === signTarget.id)!) : loanEntity(ledger.loans.find((loan) => loan.id === signTarget.id)!) : null} open={Boolean(signTarget)} onClose={() => setSignTarget(null)} />
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />
     </div>
   );

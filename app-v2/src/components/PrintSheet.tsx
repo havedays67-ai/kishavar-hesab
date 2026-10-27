@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import type { SavedContract } from "../lib/data";
 import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
+import { useSignatures } from "../lib/signatureContext";
+import { documentEntity } from "../lib/signable";
+import { SignatureDialog } from "./SignatureDialog";
+import { Fingerprint } from "lucide-react";
 import type { DocumentSpec } from "../lib/documents";
 import { verificationData, verificationPayload } from "../lib/documents";
 import { deliverDocumentPdf, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
@@ -78,6 +82,27 @@ function Section({ number, title, children }: { number: string; title: string; c
   );
 }
 
+function SignatureStatusBlock({ spec }: { spec: DocumentSpec }) {
+  const { audit } = useSignatures();
+  const entity = documentEntity(spec);
+  const report = audit(entity);
+  return (
+    <div className="mt-3 rounded border border-[#cdbf8b] bg-[#f8f3e2] p-2.5">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-1 text-[8px] font-bold text-[#4b5a50]">
+        <span>وضعیت امضای الکترونیکی: {toPersianDigits(report.signed)} از {toPersianDigits(report.required)} امضای الزامی {report.complete ? "— کامل" : "— ناقص"}</span>
+        <span>هش محتوا: {report.payloadHash.slice(0, 16)}… · {report.chainValid ? "زنجیره معتبر" : "هشدار زنجیره"}</span>
+      </div>
+      {report.records.length > 0 ? (
+        <table>
+          <thead><tr><th className={thClass}>سمت</th><th className={thClass}>نام امضاکننده</th><th className={thClass}>تاریخ</th><th className={thClass}>روش</th><th className={thClass}>کد اصالت</th></tr></thead>
+          <tbody>{report.records.map((record) => <tr key={record.id}><td className={tdClass}>{entity.roles.find((role) => role.role === record.role)?.label ?? record.role}</td><td className={tdClass}>{record.signerName}</td><td className={tdClass}>{formatJalali(record.signedAt, "long")}</td><td className={tdClass}>{record.biometric.verified ? "دستی + بیومتریک دستگاه" : "دستی"}</td><td className={`${tdClass} font-mono`}>{record.verifyCode}</td></tr>)}</tbody>
+        </table>
+      ) : <p className="text-[8px] text-[#6b7068]">هنوز امضایی ثبت نشده است؛ امضاها به‌صورت الکترونیکی در برنامه و با کد اصالت ثبت می‌شوند.</p>}
+      <p className="mt-1 text-[7px] leading-4 text-[#6f7a70]">این امضا «امضای الکترونیکی ساده» است و جایگزین امضای الکترونیکی مطمئن (نیازمند گواهی معتبر) یا سند رسمی و دسته‌چک کاغذی نیست. امضاهای دستی جای خالی روی نسخه چاپی برای کسانی است که امکان امضای الکترونیکی ندارند.</p>
+    </div>
+  );
+}
+
 function SignatureBoxes({ roles }: { roles: string[] }) {
   return (
     <div className={`mt-5 grid gap-3 ${roles.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
@@ -134,6 +159,10 @@ export function DocumentDialog({
   const [zoom, setZoom] = useState<"fit" | "large">("fit");
   const [busy, setBusy] = useState<"pdf" | "html" | null>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "err" | "info"; text: string } | null>(null);
+  const [signOpen, setSignOpen] = useState(false);
+  const { audit } = useSignatures();
+  const signatureEntity = documentEntity(spec);
+  const signatureReport = audit(signatureEntity);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -194,6 +223,10 @@ export function DocumentDialog({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" onClick={() => setSignOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-[#9fd4ee]/30 bg-[#9fd4ee]/10 px-2.5 py-2 text-[9px] text-[#bfe6f7] transition hover:bg-[#9fd4ee]/20">
+              <Fingerprint className="h-3.5 w-3.5" />
+              امضا ({toPersianDigits(signatureReport.signed)}/{toPersianDigits(signatureReport.required)})
+            </button>
             <button type="button" onClick={downloadPdf} disabled={busy !== null} className="flex items-center gap-1.5 rounded-lg bg-mint-400 px-3 py-2 text-[9px] font-bold text-[#07110d] transition hover:bg-mint-300 disabled:opacity-60">
               <Download className="h-3.5 w-3.5" />
               {busy === "pdf" ? "در حال ساخت…" : "دانلود PDF"}
@@ -238,6 +271,7 @@ export function DocumentDialog({
           </div>
         </div>
       </div>
+      <SignatureDialog entity={signatureEntity} open={signOpen} onClose={() => setSignOpen(false)} />
     </div>,
     document.body
   );
@@ -595,6 +629,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
           <InventoryReportBody spec={spec} />
         )}
 
+        <SignatureStatusBlock spec={spec} />
         <footer className="mt-5 border-t border-[#d4cfc0] pt-3">
           <div className="flex items-start justify-between gap-4">
             <div className="max-w-[70%] text-[7px] leading-4 text-[#727c73]">

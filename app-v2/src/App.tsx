@@ -40,6 +40,8 @@ import { FinancePage } from "./pages/FinancePage";
 import { InventoryPage } from "./pages/InventoryPage";
 import { PartiesPage } from "./pages/PartiesPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SignaturesPage } from "./pages/SignaturesPage";
+import { buildDocumentRegistry } from "./lib/registry";
 import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./pages/RentalsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
@@ -56,6 +58,7 @@ const AVAILABLE_PAGES: Page[] = [
   "documents",
   "reports",
   "backup",
+  "signatures",
   "profile",
   "architecture",
   "download",
@@ -95,6 +98,7 @@ const PAGE_TITLES: Record<Page, string> = {
   documents: "اسناد و چاپ",
   reports: "گزارش‌های مدیریتی",
   backup: "دستیار و پشتیبان",
+  signatures: "امضا و اعتبار",
   profile: "پروفایل",
   architecture: "معماری و فرمول‌ها",
   download: "دریافت برنامه",
@@ -132,6 +136,7 @@ export default function App() {
   const [rentPayments, setRentPayments] = useState<RentPaymentRecord[]>(() => loadList(STORAGE_RENTS, []));
   const [signatures, setSignatures] = useState<LeaseSignature[]>(() => loadList(STORAGE_SIGNATURES, []));
   const [activeDocument, setActiveDocument] = useState<DocumentSpec | null>(null);
+  const documents = buildDocumentRegistry(trades, contracts, plots);
 
   useEffect(() => {
     document.title = `${PAGE_TITLES[page]} | کسب‌وکار من`;
@@ -257,7 +262,7 @@ export default function App() {
     <>
       <AppShell page={page} onNavigate={navigate}>
         {page === "dashboard" && (
-          <DashboardPage contracts={contracts} trades={trades} plots={plots} onNavigate={navigate} onOpenDocument={setActiveDocument} />
+          <DashboardPage contracts={contracts} trades={trades} plots={plots} ledger={ledger} onNavigate={navigate} onOpenDocument={setActiveDocument} />
         )}
         {page === "trade" && (
           <TradePage
@@ -309,6 +314,7 @@ export default function App() {
             onPrintReport={() => setActiveDocument(makeDocument("finance-report", { entries: ledger.entries }))}
           />
         )}
+        {page === "signatures" && <SignaturesPage ledger={ledger} trades={trades} documents={documents} />}
         {page === "parties" && (
           <PartiesPage
             ledger={ledger}

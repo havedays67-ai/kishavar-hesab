@@ -23,12 +23,19 @@ import {
   Wheat,
 } from "lucide-react";
 import { cn } from "../utils/cn";
+import clsx from "clsx";
 import { CONTRACT_TYPES, type Page, type SavedContract } from "../lib/data";
 import { useProfile } from "../lib/profile";
+import { useSignatures } from "../lib/signatureContext";
+import { buildDocumentRegistry } from "../lib/registry";
+import { buildSignableEntities } from "../lib/signable";
+import { buildInsights } from "../lib/insights";
+import { useMemo } from "react";
 import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotMetrics, type CropPlot } from "../lib/samples";
 import { Avatar } from "../components/ui";
+import type { LedgerState } from "../lib/ledger";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
 
 const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
@@ -38,17 +45,25 @@ export function DashboardPage({
   contracts,
   trades,
   plots,
+  ledger,
   onNavigate,
   onOpenDocument,
 }: {
   contracts: SavedContract[];
   trades: CropTrade[];
   plots: CropPlot[];
+  ledger: LedgerState;
   onNavigate: (page: Page) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
   const { profile } = useProfile();
+  const { audit } = useSignatures();
   const today = todayJalali();
+  const health = useMemo(() => {
+    const documents = buildDocumentRegistry(trades, contracts, plots);
+    const entities = buildSignableEntities({ ledger, trades, documents });
+    return buildInsights({ ledger, trades, plots, contracts, signableEntities: entities, pendingSignatures: entities.map((entity) => { const report = audit(entity); return { entity, required: report.required, signed: report.signed, missing: report.missing.length }; }) });
+  }, [ledger, trades, contracts, plots, audit]);
   const saleValue = trades.reduce((sum, trade) => sum + trade.result.netReceipt, 0);
   const remaining = trades.reduce((sum, trade) => sum + tradeBalance(trade).remaining, 0);
   const productionCost = plots.reduce((sum, plot) => sum + plotMetrics(plot).cost, 0);
@@ -344,6 +359,28 @@ export function DashboardPage({
           </button>
         ))}
       </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr]">
+        <div className="rounded-[22px] border border-mint-300/20 bg-gradient-to-br from-[#17392a] to-[#0f261b] p-4 text-center">
+          <div className="text-[9px] text-[#9dbcab]">امتیاز سلامت کسب‌وکار</div>
+          <div className="mt-1 text-3xl font-extrabold text-mint-300">{toPersianDigits(health.score)}</div>
+          <div className="mt-0.5 text-[10px] text-[#d3e4da]">{health.level}</div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-gradient-to-l from-mint-400 to-[#d2e7a8]" style={{ width: `${health.score}%` }} /></div>
+          <p className="mt-2 text-[8px] leading-4 text-[#8fae9c]">{health.headline}</p>
+          <button type="button" onClick={() => onNavigate("signatures")} className="mt-2 w-full rounded-lg bg-mint-300/10 py-1.5 text-[8px] text-mint-300">امضا و تعهدات باز</button>
+        </div>
+        <div className="glass rounded-[22px] p-4">
+          <div className="mb-2 flex items-center justify-between"><h2 className="text-[11px] font-semibold text-white">تحلیل هوشمند و اقدام‌های اولویت‌دار</h2><span className="text-[8px] text-[#78968a]">{toPersianDigits(health.counts.critical)} بحرانی · {toPersianDigits(health.counts.warning)} هشدار</span></div>
+          <div className="space-y-1.5">
+            {health.insights.slice(0, 4).map((insight) => (
+              <button key={insight.code} type="button" onClick={() => onNavigate(insight.page as Page)} className="flex w-full items-start gap-2 rounded-lg border border-white/[0.05] bg-white/[0.02] px-2.5 py-2 text-right transition hover:border-mint-300/20">
+                <span className={clsx("mt-0.5 h-2 w-2 shrink-0 rounded-full", insight.severity === "critical" ? "bg-[#ef8e7c]" : insight.severity === "warning" ? "bg-sand-300" : insight.severity === "good" ? "bg-mint-300" : "bg-[#82bfe0]")} />
+                <span className="min-w-0 flex-1"><span className="block text-[9px] font-medium text-[#dcebe2]">{insight.title}</span><span className="mt-0.5 block text-[8px] font-light leading-4 text-[#7f9b8e]">{insight.detail}</span><span className="mt-0.5 block text-[8px] text-mint-300/80">اقدام: {insight.action}</span></span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-white/[0.015] px-4 py-3 text-[8px] text-[#718e81]">
         <span className="flex items-center gap-1.5"><BadgeCheck className="h-3 w-3 text-mint-300" /> همه محاسبات از موتور قطعی، بدون تخمین ذهنی</span>
         <span className="flex items-center gap-1.5"><Avatar name={profile.fullName || "کاربر"} color={profile.color} size="sm" /> {profile.fullName || "کاربر"} · {profile.role || "مدیر مزرعه"}</span>

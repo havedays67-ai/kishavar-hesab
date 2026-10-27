@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Fingerprint } from "lucide-react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -35,6 +36,9 @@ import { AmountField, SelectField, TextField } from "../components/FormControls"
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Avatar, Modal, Toast } from "../components/ui";
 import { useProfile } from "../lib/profile";
+import { partyEntity } from "../lib/signable";
+import { SignatureDialog } from "../components/SignatureDialog";
+import { useSignatures } from "../lib/signatureContext";
 
 const fa = (value: number) => toPersianDigits(value.toLocaleString("en-US"));
 const money = (value: number) => `${fa(Math.round(value))} تومان`;
@@ -66,6 +70,8 @@ export function PartiesPage({
   const [detailId, setDetailId] = useState<string | null>(null);
   const [settleId, setSettleId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [signParty, setSignParty] = useState<DebtParty | null>(null);
+  const { audit } = useSignatures();
   const [copied, setCopied] = useState(false);
 
   const totals = ledgerTotals(ledger);
@@ -188,6 +194,7 @@ export function PartiesPage({
                   <div className="mt-0.5 text-[8px] text-[#6f8c7f]">از {money(party.amount)} · پرداخت {toPersianDigits(totalsParty.ratio)}٪</div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setSignParty(party)} className="flex items-center gap-1 rounded-lg border border-[#9fd4ee]/25 bg-[#9fd4ee]/[0.07] px-1.5 py-1 text-[7px] text-[#bfe6f7]" aria-label="امضای تعهد"><Fingerprint className="h-3 w-3" />{toPersianDigits(audit(partyEntity(party)).signed)}/{toPersianDigits(audit(partyEntity(party)).required)}</button>
                   <button type="button" onClick={() => setEditParty(party)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/[0.08] text-[#a8c0b4] transition hover:text-mint-300" aria-label="ویرایش طرف‌حساب"><Check className="h-3.5 w-3.5" /></button>
                   <button type="button" onClick={() => setDetailId(party.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/[0.08] text-[#a8c0b4] transition hover:text-mint-300" aria-label="دفتر معین"><BookOpen className="h-3.5 w-3.5" /></button>
                   <button type="button" onClick={() => setSettleId(party.id)} disabled={totalsParty.balance === 0} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2 py-2 text-[8px] font-medium text-mint-300 transition hover:bg-mint-300/[0.14] disabled:opacity-40"><Wallet className="h-3 w-3" />پرداخت</button>
@@ -244,6 +251,7 @@ export function PartiesPage({
         }}
       />
 
+      <SignatureDialog entity={signParty ? partyEntity(signParty) : null} open={Boolean(signParty)} onClose={() => setSignParty(null)} />
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />
     </div>
   );

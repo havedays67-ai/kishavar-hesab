@@ -12,6 +12,7 @@ export type Page =
   | "documents"
   | "reports"
   | "backup"
+  | "signatures"
   | "profile"
   | "architecture"
   | "download";
