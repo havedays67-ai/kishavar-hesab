@@ -18,45 +18,21 @@
 
 | مورد | مقدار |
 |---|---|
-| ⬇️ دانلود مستقیم APK | **[KishavarHesab-1.0.0-offline.apk (۳.۸ مگابایت)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-offline-mvp/KishavarHesab-1.0.0-offline.apk)** |
-| صفحه نسخه | [Releases · apk-v1.0.2](https://github.com/havedays67-ai/kishavar-hesab/releases/tag/apk-v1.0.2) |
-| آخرین نسخه‌ها | [releases/latest](https://github.com/havedays67-ai/kishavar-hesab/releases/latest) |
-| وضعیت ساخت | ✅ ساخته‌شده با GitHub Actions (Build موفق، خروجی ۳٬۹ مگابایت) |
-| ساخت دستی | تب **Actions ← Android APK ← Run workflow** (یا ارسال تگ `v*`) |
-| حداقل اندروید | **۸.۰ (API 26)** — سازگار با اندروید ۸ تا ۱۵ |
+| ⬇️ دانلود مستقیم APK | **[KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/latest)** (از صفحه Releases، آخرین فایل APK) |
+| صفحه نسخه‌ها | [Releases](https://github.com/havedays67-ai/kishavar-hesab/releases) |
+| حداقل اندروید | **۸.۰ (API 26)** |
 | شناسه بسته | `ir.kishavarhesab.app` |
 | نام نسخه | `1.0.0` (`versionCode 1`) |
-| معماری | WebView بومی Capacitor + وب‌اپ Next.js |
-| حجم تقریبی | ۳ تا ۶ مگابایت |
+| معماری | WebView بومی Capacitor + اپ آفلاین بازطراحی‌شده (`offline/` → `capacitor-web/`) |
+| تغییرات این نسخه | موتور دفتر دوطرفه با کنترل تراز، فاکتور و مالیات، چک و اقساط، انبار و دارایی، گزارش‌ها، دستیار محلی ۲۱ قصده، پشتیبان JSON/CSV |
+
+> اپ آفلاین هیچ درخواست شبکه‌ای ندارد (`connect-src 'none'`). همه‌ی داده‌ها روی دستگاه می‌مانند و دستیار
+> نیز بدون اینترنت و بدون محاسبه‌ی مالی کار می‌کند.
 
 ### مشخصات کلید امضا
-- **نسخه آزمایشی (APK داخل Releases):** امضای خودکار **debug** اندروید.
-  - فایل کلید: `~/.android/debug.keystore`
-  - نام مستعار (alias): `androiddebugkey`
-  - رمز مخزن (storePassword): `android`
-  - رمز کلید (keyPassword): `android`
-  - الگوریتم: RSA 2048
-- **نسخه انتشار (Release امضاشده با کلید اختصاصی):** در تنظیمات مخزن این Secrets را بسازید و سپس workflow را با گزینه `release` اجرا کنید:
-  - `KEYSTORE_BASE64` (خروجی `base64 -w0 release.keystore`)
-  - `KEYSTORE_PASSWORD`
-  - `KEY_ALIAS`
-  - `KEY_PASSWORD`
 
-  سپس دستورات تولید کلید:
-  ```bash
-  keytool -genkeypair -v -keystore release.keystore -alias kishavar \
-    -keyalg RSA -keysize 2048 -validity 10000 \
-    -storepass YOUR_STORE_PASS -keypass YOUR_KEY_PASS \
-    -dname "CN=KishavarHesab, O=KishavarHesab, L=Tehran, C=IR"
-  ```
-
-> 🔐 هیچ کلید خصوصی واقعی داخل مخزن نیست. کلید debug، کلید عمومی و شناخته‌شده اندروید است و فقط برای توزیع آزمایشی به کار می‌رود. برای انتشار در مارکت، حتماً کلید Release اختصاصی بسازید.
-
-### نصب روی گوشی
-1. فایل APK را دانلود کنید.
-2. در گوشی، «نصب برنامه‌های ناشناس» را برای مرورگر/فایل‌منیجر فعال کنید.
-3. نصب کنید و بدون هیچ سروری وارد شوید؛ داده‌ها روی همان گوشی ذخیره می‌شوند.
-4. اگر فقط نسخه وب می‌خواهید: در کروم گوشی منوی ⋮ ← **افزودن به صفحه اصلی** (PWA).
+- **نسخه داخل Releases:** امضای خودکار **debug** اندروید (alias: `androiddebugkey`؛ storePassword/keyPassword: `android`؛ RSA 2048) — مناسب آزمایش.
+- **نسخه امضاشده اختصاصی:** برای نسخه‌ی امضاشده اختصاصی، Secrets مربوط به `KEYSTORE_*` را تنظیم کنید و workflow را با گزینه `release` اجرا کنید.
 
 ---
 
