@@ -18,16 +18,20 @@
 
 | مورد | مقدار |
 |---|---|
-| ⬇️ دانلود مستقیم APK | **[KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/latest)** (از صفحه Releases، آخرین فایل APK) |
-| صفحه نسخه‌ها | [Releases](https://github.com/havedays67-ai/kishavar-hesab/releases) |
-| حداقل اندروید | **۸.۰ (API 26)** |
+| ⬇️ **دانلود مستقیم APK** | **[KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.5/KishavarHesab-1.0.0.apk)** — حدود ۴ مگابایت |
+| صفحه نسخه | [Releases · apk-v1.0.5](https://github.com/havedays67-ai/kishavar-hesab/releases/tag/apk-v1.0.5) |
+| آخرین نسخه‌ها | [releases/latest](https://github.com/havedays67-ai/kishavar-hesab/releases/latest) |
+| وضعیت ساخت | ✅ ساخته‌شده با GitHub Actions (workflow «Android APK» — Build و Release موفق) |
+| حداقل اندروید | **۸.۰ (API 26)** — سازگار با اندروید ۸ تا ۱۵ |
 | شناسه بسته | `ir.kishavarhesab.app` |
 | نام نسخه | `1.0.0` (`versionCode 1`) |
-| معماری | WebView بومی Capacitor + اپ آفلاین بازطراحی‌شده (`offline/` → `capacitor-web/`) |
-| تغییرات این نسخه | موتور دفتر دوطرفه با کنترل تراز، فاکتور و مالیات، چک و اقساط، انبار و دارایی، گزارش‌ها، دستیار محلی ۲۱ قصده، پشتیبان JSON/CSV |
+| معماری | WebView بومی Capacitor + اپ آفلاین بازطراحی‌شده (`offline/` → `capacitor-web/app.js`) |
+| ذات شبکه | **بدون هیچ درخواست شبکه‌ای** — `connect-src 'none'`؛ همه داده‌ها محلی |
+| تغییرات این نسخه | موتور دفتر دوطرفه با کنترل تراز، فاکتور و مالیات، چک و اقساط، انبار و دارایی، ۱۰ گزارش، دستیار محلی ۲۱ قصده، پشتیبان JSON/CSV، تقویم شمسی و تومان |
+| SHA-256 فایل | `1635454dd0d62fd73bd1a2fdf13e3ece4fe6ccd575a69f15c87a91ca5f693845` |
 
-> اپ آفلاین هیچ درخواست شبکه‌ای ندارد (`connect-src 'none'`). همه‌ی داده‌ها روی دستگاه می‌مانند و دستیار
-> نیز بدون اینترنت و بدون محاسبه‌ی مالی کار می‌کند.
+> نصب: فایل APK را دانلود کنید، برای فایل‌منیجر «نصب از منابع ناشناس» را فعال کنید و نصب کنید.
+> اپ هیچ سروری نمی‌خواهد؛ در اولین اجرا می‌توانید «داده نمونه» را از بخش «بیشتر» بارگذاری کنید یا از صفر شروع کنید.
 
 ### مشخصات کلید امضا
 
