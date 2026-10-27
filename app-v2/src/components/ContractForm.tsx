@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -17,9 +17,10 @@ import {
   Ruler,
   ScrollText,
   ShieldCheck,
-  Sparkles,
+  FileSignature,
   Sprout,
   UserRound,
+  Sparkles,
   UsersRound,
   Droplets,
 } from "lucide-react";
@@ -48,13 +49,18 @@ import {
 import { JalaliDatePicker } from "./JalaliDatePicker";
 import { AmountField, SelectField, TextField } from "./FormControls";
 import { CounterpartyPicker } from "./CounterpartyPicker";
+import type { ContractSignature } from "../lib/data";
+import { PenLine, RotateCcw } from "lucide-react";
 import { Avatar, Modal, Toast } from "./ui";
+import { profileDisplayName, useProfile } from "../lib/profile";
+import { contractSignatureHash } from "../lib/contracts";
 import { ContractPreview } from "./ContractPreview";
 
 type Errors = Record<string, string>;
 
 interface ContractFormProps {
   parties: Party[];
+  contracts: SavedContract[];
   onCreateParty: (party: Omit<Party, "id">) => Party;
   onCreateContract: (contract: Omit<SavedContract, "id" | "code" | "createdAt">) => SavedContract;
 }
@@ -158,9 +164,11 @@ function RoleCard({
   );
 }
 
-export function ContractForm({ parties, onCreateParty, onCreateContract }: ContractFormProps) {
+export function ContractForm({ parties, contracts, onCreateParty, onCreateContract }: ContractFormProps) {
+  const { profile } = useProfile();
   const dates = useMemo(() => defaultContractDates(), []);
   const [role, setRole] = useState<Role>("tenant");
+  const [myName, setMyName] = useState("");
   const [partyId, setPartyId] = useState("");
   const [contractType, setContractType] = useState<ContractTypeId>("cash");
   const [landTitle, setLandTitle] = useState("");
@@ -181,6 +189,11 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
   const [previewContract, setPreviewContract] = useState<SavedContract | null>(null);
   const [successContract, setSuccessContract] = useState<SavedContract | null>(null);
   const [copied, setCopied] = useState(false);
+  const [signatures, setSignatures] = useState<ContractSignature[]>([]);
+  const [signRole, setSignRole] = useState<"landlord" | "tenant" | "witness">("tenant");
+  const [signerName, setSignerName] = useState("");
+  const [signerPhone, setSignerPhone] = useState("");
+  const [signatureError, setSignatureError] = useState("");
 
   const selectedParty = parties.find((party) => party.id === partyId) ?? null;
   const counterpartRole: Role = role === "tenant" ? "landlord" : "tenant";
@@ -220,9 +233,35 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
     setErrors((current) => ({ ...current, party: "" }));
   };
 
+  const smartChecks = (() => {
+    const checks: { label: string; status: "ok" | "warn" | "bad"; detail: string }[] = [];
+    checks.push({ label: "نام طرف اول ثبت شده", status: myName.trim().length >= 3 ? "ok" : "bad", detail: myName.trim() ? `در سند: ${myName.trim()}` : "نام شما در سند خالی است؛ از پروفایل پیشنهاد بگیرید یا دستی بنویسید." });
+    checks.push({ label: "طرف دوم انتخاب شده", status: selectedParty ? "ok" : "bad", detail: selectedParty ? `${selectedParty.name} — ${selectedParty.phone}` : "طرف قرارداد را انتخاب کنید." });
+    checks.push({ label: "تاریخ و مدت", status: start && end && jalaliToDate(end).getTime() > jalaliToDate(start).getTime() ? "ok" : "bad", detail: `${formatJalali(start, "long")} تا ${formatJalali(end, "long")} (${duration})` });
+    if (rentNeeded) {
+      const rentPerHa = Number(area) > 0 ? Math.round(rent / Number(area)) : 0;
+      const benchmarks = contracts.filter((contract) => contract.rent > 0 && Number(contract.area) > 0 && contract.type !== "share").map((contract) => contract.rent / Number(contract.area));
+      const average = benchmarks.length ? benchmarks.reduce((sum, value) => sum + value, 0) / benchmarks.length : 0;
+      const deviation = average > 0 ? Math.round(((rentPerHa - average) / average) * 100) : 0;
+      checks.push({ label: "اجاره هر هکتار", status: rentPerHa > 0 && (!average || Math.abs(deviation) <= 60) ? "ok" : rentPerHa > 0 ? "warn" : "bad", detail: rentPerHa > 0 ? `${toPersianDigits(formatNumber(rentPerHa))} تومان در هکتار${average ? ` — اختلاف ${toPersianDigits(Math.abs(deviation))}٪ با میانگین قراردادهای شما` : " — هنوز قرارداد مشابه برای مقایسه نیست"}` : "مبلغ اجاره را وارد کنید." });
+      if (deposit > 0 && rent > 0) checks.push({ label: "نسبت ودیعه به اجاره", status: deposit > rent * 3 ? "warn" : "ok", detail: deposit > rent * 3 ? "ودیعه بیش از سه برابر اجاره است؛ شرایط استرداد را دقیق بنویسید." : `ودیعه ${toPersianDigits(Math.round((deposit / rent) * 100))}٪ اجاره است.` });
+    }
+    if (shareNeeded) checks.push({ label: "سهم محصول", status: cropShare > 0 && cropShare < 90 ? "ok" : cropShare >= 90 ? "warn" : "bad", detail: cropShare >= 90 ? "سهم بالای ۹۰٪ برای مالک، تعادل قرارداد را زیر سؤال می‌برد." : cropShare > 0 ? `${toPersianDigits(cropShare)}٪ سهم مالک ثبت شده است.` : "درصد سهم را وارد کنید." });
+    const overlapping = contracts.filter((contract) => contract.partyId === partyId && contract.status !== "expired" && jalaliToDate(contract.start).getTime() <= jalaliToDate(end).getTime() && jalaliToDate(contract.end).getTime() >= jalaliToDate(start).getTime());
+    checks.push({ label: "تداخل با قرارداد قبلی", status: overlapping.length ? "warn" : "ok", detail: overlapping.length ? `${toPersianDigits(overlapping.length)} قرارداد هم‌زمان با همین طرف‌حساب ثبت شده است: ${overlapping.map((contract) => contract.code).join("، ")}` : "تداخلی با قراردادهای ثبت‌شده این طرف‌حساب پیدا نشد." });
+    if (selectedParty) checks.push({ label: "اطلاعات تماس طرف‌حساب", status: selectedParty.phone.replace(/\D/g, "").length >= 8 ? "ok" : "warn", detail: selectedParty.phone ? `تلفن: ${selectedParty.phone}` : "شماره تماس طرف‌حساب خالی است؛ برای دعوت به امضا و پیگیری لازم است." });
+    const roles = new Set(signatures.map((signature) => signature.role));
+    checks.push({ label: "امضای موجر و مستاجر", status: roles.has("landlord") && roles.has("tenant") ? "ok" : signatures.length ? "warn" : "bad", detail: roles.has("landlord") && roles.has("tenant") ? "هر دو امضای الزامی داخل فرم ثبت شده است." : "برای نهایی‌کردن قرارداد، امضای موجر و مستاجر را در بخش امضای همان فرم ثبت کنید." });
+    checks.push({ label: "شرایط و تعهدات", status: obligations.trim().length >= 15 ? "ok" : obligations.trim() ? "warn" : "bad", detail: obligations.trim().length >= 15 ? "شرایط قرارداد نوشته شده است." : "تعهدات و شرایط فسخ را بنویسید تا در سند چاپ شود." });
+    return { checks, score: Math.round((checks.filter((check) => check.status === "ok").length / checks.length) * 100) };
+  })();
+
   const buildDraft = (): SavedContract => ({
     id: "preview",
     code: "پیش‌نویس",
+    trackingCode: "—",
+    myName: myName.trim() || profileDisplayName(profile),
+    signatures,
     myRole: role,
     partyId: selectedParty?.id ?? "",
     partyName: selectedParty?.name ?? "طرف قرارداد انتخاب نشده",
@@ -247,6 +286,7 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
 
   const validate = (): boolean => {
     const nextErrors: Errors = {};
+    if (!myName || myName.trim().length < 3) nextErrors.myName = "نام طرف اول (شما) را وارد کنید.";
     if (!selectedParty) nextErrors.party = "یک طرف قرارداد از فهرست انتخاب کنید.";
     if (landTitle.trim().length < 2) nextErrors.landTitle = "عنوان زمین یا ملک را وارد کنید.";
     if (!crop) nextErrors.crop = "محصول کشت را انتخاب کنید.";
@@ -254,6 +294,8 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
     if (jalaliToDate(end).getTime() <= jalaliToDate(start).getTime()) nextErrors.end = "تاریخ پایان باید بعد از تاریخ شروع باشد.";
     if (rentNeeded && rent <= 0) nextErrors.rent = "برای این نوع قرارداد، مبلغ اجاره را وارد کنید.";
     if (shareNeeded && cropShare <= 0) nextErrors.cropShare = "درصد سهم مالک را بین ۱ تا ۱۰۰ وارد کنید.";
+    const signedRoles = new Set(signatures.map((signature) => signature.role));
+    if (!signedRoles.has("landlord") || !signedRoles.has("tenant")) nextErrors.signatures = "امضای موجر و مستاجر را پایین همین فرم ثبت کنید.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       window.setTimeout(() => {
@@ -277,6 +319,11 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
   const resetForm = () => {
     const freshDates = defaultContractDates();
     setRole("tenant");
+    setMyName("");
+    setSignatures([]);
+    setSignerName("");
+    setSignerPhone("");
+    setSignatureError("");
     setPartyId("");
     setContractType("cash");
     setLandTitle("");
@@ -344,6 +391,39 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
                   ? "شما مستاجر هستید و زمین را در اختیار می‌گیرید؛ طرف قرارداد باید مالک زمین (موجر) باشد."
                   : "شما موجر هستید و زمین را در اختیار می‌گذارید؛ طرف قرارداد باید مستاجر یا بهره‌بردار باشد."}
               </p>
+            </div>
+          </FormSection>
+
+          <FormSection
+            number="۲"
+            title="نام شما در قرارداد (طرف اول)"
+            description="این نام در سربرگ سند و کنار امضای شما چاپ می‌شود. از پروفایل پیشنهاد بگیرید یا دستی وارد کنید."
+            icon={<UserRound className="h-4 w-4" />}
+            badge="الزامی"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField label="نام / کسب‌وکار طرف اول" value={myName} onChange={(value) => { setMyName(value); clearError("myName"); }} placeholder="مثلاً علی رضایی یا مزرعه رضایی" suggestions={[profile.fullName, profile.businessName, profile.farmName]} required error={errors.myName} icon={<UserRound className="h-3.5 w-3.5 text-[#7fa294]" />} hint="هر نامی که اینجا بنویسید، در پیش‌نمایش و چاپ همان سند استفاده می‌شود؛ از پروفایل فقط پیشنهاد می‌شود." />
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-[9px] leading-5 text-[#8aa598]">
+                <div className="mb-1 font-medium text-[#c7d9cf]">پیشنهادهای پروفایل</div>
+                {[profile.fullName, profile.businessName, profile.farmName].filter(Boolean).map((value) => (
+                  <button key={value} type="button" onClick={() => { setMyName(value); clearError("myName"); }} className="mb-1 block w-full rounded-lg border border-mint-300/15 bg-mint-300/[0.06] px-2 py-1 text-right text-[9px] text-mint-300">{value}</button>
+                ))}
+                {!profile.fullName && <a href="#profile" className="text-mint-300">ابتدا پروفایل را کامل کنید ←</a>}
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl border border-white/[0.07] bg-[#071510]/40 p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[10px] font-medium text-[#c7d9cf]"><Sparkles className="h-3.5 w-3.5 text-mint-300" />بررسی هوشمند پیش از امضا</span>
+                <span className={cn("rounded-full px-2 py-0.5 text-[8px] font-bold", smartChecks.score >= 85 ? "bg-mint-300/10 text-mint-300" : smartChecks.score >= 60 ? "bg-sand-300/10 text-sand-300" : "bg-[#a25649]/15 text-[#efad9f]")}>{toPersianDigits(smartChecks.score)}٪ آماده</span>
+              </div>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {smartChecks.checks.map((check) => (
+                  <div key={check.label} className="flex items-start gap-1.5 rounded-lg bg-white/[0.02] px-2 py-1.5">
+                    <span className={cn("mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full text-[7px]", check.status === "ok" ? "bg-mint-300/15 text-mint-300" : check.status === "warn" ? "bg-sand-300/15 text-sand-300" : "bg-[#a25649]/20 text-[#efad9f]")}>{check.status === "ok" ? "✓" : "!"}</span>
+                    <span><span className="block text-[8px] font-medium text-[#c7d9cf]">{check.label}</span><span className="mt-0.5 block text-[8px] font-light leading-4 text-[#78968a]">{check.detail}</span></span>
+                  </div>
+                ))}
+              </div>
             </div>
           </FormSection>
 
@@ -613,6 +693,56 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
             </div>
           </FormSection>
 
+          <FormSection
+            number="۷"
+            title="امضای الکترونیکی داخل همین قرارداد"
+            description="امضای شما به همین سند می‌چسبد و در پیش‌نمایش و چاپ همان قرارداد دیده می‌شود. امضای موجر و مستاجر برای نهایی‌کردن لازم است."
+            icon={<FileSignature className="h-4 w-4" />}
+            badge="الزامی"
+          >
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.2fr]">
+              <div className="space-y-2.5">
+                <SelectField label="نقش امضاکننده" value={signRole} onChange={(value) => { setSignRole(value as "landlord" | "tenant" | "witness"); setSignatureError(""); }} options={[{ value: "landlord", label: `موجر / مالک${role === "landlord" ? " (شما)" : ""}` }, { value: "tenant", label: `مستاجر / بهره‌بردار${role === "tenant" ? " (شما)" : ""}` }, { value: "witness", label: "شاهد (اختیاری)" }]} />
+                <TextField label="نام امضاکننده" value={signerName} onChange={setSignerName} placeholder="نام و نام خانوادگی" suggestions={signRole === "landlord" ? [profile.fullName, ...parties.filter((party) => party.role === "landlord").map((party) => party.name)] : [profile.fullName, ...parties.filter((party) => party.role === "tenant").map((party) => party.name)]} required />
+                <TextField label="شماره تماس امضاکننده" value={signerPhone} onChange={setSignerPhone} numeric placeholder="۰۹۱۲۱۲۳۴۵۶۷" suggestions={[profile.phone, ...parties.map((party) => party.phone)]} />
+                <ContractSignaturePad
+                  onSave={(image) => {
+                    if (signerName.trim().length < 3) return setSignatureError("نام امضاکننده را کامل وارد کنید.");
+                    if (signerPhone.replace(/\D/g, "").length < 8) return setSignatureError("شماره تماس امضاکننده معتبر نیست.");
+                    const signature: ContractSignature = {
+                      id: `csig-${Date.now()}`,
+                      role: signRole,
+                      signerName: signerName.trim(),
+                      phone: signerPhone,
+                      image,
+                      hash: contractSignatureHash({ code: myName, role: signRole, signerName, date: `${start.jy}/${start.jm}/${start.jd}` }),
+                      signedAt: todayJalali(),
+                    };
+                    setSignatures((current) => [...current.filter((row) => row.role !== signRole), signature]);
+                    setSignatureError("");
+                  }}
+                />
+                {signatureError && <p className="text-[9px] text-[#f0a59a]">{signatureError}</p>}
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between"><span className="text-[10px] font-medium text-[#c7d9cf]">امضاهای ثبت‌شده در این سند</span><span className={cn("rounded px-1.5 py-0.5 text-[8px]", signatures.some((s) => s.role === "landlord") && signatures.some((s) => s.role === "tenant") ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}>{signatures.some((s) => s.role === "landlord") && signatures.some((s) => s.role === "tenant") ? "امضا کامل" : "امضای ناقص"}</span></div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(["landlord", "tenant", "witness"] as const).map((signatureRole) => {
+                    const signature = signatures.find((row) => row.role === signatureRole);
+                    return (
+                      <div key={signatureRole} className={cn("rounded-xl border p-2.5", signature ? "border-mint-300/25 bg-mint-300/[0.05]" : "border-dashed border-white/[0.12] bg-white/[0.02]")}>
+                        <div className="flex items-center justify-between gap-1"><span className="text-[8px] font-medium text-[#c7d9cf]">{signatureRole === "landlord" ? "موجر / مالک" : signatureRole === "tenant" ? "مستاجر / بهره‌بردار" : "شاهد"}</span>{signature && <button type="button" onClick={() => setSignatures((current) => current.filter((row) => row.id !== signature.id))} className="text-[8px] text-[#efad9f]">حذف</button>}</div>
+                        {signature ? <><img src={signature.image} alt={`امضای ${signature.signerName}`} className="mt-1 h-14 w-full rounded bg-white object-contain" /><div className="mt-1 text-[8px] text-[#d3e4da]">{signature.signerName}</div><div className="text-[7px] text-[#78968a]">{formatJalali(signature.signedAt, "long")} · کد اثر {signature.hash}</div></> : <div className="mt-2 flex h-14 items-center justify-center rounded bg-white/[0.02] text-[8px] text-[#6f8c7f]">هنوز امضا نشده</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {errors.signatures && <p className="mt-2 text-[9px] text-[#f0a59a]">{errors.signatures}</p>}
+                <div className="mt-2 rounded-lg border border-[#c5b97f]/20 bg-[#c5b97f]/[0.05] px-2.5 py-2 text-[8px] leading-4 text-[#d7cba1]">این امضا در برنامه و روی این سند به‌صورت الکترونیکی ثبت می‌شود و در چاپ همان سند می‌آید. «امضای الکترونیکی مطمئن» طبق ماده ۱۰ قانون تجارت الکترونیکی به گواهی معتبر مرکز صدور گواهی نیاز دارد؛ برای مبالغ بالا امضای حضوری و ثبت رسمی هم لازم است.</div>
+              </div>
+            </div>
+          </FormSection>
+
           <div className="flex flex-col gap-3 border-t border-white/[0.07] bg-[#0a1913]/70 p-4 sm:flex-row sm:items-center sm:p-5">
             <button
               type="button"
@@ -865,5 +995,58 @@ export function ContractForm({ parties, onCreateParty, onCreateContract }: Contr
         onClose={() => setCopied(false)}
       />
     </>
+  );
+}
+
+
+function ContractSignaturePad({ onSave }: { onSave: (image: string) => void }) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const [empty, setEmpty] = useState(true);
+  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = ref.current!;
+    const rect = canvas.getBoundingClientRect();
+    return { x: ((event.clientX - rect.left) / rect.width) * canvas.width, y: ((event.clientY - rect.top) / rect.height) * canvas.height };
+  };
+  const start = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctx = ref.current?.getContext("2d");
+    if (!ctx) return;
+    const p = point(event);
+    drawing.current = true;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const move = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const ctx = ref.current?.getContext("2d");
+    if (!ctx) return;
+    const p = point(event);
+    ctx.lineTo(p.x, p.y);
+    ctx.strokeStyle = "#123326";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    setEmpty(false);
+  };
+  const clear = () => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = "#fbfaf4";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setEmpty(true);
+  };
+  return (
+    <div>
+      <div className="label"><PenLine className="h-3.5 w-3.5 text-[#7fa294]" />امضای دستی روی کادر همین فرم</div>
+      <div className="rounded-xl border border-white/[0.1] bg-[#fbfaf4] p-1">
+        <canvas ref={ref} width={640} height={160} onPointerDown={start} onPointerMove={move} onPointerUp={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} className="h-[120px] w-full touch-none rounded-lg" aria-label="کادر امضای قرارداد" />
+      </div>
+      <div className="mt-2 flex gap-2">
+        <button type="button" onClick={clear} className="flex items-center gap-1 rounded-lg border border-white/[0.09] px-2.5 py-2 text-[9px] text-[#a8bfb3]"><RotateCcw className="h-3 w-3" /> پاک کردن</button>
+        <button type="button" disabled={empty} onClick={() => { const data = ref.current?.toDataURL("image/png") ?? ""; if (data) onSave(data); clear(); }} className="flex items-center gap-1.5 rounded-lg bg-mint-400 px-3 py-2 text-[9px] font-bold text-[#07110d] disabled:opacity-40"><PenLine className="h-3.5 w-3.5" /> ثبت این امضا در سند</button>
+      </div>
+    </div>
   );
 }

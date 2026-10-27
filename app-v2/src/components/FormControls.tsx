@@ -97,6 +97,7 @@ export function SelectField({
         onClick={() => { setOpen((current) => !current); setQuery(""); setHighlighted(0); }}
         className={cn("field flex items-center justify-between gap-2 text-right", error && "field-error")}
         aria-haspopup="listbox"
+        aria-label={label}
         aria-expanded={open}
       >
         <span className={cn("truncate", selected || isCustom ? "text-[#eef8f2]" : "text-[#6f8e80]")}>{shownLabel}</span>

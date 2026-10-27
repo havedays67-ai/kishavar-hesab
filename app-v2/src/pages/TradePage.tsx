@@ -499,11 +499,20 @@ export function TradePage({
       setStep(3);
       return;
     }
-    const sequence = trades.filter((trade) => trade.date.jy === form.date.jy && trade.date.jm === form.date.jm && trade.date.jd === form.date.jd).length + 1;
+    const productId = form.productId ?? "wheat";
+    const datePrefix = makeTradeSerial(form.date, productId, 0).replace(/000$/, "");
+    const usedSerials = new Set(
+      trades
+        .filter((trade) => trade.serial.startsWith(datePrefix))
+        .map((trade) => Number(trade.serial.slice(-3)))
+        .filter((value) => Number.isFinite(value))
+    );
+    let sequence = 1;
+    while (usedSerials.has(sequence)) sequence += 1;
     const created: CropTrade = {
       id: `trade-${Date.now()}`,
-      serial: makeTradeSerial(form.date, form.productId ?? "wheat", sequence),
-      productId: form.productId ?? "wheat",
+      serial: makeTradeSerial(form.date, productId, sequence),
+      productId,
       date: form.date,
       createdAt: todayJalali(),
       sellerName: `${userProfile.fullName || "کاربر"}${userProfile.farmName ? ` — ${userProfile.farmName}` : ""}`,

@@ -130,10 +130,23 @@ export const initialParties: Party[] = [
   },
 ];
 
+export interface ContractSignature {
+  id: string;
+  role: "landlord" | "tenant" | "witness";
+  signerName: string;
+  phone: string;
+  image: string;
+  hash: string;
+  signedAt: JDate;
+}
+
 export interface SavedContract {
   id: string;
   code: string;
+  trackingCode?: string;
+  myName?: string;
   myRole: Role;
+  signatures?: ContractSignature[];
   partyId: string;
   partyName: string;
   partyRole: Role;

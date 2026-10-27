@@ -82,6 +82,35 @@ function Section({ number, title, children }: { number: string; title: string; c
   );
 }
 
+function ContractSignaturesBlock({ contract }: { contract: SavedContract }) {
+  const signatures = contract.signatures ?? [];
+  const slots = [
+    { role: "landlord" as const, label: "موجر / مالک زمین" },
+    { role: "tenant" as const, label: "مستاجر / بهره‌بردار" },
+    { role: "witness" as const, label: "شاهد (اختیاری)" },
+  ];
+  return (
+    <div className="mt-5">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-[8px] font-bold text-[#4c5a51]">
+        <span>امضای الکترونیکی قرارداد — {signatures.length ? `${toPersianDigits(signatures.length)} امضا ثبت شده` : "امضا ثبت نشده"}</span>
+        <span className="font-mono">کد پیگیری: {contract.trackingCode || contract.code}</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {slots.map((slot) => {
+          const signature = signatures.find((row) => row.role === slot.role);
+          return (
+            <div key={slot.role} className="rounded border border-[#c8c3b5] p-2 text-center">
+              <div className="mb-1 text-[8px] font-semibold text-[#4c5a51]">{slot.label}</div>
+              {signature ? <><img src={signature.image} alt={`امضای ${signature.signerName}`} className="mx-auto h-12 max-w-full object-contain" /><div className="mt-1 text-[8px] font-medium text-[#2e4a38]">{signature.signerName}</div><div className="text-[7px] text-[#7c877d]">{formatJalali(signature.signedAt, "short")} · {signature.hash}</div></> : <><div className="mb-5 border-b border-dashed border-[#a9a394]" /><div className="text-[8px] text-[#9aa096]">نام، مهر و امضا</div></>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-1 text-[7px] leading-4 text-[#6f7a70]">امضای الکترونیکی ساده ثبت‌شده در برنامه؛ برای اعتبار رسمی و سند رسمی، امضای حضوری/دفتر اسناد رسمی نیز لازم است.</p>
+    </div>
+  );
+}
+
 function SignatureStatusBlock({ spec }: { spec: DocumentSpec }) {
   const { audit } = useSignatures();
   const entity = documentEntity(spec);
@@ -637,7 +666,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 این سند بر پایه <b>{spec.meta.legalBasis}</b> و به‌عنوان سند اداری/داخلی تنظیم شده است. اعتبار در برابر
                 اشخاص ثالث، تابع ثبت رسمی یا سامانه دولتی مربوط است؛ نسخه چاپی با مهر و امضای دو طرف، مبنای توافق است.
               </p>
-              <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · استعلام: havedays67-ai.github.io/kishavar-hesab/verify · صادرشده توسط کسب‌وکار من</p>
+              <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · استعلام: havedays67-ai.github.io/kishavar-hesab/verify · صادرشده توسط {profileDisplayName(profile)}</p>
               <p className="mt-1">آدرس: اردبیل، پارس‌آباد، مزرعه سبز دشت مغان · تلفن: {profile.phone || "—"} · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
             </div>
             <div className="flex items-end gap-2">
@@ -657,8 +686,8 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
 function LeaseDocumentBody({ spec, contract }: { spec: DocumentSpec; contract: SavedContract }) {
   const isReceipt = spec.kind === "lease-receipt";
   const isHandover = spec.kind === "lease-handover";
-  const landlord = contract.partyRole === "landlord" ? contract.partyName : "کسب‌وکار من";
-  const tenant = contract.partyRole === "tenant" ? contract.partyName : "کسب‌وکار من";
+  const landlord = contract.partyRole === "landlord" ? contract.partyName : (contract.myName || "طرف اول");
+  const tenant = contract.partyRole === "tenant" ? contract.partyName : (contract.myName || "طرف اول");
   const perPeriod = contract.period === "ماهانه" ? 12 : contract.period === "فصلی" ? 4 : contract.period === "شش‌ماهه" ? 2 : 1;
   const installment = Math.round(contract.rent / perPeriod);
 
@@ -688,7 +717,7 @@ function LeaseDocumentBody({ spec, contract }: { spec: DocumentSpec; contract: S
             امضای دریافت‌کننده به‌معنای دریافت کامل مبلغ در تاریخ این رسید است. ودیعه قابل استرداد تعهد جداگانه است و در این مبلغ لحاظ نشده.
           </p>
         </Section>
-        <SignatureBoxes roles={spec.meta.signatureRoles} />
+        <ContractSignaturesBlock contract={contract} />
       </>
     );
   }
@@ -736,7 +765,7 @@ function LeaseDocumentBody({ spec, contract }: { spec: DocumentSpec; contract: S
             <b>حقابه قرارداد:</b> {contract.waterShare || "طبق عرف محل"} · <b>خدمات بر عهده:</b> {contract.utilities} · <b>شرایط:</b> {contract.obligations || "طبق قرارداد."}
           </div>
         </Section>
-        <SignatureBoxes roles={spec.meta.signatureRoles} />
+        <ContractSignaturesBlock contract={contract} />
       </>
     );
   }
@@ -793,7 +822,7 @@ function LeaseDocumentBody({ spec, contract }: { spec: DocumentSpec; contract: S
           {" "}این قرارداد بر اساس {spec.meta.legalBasis} تنظیم شده و ثبت آن در دفتر اسناد رسمی برای آثار ثبتی توصیه می‌شود.
         </p>
       </Section>
-      <SignatureBoxes roles={spec.meta.signatureRoles} />
+      <ContractSignaturesBlock contract={contract} />
     </>
   );
 }

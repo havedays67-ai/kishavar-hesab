@@ -26,7 +26,7 @@ import {
   type Loan,
   type PartyPayment,
 } from "./lib/ledger";
-import { todayJalali, toPersianDigits } from "./lib/format";
+import { todayJalali } from "./lib/format";
 import { makeDocument, type DocumentSpec } from "./lib/documents";
 import type { CropTrade } from "./lib/trade";
 
@@ -42,6 +42,7 @@ import { PartiesPage } from "./pages/PartiesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SignaturesPage } from "./pages/SignaturesPage";
 import { buildDocumentRegistry } from "./lib/registry";
+import { contractTrackingCode, nextContractCode } from "./lib/contracts";
 import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./pages/RentalsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
@@ -184,11 +185,12 @@ export default function App() {
 
   const createContract = (contract: Omit<SavedContract, "id" | "code" | "createdAt">): SavedContract => {
     const today = todayJalali();
-    const sequence = String(contracts.length + 1).padStart(3, "0");
+    const code = nextContractCode(contracts, today.jy);
     const created: SavedContract = {
       ...contract,
       id: `contract-${Date.now()}`,
-      code: toPersianDigits(`${today.jy}-${sequence}`),
+      code,
+      trackingCode: contractTrackingCode({ code, partyName: contract.partyName, start: contract.start, rent: contract.rent, area: contract.area ?? "" }),
       createdAt: today,
     };
     setContracts((current) => [created, ...current]);

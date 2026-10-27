@@ -1,9 +1,11 @@
-import { Copy, Printer, ShieldCheck, Wheat } from "lucide-react";
+import { Copy, Download, Printer, ShieldCheck, Wheat } from "lucide-react";
+import { useState } from "react";
 import type { SavedContract } from "../lib/data";
 import { formatJalali, formatNumber, numberToPersianWords, toPersianDigits } from "../lib/format";
 import { Modal } from "./ui";
 import { CONTRACT_TYPES } from "../lib/data";
-import { printSheetInPage } from "../lib/pdf";
+import { useProfile, profileDisplayName } from "../lib/profile";
+import { deliverDocumentPdf, printSheetInPage } from "../lib/pdf";
 
 export function ContractPreview({
   open,
@@ -16,7 +18,11 @@ export function ContractPreview({
   contract: SavedContract | null;
   onCopy: (code: string) => void;
 }) {
+  const { profile } = useProfile();
+  const [pdfStatus, setPdfStatus] = useState<string | null>(null);
   if (!contract) return null;
+  const firstPartyName = contract.myName?.trim() || profileDisplayName(profile);
+  const signatures = contract.signatures ?? [];
   const type = CONTRACT_TYPES.find((item) => item.id === contract.type);
   const iAmLandlord = contract.myRole === "landlord";
   const myLabel = iAmLandlord ? "موجر (مالک زمین)" : "مستاجر (بهره‌بردار)";
@@ -40,7 +46,7 @@ export function ContractPreview({
               </span>
               <div>
                 <h1 className="text-sm font-extrabold sm:text-base">قرارداد {type?.label ?? "بهره‌برداری زمین"}</h1>
-                <p className="mt-1 text-[9px] text-[#6d776f]">پیش‌نویس داخلی · کسب‌وکار من</p>
+                <p className="mt-1 text-[9px] text-[#6d776f]">پیش‌نویس داخلی · {firstPartyName}</p>
               </div>
             </div>
             <div className="text-left">
@@ -52,7 +58,7 @@ export function ContractPreview({
           </div>
 
           <div className="my-5 rounded-lg border border-[#c9b97d]/50 bg-[#f7f1db] p-3 text-[9px] leading-5 text-[#6e6034]">
-            این قرارداد به‌صورت الکترونیکی در «کسب‌وکار من» تنظیم شده است. ثبت آن در نرم‌افزار جایگزین تشریفات قانونی،
+            این قرارداد به‌صورت الکترونیکی در «{firstPartyName}» تنظیم شده است. ثبت آن در نرم‌افزار جایگزین تشریفات قانونی،
             ثبت رسمی یا امضای حضوری نیست.
           </div>
 
@@ -64,7 +70,7 @@ export function ContractPreview({
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md border border-[#ddd8c8] bg-[#f6f4ea] p-3">
                 <div className="text-[8px] text-[#718076]">{myLabel}</div>
-                <div className="mt-1 text-[11px] font-semibold">کسب‌وکار من</div>
+                <div className="mt-1 text-[11px] font-semibold">{firstPartyName}</div>
                 <div className="mt-0.5 text-[8px] text-[#6f796f]">طرف اول · ثبت‌کننده قرارداد</div>
               </div>
               <div className="rounded-md border border-[#ddd8c8] bg-[#f6f4ea] p-3">
@@ -134,21 +140,38 @@ export function ContractPreview({
             </p>
           </section>
 
-          <div className="grid grid-cols-2 gap-8 pt-6">
-            {["امضای طرف اول", "امضای طرف دوم"].map((label) => (
-              <div key={label} className="text-center">
-                <div className="mb-2 h-12 border-b border-dashed border-[#b8b3a3]" />
-                <div className="text-[8px] text-[#778278]">{label}</div>
-                <div className="mt-0.5 text-[8px] text-[#9aa096]">تاریخ: ــــ/ــــ/۱۴۰ـ</div>
-              </div>
-            ))}
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {[{ role: "landlord", label: "موجر / مالک" }, { role: "tenant", label: "مستاجر / بهره‌بردار" }, { role: "witness", label: "شاهد (اختیاری)" }].map((slot) => {
+              const signature = signatures.find((row) => row.role === slot.role);
+              return (
+                <div key={slot.role} className="rounded border border-[#c8c3b5] p-2 text-center">
+                  <div className="mb-1 text-[8px] font-semibold text-[#4c5a51]">{slot.label}</div>
+                  {signature ? (
+                    <>
+                      <img src={signature.image} alt={`امضای ${signature.signerName}`} className="mx-auto h-12 max-w-full object-contain" />
+                      <div className="mt-1 text-[8px] font-medium text-[#2e4a38]">{signature.signerName}</div>
+                      <div className="text-[7px] text-[#7c877d]">{formatJalali(signature.signedAt, "short")} · کد اثر {signature.hash}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-5 border-b border-dashed border-[#a9a394] pb-1" />
+                      <div className="text-[8px] text-[#9aa096]">نام، مهر و امضا</div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded border border-[#cdbf8b] bg-[#f8f3e2] px-2.5 py-2 text-[7px] leading-4 text-[#6b623f]">
+            <span>امضای الکترونیکی ثبت‌شده در برنامه؛ برای اعتبار رسمی، امضای حضوری/ثبت در دفتر اسناد رسمی نیز لازم است.</span>
+            <span className="font-mono">کد پیگیری: {contract.trackingCode || contract.code}</span>
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#e1dccd] pt-3 text-[8px] text-[#8b9289]">
             <span>صفحه ۱ از ۱ · سند پیش‌نویس</span>
             <span className="flex items-center gap-1 text-[#5f7d67]">
               <ShieldCheck className="h-3 w-3" />
-              کد پیگیری: {contract.code}
+              کد پیگیری: {contract.trackingCode || contract.code}
             </span>
           </div>
         </article>
@@ -170,7 +193,19 @@ export function ContractPreview({
           className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-4 py-2.5 text-[11px] text-[#c7dad0] transition hover:bg-white/[0.05]"
         >
           <Printer className="h-3.5 w-3.5" />
-          چاپ پیش‌نویس
+          چاپ با امضا
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            setPdfStatus("در حال ساخت PDF…");
+            const result = await deliverDocumentPdf(document.getElementById("print-root"), contract.trackingCode || contract.code);
+            setPdfStatus(result.message);
+          }}
+          className="flex items-center justify-center gap-2 rounded-xl border border-[#9fd4ee]/30 bg-[#9fd4ee]/10 px-4 py-2.5 text-[11px] text-[#bfe6f7] transition hover:bg-[#9fd4ee]/20"
+        >
+          <Download className="h-3.5 w-3.5" />
+          دانلود PDF امضاشده
         </button>
         <button
           type="button"
@@ -179,6 +214,7 @@ export function ContractPreview({
         >
           بستن
         </button>
+        {pdfStatus && <p className="w-full text-[8px] text-[#8fb2c4]">{pdfStatus}</p>}
       </div>
     </Modal>
   );
