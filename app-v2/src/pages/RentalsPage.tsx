@@ -172,6 +172,7 @@ export function RentalsPage({
   onAddPayment,
   onDeletePayment,
   onAddSignature,
+  onDeleteContract,
   onOpenDocument,
 }: {
   contracts: SavedContract[];
@@ -180,6 +181,7 @@ export function RentalsPage({
   onAddPayment: (payment: RentPaymentRecord) => void;
   onDeletePayment: (id: string) => void;
   onAddSignature: (signature: LeaseSignature) => void;
+  onDeleteContract: (id: string) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -280,7 +282,8 @@ export function RentalsPage({
                 <button type="button" onClick={() => openDoc(contract, "lease-contract")} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]"><Printer className="h-3 w-3" /> قرارداد</button>
                 <button type="button" onClick={() => openDoc(contract, "lease-receipt")} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]"><Receipt className="h-3 w-3" /> رسید اجاره</button>
                 <button type="button" onClick={() => openDoc(contract, "lease-handover")} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]"><FileText className="h-3 w-3" /> تحویل زمین</button>
-                <span className="mr-auto text-[8px] text-[#6f8c7f]">{toPersianDigits(scheduleRows.length)} قسط · {toPersianDigits(contractSignatures.length)} امضا</span>
+                <button type="button" onClick={() => { if (window.confirm(`قرارداد ${contract.code} حذف شود؟`)) onDeleteContract(contract.id); }} className="mr-auto flex items-center gap-1 rounded-lg border border-[#a25649]/20 px-2.5 py-1.5 text-[8px] text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف قرارداد</button>
+                <span className="text-[8px] text-[#6f8c7f]">{toPersianDigits(scheduleRows.length)} قسط · {toPersianDigits(contractSignatures.length)} امضا</span>
               </div>
             </article>
           );

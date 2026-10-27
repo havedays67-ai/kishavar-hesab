@@ -91,35 +91,62 @@ async function renderElementToPdf(element: HTMLElement): Promise<Blob> {
 
 export async function deliverDocumentPdf(element: HTMLElement | null, fileBaseName: string): Promise<PdfResult> {
   if (!element) return { ok: false, mode: "error", message: "سند برای دانلود پیدا نشد." };
+  let blob: Blob;
   try {
-    const blob = await renderElementToPdf(element);
-    const filename = `${safeName(fileBaseName)}.pdf`;
+    blob = await renderElementToPdf(element);
+  } catch {
+    return { ok: false, mode: "error", message: "ساخت PDF ممکن نشد؛ دوباره تلاش کنید یا از «ذخیره HTML» استفاده کنید." };
+  }
+  const filename = `${safeName(fileBaseName)}.pdf`;
+  const file = new File([blob], filename, { type: "application/pdf" });
 
-    if (Capacitor.isNativePlatform()) {
-      const [{ Filesystem, Directory }, { Share }] = await Promise.all([
-        import("@capacitor/filesystem"),
-        import("@capacitor/share"),
-      ]);
-      const base64 = await blobToBase64(blob);
-      const written = await Filesystem.writeFile({
-        path: filename,
-        data: base64,
-        directory: Directory.Cache,
-        recursive: true,
-      });
-      const canShare = await Share.canShare().catch(() => ({ value: false }));
-      if (canShare.value) {
-        await Share.share({
-          title: filename,
-          text: "سند کسب‌وکار من — آماده ذخیره یا چاپ",
-          url: written.uri,
-          dialogTitle: "ذخیره یا ارسال PDF",
-        });
-        return { ok: true, mode: "share", message: "فایل PDF آماده شد؛ در پنجره سیستم «ذخیره» یا چاپگر را انتخاب کنید." };
+  if (Capacitor.isNativePlatform()) {
+    // ۱) ذخیره و ارسال با پلاگین‌های Capacitor (در APK نصب شده‌اند)
+    try {
+      if (Capacitor.isPluginAvailable("Filesystem") && Capacitor.isPluginAvailable("Share")) {
+        const [{ Filesystem, Directory }, { Share }] = await Promise.all([
+          import("@capacitor/filesystem"),
+          import("@capacitor/share"),
+        ]);
+        const base64 = await blobToBase64(blob);
+        const written = await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache, recursive: true });
+        const canShare = await Share.canShare().catch(() => ({ value: false }));
+        if (canShare.value) {
+          await Share.share({ title: filename, text: "سند کسب‌وکار من", url: written.uri, dialogTitle: "ذخیره یا ارسال PDF" });
+          return { ok: true, mode: "share", message: "PDF ساخته شد؛ در پنجره سیستم «ذخیره» یا برنامه دلخواه را انتخاب کنید." };
+        }
+        return { ok: true, mode: "share", message: "PDF در حافظه موقت ساخته شد." };
       }
-      return { ok: true, mode: "share", message: `فایل در ${written.uri} ذخیره شد.` };
+    } catch {
+      // به روش‌های جایگزین می‌رویم
     }
 
+    // ۲) Web Share API (در صورت پشتیبانی دستگاه)
+    try {
+      const nav = navigator as Navigator & { canShare?: (data?: { files?: File[] }) => boolean; share?: (data: { files?: File[]; title?: string }) => Promise<void> };
+      if (nav.canShare?.({ files: [file] }) && nav.share) {
+        await nav.share({ files: [file], title: filename });
+        return { ok: true, mode: "share", message: "پنجره ذخیره/ارسال سیستم باز شد." };
+      }
+    } catch {
+      // ادامه می‌دهیم
+    }
+
+    // ۳) نمایش PDF داخل برنامه برای ذخیره دستی/اسکرین‌شات
+    try {
+      const url = URL.createObjectURL(blob);
+      const opened = window.open(url, "_blank");
+      if (opened) {
+        window.setTimeout(() => URL.revokeObjectURL(url), 120000);
+        return { ok: true, mode: "print", message: "PDF در پنجره پیش‌نمایش باز شد." };
+      }
+      return { ok: true, mode: "print", message: "فایل PDF آماده شد؛ از دکمه «چاپ» یا «ذخیره HTML» هم می‌توانید استفاده کنید." };
+    } catch {
+      return { ok: false, mode: "error", message: "ذخیره PDF در این دستگاه ممکن نشد؛ از «ذخیره HTML» یا دکمه چاپ استفاده کنید." };
+    }
+  }
+
+  try {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -130,12 +157,8 @@ export async function deliverDocumentPdf(element: HTMLElement | null, fileBaseNa
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 8000);
     return { ok: true, mode: "download", message: "فایل PDF دانلود شد." };
-  } catch (error) {
-    return {
-      ok: false,
-      mode: "error",
-      message: error instanceof Error ? error.message : "ساخت PDF ممکن نشد.",
-    };
+  } catch {
+    return { ok: false, mode: "error", message: "دانلود PDF ممکن نشد؛ از «ذخیره HTML» استفاده کنید." };
   }
 }
 

@@ -46,16 +46,19 @@ export function CropsPage({
   plots,
   onAddPlot,
   onDeletePlot,
+  onUpdatePlot,
   onOpenDocument,
 }: {
   plots: CropPlot[];
   onAddPlot: (plot: CropPlot) => void;
   onDeletePlot: (id: string) => void;
+  onUpdatePlot: (plot: CropPlot) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<Omit<CropPlot, "id">>(newPlotTemplate);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState<CropPlot | null>(null);
 
   const totals = plots.reduce(
     (acc, plot) => {
@@ -88,6 +91,13 @@ export function CropsPage({
     onOpenDocument(makeDocument("cost-report", { costRows }));
   };
 
+  const openEdit = (plot: CropPlot) => {
+    setEditing(plot);
+    const { id: _id, ...rest } = plot;
+    setForm(rest);
+    setAddOpen(true);
+  };
+
   const submit = () => {
     if (!form.title.trim()) {
       setError("عنوان زمین را وارد کنید.");
@@ -99,11 +109,13 @@ export function CropsPage({
     }
     const created: CropPlot = {
       ...form,
-      id: `plot-${Date.now()}`,
+      id: editing?.id ?? `plot-${Date.now()}`,
       title: form.title.trim(),
       areaHa: Number(String(form.areaHa).replace(/[^\d.]/g, "")) || 0,
     };
-    onAddPlot(created);
+    if (editing) onUpdatePlot(created);
+    else onAddPlot(created);
+    setEditing(null);
     setForm(newPlotTemplate);
     setAddOpen(false);
     setError("");
@@ -129,7 +141,7 @@ export function CropsPage({
             <Printer className="h-3.5 w-3.5" />
             چاپ گزارش
           </button>
-          <button type="button" onClick={() => setAddOpen(true)} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]">
+          <button type="button" onClick={() => { setEditing(null); setForm(newPlotTemplate); setAddOpen(true); }} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-3 py-2.5 text-[9px] font-bold text-[#07110d]">
             <Plus className="h-3.5 w-3.5" />
             افزودن زمین
           </button>
@@ -185,7 +197,8 @@ export function CropsPage({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[8px] text-[#a8bfb3]">{plot.season}</span>
-                  <button type="button" onClick={() => onDeletePlot(plot.id)} className="grid h-7 w-7 place-items-center rounded-lg text-[#78968a] transition hover:bg-white/[0.05] hover:text-[#efad9f]" aria-label={`حذف ${plot.title}`}>
+                  <button type="button" onClick={() => openEdit(plot)} className="grid h-7 w-7 place-items-center rounded-lg text-[#78968a] transition hover:bg-white/[0.05] hover:text-mint-300" aria-label={`ویرایش ${plot.title}`}><Check className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => { if (window.confirm(`زمین ${plot.title} حذف شود؟`)) onDeletePlot(plot.id); }} className="grid h-7 w-7 place-items-center rounded-lg text-[#78968a] transition hover:bg-white/[0.05] hover:text-[#efad9f]" aria-label={`حذف ${plot.title}`}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -266,7 +279,7 @@ export function CropsPage({
         </div>
       </div>
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="افزودن زمین و کشت" description="هزینه‌ها و عملکرد برآوردی را وارد کنید؛ سود و بهای هر کیلو خودکار محاسبه می‌شود." size="lg">
+      <Modal open={addOpen} onClose={() => { setAddOpen(false); setEditing(null); setForm(newPlotTemplate); }} title={editing ? "ویرایش زمین و کشت" : "افزودن زمین و کشت"} description="هزینه‌ها و عملکرد برآوردی را وارد کنید؛ سود و بهای هر کیلو خودکار محاسبه می‌شود." size="lg">
         <div className="grid gap-3 p-5 sm:grid-cols-2">
           <TextField label="عنوان زمین" value={form.title} onChange={(value) => setForm((current) => ({ ...current, title: value }))} placeholder="قطعه شرقی — گندم" required />
           <TextField label="موقعیت" value={form.location} onChange={(value) => setForm((current) => ({ ...current, location: value }))} />
@@ -291,7 +304,7 @@ export function CropsPage({
             {numberToPersianWords(form.areaHa * form.yieldKgPerHa * form.pricePerKg - plotCost({ ...form, id: "preview" }))} تومان سود
           </div>
           <div className="flex gap-2 sm:col-span-2">
-            <button type="button" onClick={submit} className="flex-1 rounded-xl bg-mint-400 py-2.5 text-[10px] font-bold text-[#07110d]">ثبت زمین</button>
+            <button type="button" onClick={submit} className="flex-1 rounded-xl bg-mint-400 py-2.5 text-[10px] font-bold text-[#07110d]">{editing ? "ذخیره تغییرات" : "ثبت زمین"}</button>
             <button type="button" onClick={() => setAddOpen(false)} className="rounded-xl border border-white/[0.09] px-4 py-2.5 text-[10px] text-[#a9c1b5]">انصراف</button>
           </div>
         </div>

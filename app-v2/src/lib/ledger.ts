@@ -226,7 +226,15 @@ export function buildLedgerAccountText(party: DebtParty, payments: PartyPayment[
   return lines.join("\n");
 }
 
-/* ------------------------------ داده نمونه ------------------------------ */
+
+/** وضعیت کاملاً خالی برای نصب تازه — هیچ داده نمونه‌ای وارد نسخه کاربر نمی‌شود. */
+export function emptyLedger(): LedgerState {
+  return { parties: [], payments: [], entries: [], cheques: [], loans: [], items: [], moves: [], assets: [], budgets: [] };
+}
+
+export const DEMO_FLAG_KEY = "kishavar.demo";
+
+/* ------------------------------ داده نمونه (فقط تست) ------------------------------ */
 
 const today = todayJalali();
 
@@ -305,4 +313,4 @@ export function initialLedger(): LedgerState {
   };
 }
 
-export const LEDGER_STORAGE_KEY = "kishavar.ledger.v1";
+export const LEDGER_STORAGE_KEY = "kishavar.ledger.v2";

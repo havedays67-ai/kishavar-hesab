@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -48,6 +48,7 @@ const STATUS_LABELS: Record<Cheque["status"], { label: string; tone: string }> =
 export function FinancePage({
   ledger,
   onAddEntry,
+  onUpdateEntry,
   onDeleteEntry,
   onAddCheque,
   onSetChequeStatus,
@@ -58,6 +59,7 @@ export function FinancePage({
 }: {
   ledger: LedgerState;
   onAddEntry: (entry: FinanceEntry) => void;
+  onUpdateEntry: (entry: FinanceEntry) => void;
   onDeleteEntry: (id: string) => void;
   onAddCheque: (cheque: Cheque) => void;
   onSetChequeStatus: (id: string, status: Cheque["status"]) => void;
@@ -68,6 +70,7 @@ export function FinancePage({
 }) {
   const [tab, setTab] = useState<Tab>("entries");
   const [entryOpen, setEntryOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [chequeOpen, setChequeOpen] = useState(false);
   const [loanOpen, setLoanOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -147,7 +150,12 @@ export function FinancePage({
                     <td className="px-3 py-2.5 text-[#9fbfae]">{entry.category}</td>
                     <td className="px-3 py-2.5 text-[#9fbfae]">{PAYMENT_METHODS[entry.method]}</td>
                     <td className={cn("px-3 py-2.5 font-semibold", entry.kind === "income" ? "text-mint-300" : "text-sand-300")}>{entry.kind === "income" ? "+" : "−"} {money(entry.amount)}</td>
-                    <td className="px-3 py-2.5"><button type="button" onClick={() => onDeleteEntry(entry.id)} className="text-[#78968a] hover:text-[#efad9f]" aria-label="حذف ردیف"><Trash2 className="h-3 w-3" /></button></td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => { setEditingEntry(entry); setEntryOpen(true); }} className="text-[#78968a] hover:text-mint-300" aria-label="ویرایش ردیف"><Check className="h-3 w-3" /></button>
+                        <button type="button" onClick={() => { if (window.confirm("این ردیف مالی حذف شود؟")) onDeleteEntry(entry.id); }} className="text-[#78968a] hover:text-[#efad9f]" aria-label="حذف ردیف"><Trash2 className="h-3 w-3" /></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -233,7 +241,7 @@ export function FinancePage({
         </div>
       )}
 
-      <EntryModal open={entryOpen} onClose={() => setEntryOpen(false)} onSubmit={(entry) => { onAddEntry(entry); setEntryOpen(false); setToast("سند مالی ثبت شد"); }} />
+      <EntryModal open={entryOpen} initial={editingEntry} onClose={() => { setEntryOpen(false); setEditingEntry(null); }} onSubmit={(entry) => { if (editingEntry) { onUpdateEntry(entry); setToast("تغییرات سند ذخیره شد"); } else { onAddEntry(entry); setToast("سند مالی ثبت شد"); } setEntryOpen(false); setEditingEntry(null); }} />
       <ChequeModal open={chequeOpen} onClose={() => setChequeOpen(false)} onSubmit={(cheque) => { onAddCheque(cheque); setChequeOpen(false); setToast("چک ثبت شد"); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} onSubmit={(loan) => { onAddLoan(loan); setLoanOpen(false); setToast("وام و جدول اقساط ساخته شد"); }} />
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />
@@ -241,7 +249,7 @@ export function FinancePage({
   );
 }
 
-function EntryModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (entry: FinanceEntry) => void }) {
+function EntryModal({ open, onClose, onSubmit, initial }: { open: boolean; onClose: () => void; onSubmit: (entry: FinanceEntry) => void; initial?: FinanceEntry | null }) {
   const [kind, setKind] = useState<"income" | "expense">("expense");
   const [amount, setAmount] = useState(0);
   const [reason, setReason] = useState("");
@@ -252,15 +260,25 @@ function EntryModal({ open, onClose, onSubmit }: { open: boolean; onClose: () =>
   const [error, setError] = useState("");
   const categories = kind === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
+  useEffect(() => {
+    if (!open) return;
+    if (initial) {
+      setKind(initial.kind); setAmount(initial.amount); setReason(initial.reason);
+      setCategory(initial.category); setMethod(initial.method); setDate(initial.date); setNote(initial.note);
+      setError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial]);
+
   const submit = () => {
     if (amount <= 0) return setError("مبلغ را وارد کنید.");
     if (reason.trim().length < 3) return setError("دلیل یا شرح تراکنش را بنویسید.");
-    onSubmit({ id: `fin-${Date.now()}`, kind, amount, reason: reason.trim(), category, method, date, partyId: null, note: note.trim() });
+    onSubmit({ id: initial?.id ?? `fin-${Date.now()}`, kind, amount, reason: reason.trim(), category, method, date, partyId: initial?.partyId ?? null, note: note.trim() });
     setAmount(0); setReason(""); setNote(""); setError("");
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="ثبت درآمد / هزینه" description="دلیل، تاریخ، دسته و روش پرداخت را وارد کنید." size="md">
+    <Modal open={open} onClose={onClose} title={initial ? "ویرایش سند مالی" : "ثبت درآمد / هزینه"} description="دلیل، تاریخ، دسته و روش پرداخت را وارد کنید." size="md">
       <div className="space-y-3.5 p-5">
         <div className="grid grid-cols-2 gap-2">
           {([["income", "درآمد", "پول دریافت‌شده"], ["expense", "هزینه", "پول پرداخت‌شده"]] as ["income" | "expense", string, string][]).map(([value, label, hint]) => (
@@ -278,7 +296,7 @@ function EntryModal({ open, onClose, onSubmit }: { open: boolean; onClose: () =>
           <TextField label="یادداشت" value={note} onChange={setNote} placeholder="شماره فاکتور یا چک" />
         </div>
         {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a]">{error}</p>}
-        <button type="button" onClick={submit} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">ثبت سند</button>
+        <button type="button" onClick={submit} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">{initial ? "ذخیره تغییرات" : "ثبت سند"}</button>
       </div>
     </Modal>
   );

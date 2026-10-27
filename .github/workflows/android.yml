@@ -84,14 +84,19 @@ jobs:
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
 
-      - name: Capacitor toolchain
-        run: npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+      - name: Capacitor toolchain (core + filesystem + share)
+        run: npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
 
       - name: Add Android platform (bundled app, no remote URL)
         run: |
           unset CAPACITOR_SERVER_URL
           npx cap add android
+          npx cap sync android
           echo "Android 8+ (minSdk 26) enforced"
+          echo "--- registered capacitor plugins ---"
+          cat android/app/src/main/assets/capacitor.plugins.json
+          grep -qi "Filesystem" android/app/src/main/assets/capacitor.plugins.json || (echo "Filesystem plugin missing" && exit 1)
+          grep -qi "Share" android/app/src/main/assets/capacitor.plugins.json || (echo "Share plugin missing" && exit 1)
 
       - name: Configure project (minSdk 26, target 35)
         run: |
@@ -100,7 +105,7 @@ jobs:
           sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
-          sed -i -E 's/versionCode [0-9]+/versionCode 3/' android/app/build.gradle
+          sed -i -E 's/versionCode [0-9]+/versionCode 5/' android/app/build.gradle
           sed -i -E 's/versionName "[^"]*"/versionName "1.0.0"/' android/app/build.gradle
           grep -n "versionCode\|versionName" android/app/build.gradle
 
@@ -115,6 +120,12 @@ jobs:
           else
             echo "No KEYSTORE_BASE64 secret found — release will be signed with debug key."
           fi
+
+      - name: Install stable debug signing key
+        run: |
+          mkdir -p "$HOME/.android"
+          cp signing/debug.keystore "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android | head -4
 
       - name: Build APK
         env:
@@ -187,13 +198,18 @@ jobs:
           console.log('- زمین و کشت با بهای تمام‌شده هر کیلو و نقطه سربه‌سر');
           console.log('- گزارش‌های مدیریتی و صفحه معماری و آزمون موتور');
           console.log('- چاپ A4 با سریال، QR، مبلغ به حروف و جای مهر و امضا');
+          console.log('- دانلود واقعی PDF داخل برنامه (بدون نیاز به مرورگر)');
+          console.log('- ویرایش و حذف طرف‌حساب، سند مالی، زمین، معامله و قرارداد');
+          console.log('- حذف صفحه دریافت برنامه و مشخصات کلید از داخل اپ اندروید');
           console.log('');
           console.log('SHA-256: ' + process.env.SHA);
           console.log('حجم فایل: ' + process.env.SIZE_MB + ' مگابایت (' + process.env.SIZE + ' بایت)');
           console.log('');
           console.log('دانلود رسمی: https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk');
           console.log('');
-          console.log('نصب: اگر نسخه قبلی نصب است و پیام «برنامه نصب نشد» دیدید، نسخه قدیمی را حذف و سپس نصب کنید (کلید امضای نسخه آزمایشی در هر ساخت متفاوت است).');
+          console.log('این نسخه با کلید ثابت آزمایشی امضا می‌شود؛ نسخه قبلی را می‌توانید مستقیماً به‌روزرسانی کنید. اگر نصب نشد، نسخه قبلی را حذف و دوباره نصب کنید (داده‌ها را قبلاً پشتیبان بگیرید).');
+          console.log('');
+          console.log('نصب تازه کاملاً خالی است؛ داده‌های نمونه فقط در حالت آزمایش و به‌صورت دستی بارگذاری می‌شوند.');
           NODE
 
       - name: Publish GitHub Release

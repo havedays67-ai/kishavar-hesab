@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import {
   BarChart3,
   Bell,
@@ -85,6 +86,8 @@ export function AppShell({
 }) {
   const today = todayJalali();
   const [moreOpen, setMoreOpen] = useState(false);
+  const isNative = Capacitor.isNativePlatform();
+  const items = isNative ? NAV_ITEMS.filter((item) => item.id !== "download") : NAV_ITEMS;
 
   const go = (next: Page) => {
     setMoreOpen(false);
@@ -121,12 +124,13 @@ export function AppShell({
 
         <nav className="space-y-4" aria-label="ناوبری اصلی">
           {GROUPS.map((group) => {
-            const items = NAV_ITEMS.filter((item) => item.group === group.key);
+            const groupItems = items.filter((item) => item.group === group.key);
+            if (groupItems.length === 0) return null;
             return (
               <div key={group.key}>
                 <div className="mb-1.5 px-3 text-[9px] font-medium tracking-wide text-[#658275]">{group.label}</div>
                 <div className="space-y-0.5">
-                  {items.map((item) => {
+                  {groupItems.map((item) => {
                     const Icon = item.icon;
                     const active = page === item.id;
                     return (
@@ -186,7 +190,7 @@ export function AppShell({
             <Avatar name={MY_BUSINESS.owner} color="sand" size="sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-medium text-[#dcebe2]">{MY_BUSINESS.owner}</p>
-              <p className="mt-0.5 truncate text-[9px] text-[#78968a]">نسخه {toPersianDigits("1.0.0")}</p>
+              <p className="mt-0.5 truncate text-[9px] text-[#78968a]"></p>
             </div>
             <span className="h-1.5 w-1.5 rounded-full bg-mint-400" />
           </div>
@@ -249,7 +253,7 @@ export function AppShell({
         <main className="mx-auto max-w-[1460px] px-4 pb-28 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10 lg:pt-8">{children}</main>
 
         <footer className="no-print mx-auto hidden max-w-[1460px] flex-wrap items-center justify-between gap-2 px-8 pb-6 text-[10px] text-[#607d70] lg:flex">
-          <span>کسب‌وکار من · نسخه {toPersianDigits("1.0.0")} · موتور معامله {toPersianDigits("1.0.0")}</span>
+          <span>کسب‌وکار من ·  · موتور معامله {toPersianDigits("1.0.0")}</span>
           <span>تاریخ‌ها شمسی · مبالغ به تومان · محاسبات قطعی و قابل حسابرسی</span>
         </footer>
       </div>
@@ -302,7 +306,7 @@ export function AppShell({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-white">همه بخش‌ها</h2>
-                <p className="mt-0.5 text-[9px] text-[#78968a]">{MY_BUSINESS.farm} · نسخه {toPersianDigits("1.0.0")}</p>
+                <p className="mt-0.5 text-[9px] text-[#78968a]">{MY_BUSINESS.farm} · </p>
               </div>
               <button
                 type="button"
@@ -314,7 +318,7 @@ export function AppShell({
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {NAV_ITEMS.filter((item) => !MOBILE_PRIMARY.includes(item.id)).map((item) => {
+              {items.filter((item) => !MOBILE_PRIMARY.includes(item.id)).map((item) => {
                 const Icon = item.icon;
                 return (
                   <button

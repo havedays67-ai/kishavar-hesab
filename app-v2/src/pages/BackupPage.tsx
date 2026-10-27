@@ -59,6 +59,7 @@ export function BackupPage({
   signatures,
   onRestore,
   onReset,
+  onLoadDemo,
 }: {
   ledger: LedgerState;
   trades: CropTrade[];
@@ -68,6 +69,7 @@ export function BackupPage({
   signatures: LeaseSignature[];
   onRestore: (bundle: BackupBundle) => void;
   onReset: () => void;
+  onLoadDemo: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("assistant");
   const [question, setQuestion] = useState("");
@@ -284,8 +286,9 @@ export function BackupPage({
             <h2 className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-white"><Upload className="h-3.5 w-3.5 text-mint-300" /> بازیابی / بازنشانی</h2>
             <p className="mb-3 text-[8px] leading-5 text-[#78968a]">متن JSON پشتیبان را در کادر زیر بگذارید و بازیابی کنید. این کار داده‌های فعلی را جایگزین می‌کند.</p>
             <button type="button" onClick={restore} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-mint-300/25 bg-mint-300/[0.08] py-2.5 text-[9px] font-medium text-mint-300"><RefreshCw className="h-3.5 w-3.5" /> بازیابی از متن کادر</button>
-            <button type="button" onClick={() => { if (window.confirm("همه داده‌ها به حالت نمونه برگردند؟ این کار قابل بازگشت نیست.")) { onReset(); setToast("داده‌ها به حالت نمونه بازگشت."); } }} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#a25649]/25 bg-[#a25649]/[0.08] py-2.5 text-[9px] text-[#efad9f]"><Trash2 className="h-3.5 w-3.5" /> بازنشانی به داده نمونه</button>
-            <div className="mt-3 rounded-xl border border-sand-300/15 bg-sand-300/[0.05] p-2.5 text-[8px] leading-5 text-[#d5caa9]">هشدار: پیش از بازنشانی، پشتیبان بگیرید. داده‌ها روی همین دستگاه ذخیره می‌شوند و با پاک‌کردن مرورگر/برنامه از بین می‌روند.</div>
+            <button type="button" onClick={() => { if (window.confirm("همه داده‌های ثبت‌شده پاک شوند؟ این کار قابل بازگشت نیست.")) { onReset(); setToast("همه داده‌ها پاک شد؛ برنامه خالی است."); } }} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#a25649]/25 bg-[#a25649]/[0.08] py-2.5 text-[9px] text-[#efad9f]"><Trash2 className="h-3.5 w-3.5" /> پاک کردن همه داده‌ها</button>
+            <button type="button" onClick={() => { if (window.confirm("داده نمونه فقط برای آزمایش روی این نصب بارگذاری شود؟")) { onLoadDemo(); setToast("داده نمونه آزمایشی بارگذاری شد."); } }} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-sand-300/20 bg-sand-300/[0.06] py-2.5 text-[9px] text-sand-300"><Database className="h-3.5 w-3.5" /> بارگذاری داده نمونه (فقط آزمایش)</button>
+            <div className="mt-3 rounded-xl border border-sand-300/15 bg-sand-300/[0.05] p-2.5 text-[8px] leading-5 text-[#d5caa9]">هشدار: نصب تازه کاملاً خالی است و هیچ داده نمونه‌ای نمایش داده نمی‌شود. داده نمونه فقط با دکمه بالا و صرفاً برای آزمایش بارگذاری می‌شود. پیش از هر پاک‌سازی، پشتیبان بگیرید.</div>
           </section>
         </div>
       )}

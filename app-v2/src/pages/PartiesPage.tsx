@@ -42,12 +42,14 @@ type Filter = "all" | PartyKind;
 export function PartiesPage({
   ledger,
   onAddParty,
+  onUpdateParty,
   onDeleteParty,
   onAddPayment,
   onDeletePayment,
 }: {
   ledger: LedgerState;
   onAddParty: (party: DebtParty) => void;
+  onUpdateParty: (party: DebtParty) => void;
   onDeleteParty: (id: string) => void;
   onAddPayment: (payment: PartyPayment) => void;
   onDeletePayment: (id: string) => void;
@@ -55,6 +57,7 @@ export function PartiesPage({
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [editParty, setEditParty] = useState<DebtParty | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [settleId, setSettleId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -175,6 +178,7 @@ export function PartiesPage({
                   <div className="mt-0.5 text-[8px] text-[#6f8c7f]">از {money(party.amount)} · پرداخت {toPersianDigits(totalsParty.ratio)}٪</div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setEditParty(party)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/[0.08] text-[#a8c0b4] transition hover:text-mint-300" aria-label="ویرایش طرف‌حساب"><Check className="h-3.5 w-3.5" /></button>
                   <button type="button" onClick={() => setDetailId(party.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/[0.08] text-[#a8c0b4] transition hover:text-mint-300" aria-label="دفتر معین"><BookOpen className="h-3.5 w-3.5" /></button>
                   <button type="button" onClick={() => setSettleId(party.id)} disabled={totalsParty.balance === 0} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2 py-2 text-[8px] font-medium text-mint-300 transition hover:bg-mint-300/[0.14] disabled:opacity-40"><Wallet className="h-3 w-3" />پرداخت</button>
                 </div>
@@ -202,6 +206,16 @@ export function PartiesPage({
       </div>
 
       <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} onCreate={(party) => { onAddParty(party); setAddOpen(false); setToast("طرف‌حساب ثبت شد"); }} />
+      <AddPartyModal
+        open={Boolean(editParty)}
+        initial={editParty}
+        onClose={() => setEditParty(null)}
+        onCreate={(party) => {
+          onUpdateParty(party);
+          setEditParty(null);
+          setToast("تغییرات طرف‌حساب ذخیره شد");
+        }}
+      />
 
       <Modal open={Boolean(details)} onClose={() => setDetailId(null)} title={details ? `دفتر معین — ${details.name}` : ""} description="گردش کامل بدهی/طلب، دلیل ثبت و پرداخت‌ها" size="lg">
         {details && <PartyLedger party={details} payments={ledger.payments} onCopy={() => copyStatement(details)} copied={copied} onDeletePayment={onDeletePayment} onSettle={() => { setDetailId(null); setSettleId(details.id); }} onDelete={() => { onDeleteParty(details.id); setDetailId(null); setToast("طرف‌حساب حذف شد"); }} />}
@@ -223,7 +237,7 @@ export function PartiesPage({
   );
 }
 
-function AddPartyModal({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (party: DebtParty) => void }) {
+function AddPartyModal({ open, onClose, onCreate, initial }: { open: boolean; onClose: () => void; onCreate: (party: DebtParty) => void; initial?: DebtParty | null }) {
   const [kind, setKind] = useState<PartyKind>("debtor");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -241,9 +255,16 @@ function AddPartyModal({ open, onClose, onCreate }: { open: boolean; onClose: ()
   };
 
   useEffect(() => {
-    if (open) reset();
+    if (!open) return;
+    if (initial) {
+      setKind(initial.kind); setName(initial.name); setPhone(initial.phone === "—" ? "" : initial.phone);
+      setCity(initial.city === "—" ? "" : initial.city); setAmount(initial.amount); setReason(initial.reason);
+      setDate(initial.date); setDueDate(initial.dueDate ?? initial.date); setNote(initial.note); setError("");
+      return;
+    }
+    reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initial]);
 
   const submit = () => {
     if (name.trim().length < 3) return setError("نام طرف‌حساب را کامل وارد کنید.");
@@ -251,7 +272,7 @@ function AddPartyModal({ open, onClose, onCreate }: { open: boolean; onClose: ()
     if (reason.trim().length < 5) return setError("دلیل بدهی/طلب را بنویسید (حداقل ۵ نویسه).");
     const colors: DebtParty["color"][] = ["mint", "sand", "blue", "rose"];
     onCreate({
-      id: `party-${Date.now()}`,
+      id: initial?.id ?? `party-${Date.now()}`,
       name: name.trim(),
       phone: phone.trim() || "—",
       city: city.trim() || "—",
@@ -267,7 +288,7 @@ function AddPartyModal({ open, onClose, onCreate }: { open: boolean; onClose: ()
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="ثبت بدهکار / بستانکار" description="نوع، دلیل، تاریخ و مبلغ را دقیق وارد کنید تا دفتر معین درست ساخته شود." size="md">
+    <Modal open={open} onClose={onClose} title={initial ? "ویرایش بدهکار / بستانکار" : "ثبت بدهکار / بستانکار"} description="نوع، دلیل، تاریخ و مبلغ را دقیق وارد کنید تا دفتر معین درست ساخته شود." size="md">
       <div className="space-y-3.5 p-5">
         <div className="grid grid-cols-2 gap-2">
           {([["debtor", "بدهکار به من", "طلب من از این شخص"], ["creditor", "بستانکار از من", "بدهی من به این شخص"]] as [PartyKind, string, string][]).map(([value, label, hint]) => (
@@ -292,7 +313,7 @@ function AddPartyModal({ open, onClose, onCreate }: { open: boolean; onClose: ()
         <TextField label="یادداشت تکمیلی" value={note} onChange={setNote} placeholder="شماره چک، توافق پرداخت، …" />
         {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a]">{error}</p>}
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={submit} className="flex-1 rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">ثبت طرف‌حساب</button>
+          <button type="button" onClick={submit} className="flex-1 rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">{initial ? "ذخیره تغییرات" : "ثبت طرف‌حساب"}</button>
           <button type="button" onClick={() => { reset(); onClose(); }} className="rounded-xl border border-white/[0.09] px-4 py-2.5 text-[10px] text-[#a9c1b5]">انصراف</button>
         </div>
       </div>

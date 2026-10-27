@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  X,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -350,11 +351,13 @@ export function TradePage({
   trades,
   onSaveTrade,
   onUpdateTrade,
+  onDeleteTrade,
   onOpenDocument,
 }: {
   trades: CropTrade[];
   onSaveTrade: (trade: CropTrade) => void;
   onUpdateTrade: (id: string, patch: Partial<CropTrade>) => void;
+  onDeleteTrade: (id: string) => void;
   onOpenDocument: (spec: DocumentSpec) => void;
 }) {
   const [tab, setTab] = useState<Tab>("calc");
@@ -1080,6 +1083,7 @@ export function TradePage({
                       <Wallet className="h-3 w-3" />
                       ثبت پرداخت
                     </button>
+                    <button type="button" onClick={() => { if (window.confirm(`معامله ${trade.serial} حذف شود؟`)) onDeleteTrade(trade.id); }} className="grid h-7 w-7 place-items-center rounded-lg border border-white/[0.08] text-[#78968a] transition hover:text-[#efad9f]" aria-label="حذف معامله"><X className="h-3 w-3" /></button>
                   </div>
                 </article>
               );

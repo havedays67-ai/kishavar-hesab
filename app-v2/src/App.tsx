@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { AppShell } from "./components/AppShell";
 import { DocumentDialog } from "./components/PrintSheet";
 import {
@@ -11,7 +12,9 @@ import {
 import { initialPlots, initialTrades, type CropPlot } from "./lib/samples";
 import {
   LEDGER_STORAGE_KEY,
+  emptyLedger,
   initialLedger,
+  DEMO_FLAG_KEY,
   type Asset,
   type Budget,
   type Cheque,
@@ -56,10 +59,25 @@ const AVAILABLE_PAGES: Page[] = [
   "download",
 ];
 
-const STORAGE_PARTIES = "kishavar.parties.v2";
-const STORAGE_CONTRACTS = "kishavar.contracts.v2";
-const STORAGE_TRADES = "kishavar.trades.v2";
-const STORAGE_PLOTS = "kishavar.plots.v2";
+function wantsDemo(): boolean {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") {
+      window.localStorage.setItem(DEMO_FLAG_KEY, "1");
+      return true;
+    }
+    return window.localStorage.getItem(DEMO_FLAG_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const DEMO_MODE = wantsDemo();
+
+const STORAGE_PARTIES = "kishavar.parties.v3";
+const STORAGE_CONTRACTS = "kishavar.contracts.v3";
+const STORAGE_TRADES = "kishavar.trades.v3";
+const STORAGE_PLOTS = "kishavar.plots.v3";
 const STORAGE_RENTS = "kishavar.rents.v1";
 const STORAGE_SIGNATURES = "kishavar.signatures.v1";
 
@@ -81,6 +99,7 @@ const PAGE_TITLES: Record<Page, string> = {
 
 function readPageFromHash(): Page {
   const hash = window.location.hash.replace("#", "").split("?")[0] as Page;
+  if (hash === "download" && Capacitor.isNativePlatform()) return "dashboard";
   return AVAILABLE_PAGES.includes(hash) ? hash : "dashboard";
 }
 
@@ -101,11 +120,11 @@ function loadList<T>(key: string, fallback: T[]): T[] {
 
 export default function App() {
   const [page, setPage] = useState<Page>(readPageFromHash);
-  const [parties, setParties] = useState<Party[]>(() => loadList(STORAGE_PARTIES, initialParties));
-  const [contracts, setContracts] = useState<SavedContract[]>(() => loadList(STORAGE_CONTRACTS, initialContracts));
-  const [trades, setTrades] = useState<CropTrade[]>(() => loadList(STORAGE_TRADES, initialTrades));
-  const [plots, setPlots] = useState<CropPlot[]>(() => loadList(STORAGE_PLOTS, initialPlots));
-  const [ledger, setLedger] = useState<LedgerState>(() => loadStored<LedgerState>(LEDGER_STORAGE_KEY, initialLedger()));
+  const [parties, setParties] = useState<Party[]>(() => loadList(STORAGE_PARTIES, DEMO_MODE ? initialParties : []));
+  const [contracts, setContracts] = useState<SavedContract[]>(() => loadList(STORAGE_CONTRACTS, DEMO_MODE ? initialContracts : []));
+  const [trades, setTrades] = useState<CropTrade[]>(() => loadList(STORAGE_TRADES, DEMO_MODE ? initialTrades : []));
+  const [plots, setPlots] = useState<CropPlot[]>(() => loadList(STORAGE_PLOTS, DEMO_MODE ? initialPlots : []));
+  const [ledger, setLedger] = useState<LedgerState>(() => loadStored<LedgerState>(LEDGER_STORAGE_KEY, DEMO_MODE ? initialLedger() : emptyLedger()));
   const [rentPayments, setRentPayments] = useState<RentPaymentRecord[]>(() => loadList(STORAGE_RENTS, []));
   const [signatures, setSignatures] = useState<LeaseSignature[]>(() => loadList(STORAGE_SIGNATURES, []));
   const [activeDocument, setActiveDocument] = useState<DocumentSpec | null>(null);
@@ -166,6 +185,7 @@ export default function App() {
   const updateLedger = (patch: Partial<LedgerState>) => setLedger((current) => ({ ...current, ...patch }));
 
   const addPartyAccount = (party: DebtParty) => updateLedger({ parties: [party, ...ledger.parties] });
+  const updatePartyAccount = (party: DebtParty) => updateLedger({ parties: ledger.parties.map((row) => (row.id === party.id ? party : row)) });
   const deletePartyAccount = (id: string) => updateLedger({
     parties: ledger.parties.filter((party) => party.id !== id),
     payments: ledger.payments.filter((payment) => payment.partyId !== id),
@@ -174,6 +194,7 @@ export default function App() {
   const deletePartyPayment = (id: string) => updateLedger({ payments: ledger.payments.filter((payment) => payment.id !== id) });
 
   const addEntry = (entry: FinanceEntry) => updateLedger({ entries: [entry, ...ledger.entries] });
+  const updateEntry = (entry: FinanceEntry) => updateLedger({ entries: ledger.entries.map((row) => (row.id === entry.id ? entry : row)) });
   const deleteEntry = (id: string) => updateLedger({ entries: ledger.entries.filter((entry) => entry.id !== id) });
   const addCheque = (cheque: Cheque) => updateLedger({ cheques: [cheque, ...ledger.cheques] });
   const setChequeStatus = (id: string, status: Cheque["status"]) => updateLedger({ cheques: ledger.cheques.map((cheque) => (cheque.id === id ? { ...cheque, status } : cheque)) });
@@ -183,6 +204,7 @@ export default function App() {
   const deleteLoan = (id: string) => updateLedger({ loans: ledger.loans.filter((loan) => loan.id !== id) });
 
   const addItem = (item: InventoryItem) => updateLedger({ items: [item, ...ledger.items] });
+  const updateItem = (item: InventoryItem) => updateLedger({ items: ledger.items.map((row) => (row.id === item.id ? item : row)) });
   const deleteItem = (id: string) => updateLedger({ items: ledger.items.filter((item) => item.id !== id), moves: ledger.moves.filter((move) => move.itemId !== id) });
   const addMove = (move: InventoryMove) => updateLedger({
     moves: [move, ...ledger.moves],
@@ -194,23 +216,33 @@ export default function App() {
   const deleteBudget = (id: string) => updateLedger({ budgets: ledger.budgets.filter((budget) => budget.id !== id) });
 
   const restore = (bundle: BackupBundle) => {
-    setParties(Array.isArray(bundle.parties) ? (bundle.parties as Party[]) : initialParties);
-    setContracts(Array.isArray(bundle.contracts) ? (bundle.contracts as SavedContract[]) : initialContracts);
-    setTrades(Array.isArray(bundle.trades) ? (bundle.trades as CropTrade[]) : initialTrades);
-    setPlots(Array.isArray(bundle.plots) ? (bundle.plots as CropPlot[]) : initialPlots);
-    setLedger(bundle.ledger ? (bundle.ledger as LedgerState) : initialLedger());
+    setParties(Array.isArray(bundle.parties) ? (bundle.parties as Party[]) : []);
+    setContracts(Array.isArray(bundle.contracts) ? (bundle.contracts as SavedContract[]) : []);
+    setTrades(Array.isArray(bundle.trades) ? (bundle.trades as CropTrade[]) : []);
+    setPlots(Array.isArray(bundle.plots) ? (bundle.plots as CropPlot[]) : []);
+    setLedger(bundle.ledger ? (bundle.ledger as LedgerState) : emptyLedger());
     setRentPayments(Array.isArray(bundle.rentPayments) ? (bundle.rentPayments as RentPaymentRecord[]) : []);
     setSignatures(Array.isArray(bundle.signatures) ? (bundle.signatures as LeaseSignature[]) : []);
   };
 
   const resetAll = () => {
+    try { window.localStorage.removeItem(DEMO_FLAG_KEY); } catch { /* ignore */ }
+    setParties([]);
+    setContracts([]);
+    setTrades([]);
+    setPlots([]);
+    setLedger(emptyLedger());
+    setRentPayments([]);
+    setSignatures([]);
+  };
+
+  const loadDemo = () => {
+    try { window.localStorage.setItem(DEMO_FLAG_KEY, "1"); } catch { /* ignore */ }
     setParties(initialParties);
     setContracts(initialContracts);
     setTrades(initialTrades);
     setPlots(initialPlots);
     setLedger(initialLedger());
-    setRentPayments([]);
-    setSignatures([]);
   };
 
   return (
@@ -223,6 +255,7 @@ export default function App() {
           <TradePage
             trades={trades}
             onSaveTrade={(trade) => setTrades((current) => [trade, ...current])}
+            onDeleteTrade={(id) => setTrades((current) => current.filter((trade) => trade.id !== id))}
             onUpdateTrade={(id, patch) => setTrades((current) => current.map((trade) => (trade.id === id ? { ...trade, ...patch } : trade)))}
             onOpenDocument={setActiveDocument}
           />
@@ -238,6 +271,7 @@ export default function App() {
             onAddPayment={(payment) => setRentPayments((current) => [payment, ...current])}
             onDeletePayment={(id) => setRentPayments((current) => current.filter((payment) => payment.id !== id))}
             onAddSignature={(signature) => setSignatures((current) => [signature, ...current])}
+            onDeleteContract={(id) => setContracts((current) => current.filter((contract) => contract.id !== id))}
             onOpenDocument={setActiveDocument}
           />
         )}
@@ -246,6 +280,7 @@ export default function App() {
             plots={plots}
             onAddPlot={(plot) => setPlots((current) => [plot, ...current])}
             onDeletePlot={(id) => setPlots((current) => current.filter((plot) => plot.id !== id))}
+            onUpdatePlot={(plot) => setPlots((current) => current.map((row) => (row.id === plot.id ? plot : row)))}
             onOpenDocument={setActiveDocument}
           />
         )}
@@ -253,6 +288,7 @@ export default function App() {
           <FinancePage
             ledger={ledger}
             onAddEntry={addEntry}
+            onUpdateEntry={updateEntry}
             onDeleteEntry={deleteEntry}
             onAddCheque={addCheque}
             onSetChequeStatus={setChequeStatus}
@@ -266,6 +302,7 @@ export default function App() {
           <PartiesPage
             ledger={ledger}
             onAddParty={addPartyAccount}
+            onUpdateParty={updatePartyAccount}
             onDeleteParty={deletePartyAccount}
             onAddPayment={addPartyPayment}
             onDeletePayment={deletePartyPayment}
@@ -275,6 +312,7 @@ export default function App() {
           <InventoryPage
             ledger={ledger}
             onAddItem={addItem}
+            onUpdateItem={updateItem}
             onDeleteItem={deleteItem}
             onAddMove={addMove}
             onAddAsset={addAsset}
@@ -291,6 +329,7 @@ export default function App() {
         )}
         {page === "backup" && (
           <BackupPage
+            onLoadDemo={loadDemo}
             ledger={ledger}
             trades={trades}
             plots={plots}
@@ -302,7 +341,7 @@ export default function App() {
           />
         )}
         {page === "architecture" && <ArchitecturePage />}
-        {page === "download" && <DownloadPage />}
+        {page === "download" && !Capacitor.isNativePlatform() && <DownloadPage />}
       </AppShell>
 
       {activeDocument && (

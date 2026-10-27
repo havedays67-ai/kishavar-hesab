@@ -30,10 +30,10 @@ type ReleaseInfo = {
 };
 
 const FALLBACK_RELEASE: ReleaseInfo = {
-  date: "2026-10-27T14:45:46Z",
-  size: 4216099,
+  date: "2026-10-27T15:17:15Z",
+  size: 4616715,
   downloads: 0,
-  digest: "ea801e1c9eaa2515353a189c475b27b9e98c718fa5c0994fe565ba1871ebd759",
+  digest: "a46a3119015644cac8803b3e74df3ccbebe7cfb5f21afe24cdf04de5e1461abb",
 };
 
 export function DownloadPage() {
@@ -267,7 +267,7 @@ export function DownloadPage() {
               <h3 className="text-[11px] font-medium text-[#dcebe2]">{feature.title}</h3>
               <p className="mt-1 text-[9px] font-light leading-5 text-[#78968a]">{feature.text}</p>
               <span className="mt-1.5 inline-block rounded bg-mint-300/[0.07] px-1.5 py-0.5 text-[7px] text-mint-300/80">
-                در پیش‌نمایش وب
+                در نسخه وب
               </span>
             </div>
           );
@@ -339,7 +339,7 @@ export function DownloadPage() {
       <div className="mt-4 flex flex-col items-start justify-between gap-2 rounded-xl border border-white/[0.05] bg-white/[0.015] px-4 py-3 text-[8px] font-light text-[#6e8b7d] sm:flex-row sm:items-center">
         <span className="flex items-center gap-1.5">
           <ShieldCheck className="h-3.5 w-3.5 text-mint-300" />
-          این نسخه آزمایشی است و با کلید debug منتشر شده؛ برای انتشار عمومی، امضای اختصاصی لازم است.
+          نسخه پیش‌نمایش وب؛ فایل نصب از صفحه رسمی GitHub دریافت می‌شود.
         </span>
         <span className="flex items-center gap-1.5">
           <UserRound className="h-3 w-3" />

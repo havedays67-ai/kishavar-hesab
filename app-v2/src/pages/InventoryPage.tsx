@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Boxes,
+  Check,
   Package,
   Plus,
   Target,
@@ -33,6 +34,7 @@ type Tab = "stock" | "assets" | "budget";
 export function InventoryPage({
   ledger,
   onAddItem,
+  onUpdateItem,
   onDeleteItem,
   onAddMove,
   onAddAsset,
@@ -42,6 +44,7 @@ export function InventoryPage({
 }: {
   ledger: LedgerState;
   onAddItem: (item: InventoryItem) => void;
+  onUpdateItem: (item: InventoryItem) => void;
   onDeleteItem: (id: string) => void;
   onAddMove: (move: InventoryMove) => void;
   onAddAsset: (asset: Asset) => void;
@@ -51,6 +54,7 @@ export function InventoryPage({
 }) {
   const [tab, setTab] = useState<Tab>("stock");
   const [itemOpen, setItemOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
@@ -111,7 +115,10 @@ export function InventoryPage({
                     <span className={cn("grid h-9 w-9 place-items-center rounded-xl", item.kind === "product" ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}><Package className="h-4 w-4" /></span>
                     <div><h3 className="text-[11px] font-semibold text-[#e8f3ec]">{item.name}</h3><p className="mt-0.5 text-[8px] text-[#78968a]">{item.kind === "product" ? "محصول" : "نهاده"} · واحد {item.unit} · قیمت واحد {money(item.cost)}</p></div>
                   </div>
-                  <button type="button" onClick={() => onDeleteItem(item.id)} className="text-[#78968a] hover:text-[#efad9f]" aria-label="حذف کالا"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => { setEditingItem(item); setItemOpen(true); }} className="text-[#78968a] hover:text-mint-300" aria-label="ویرایش کالا"><Check className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => { if (window.confirm(`کالای ${item.name} حذف شود؟`)) onDeleteItem(item.id); }} className="text-[#78968a] hover:text-[#efad9f]" aria-label="حذف کالا"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {[["موجودی", `${fa(item.stock)} ${item.unit}`], ["حد سفارش", `${fa(item.min)} ${item.unit}`], ["ارزش", money(item.stock * item.cost)]].map(([label, text]) => (
@@ -164,7 +171,7 @@ export function InventoryPage({
         </div>
       )}
 
-      <ItemModal open={itemOpen} onClose={() => setItemOpen(false)} onSubmit={(item) => { onAddItem(item); setItemOpen(false); setToast("کالا ثبت شد"); }} />
+      <ItemModal open={itemOpen} initial={editingItem} onClose={() => { setItemOpen(false); setEditingItem(null); }} onSubmit={(item) => { if (editingItem) { onUpdateItem(item); setToast("کالا ویرایش شد"); } else { onAddItem(item); setToast("کالا ثبت شد"); } setItemOpen(false); setEditingItem(null); }} />
       <MoveModal open={moveOpen} items={ledger.items} onClose={() => setMoveOpen(false)} onSubmit={(move) => { onAddMove(move); setMoveOpen(false); setToast("گردش انبار ثبت شد"); }} />
       <AssetModal open={assetOpen} onClose={() => setAssetOpen(false)} onSubmit={(asset) => { onAddAsset(asset); setAssetOpen(false); setToast("دارایی ثبت شد"); }} />
       <BudgetModal open={budgetOpen} onClose={() => setBudgetOpen(false)} onSubmit={(budget) => { onAddBudget(budget); setBudgetOpen(false); setToast("بودجه ثبت شد"); }} />
@@ -173,11 +180,15 @@ export function InventoryPage({
   );
 }
 
-function ItemModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (item: InventoryItem) => void }) {
+function ItemModal({ open, onClose, onSubmit, initial }: { open: boolean; onClose: () => void; onSubmit: (item: InventoryItem) => void; initial?: InventoryItem | null }) {
   const [name, setName] = useState(""); const [unit, setUnit] = useState("کیلوگرم"); const [kind, setKind] = useState<"input" | "product">("input");
   const [stock, setStock] = useState(0); const [min, setMin] = useState(0); const [cost, setCost] = useState(0); const [error, setError] = useState("");
-  const submit = () => { if (!name.trim()) return setError("نام کالا را وارد کنید."); onSubmit({ id: `item-${Date.now()}`, name: name.trim(), unit: unit.trim() || "عدد", kind, stock, min, cost }); setName(""); setStock(0); setMin(0); setCost(0); setError(""); };
-  return <Modal open={open} onClose={onClose} title="کالای انبار" description="نهاده یا محصول را با موجودی و حد سفارش ثبت کنید." size="md"><div className="space-y-3 p-5"><div className="grid gap-3 sm:grid-cols-2"><TextField label="نام کالا" value={name} onChange={setName} placeholder="کود اوره" /><TextField label="واحد" value={unit} onChange={setUnit} placeholder="کیسه" /><SelectField label="نوع" value={kind} onChange={(value) => setKind(value as "input" | "product")} options={[{ value: "input", label: "نهاده" }, { value: "product", label: "محصول" }]} /><AmountField label="موجودی اولیه" value={stock} onChange={setStock} /><AmountField label="حد سفارش" value={min} onChange={setMin} /><AmountField label="بهای واحد" value={cost} onChange={setCost} /></div>{error && <p className="text-[10px] text-[#f0a59a]">{error}</p>}<button type="button" onClick={submit} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">ثبت کالا</button></div></Modal>;
+  useEffect(() => {
+    if (!open) return;
+    if (initial) { setName(initial.name); setUnit(initial.unit); setKind(initial.kind); setStock(initial.stock); setMin(initial.min); setCost(initial.cost); setError(""); }
+  }, [open, initial]);
+  const submit = () => { if (!name.trim()) return setError("نام کالا را وارد کنید."); onSubmit({ id: initial?.id ?? `item-${Date.now()}`, name: name.trim(), unit: unit.trim() || "عدد", kind, stock, min, cost }); setName(""); setStock(0); setMin(0); setCost(0); setError(""); };
+  return <Modal open={open} onClose={onClose} title={initial ? "ویرایش کالای انبار" : "کالای انبار"} description="نهاده یا محصول را با موجودی و حد سفارش ثبت کنید." size="md"><div className="space-y-3 p-5"><div className="grid gap-3 sm:grid-cols-2"><TextField label="نام کالا" value={name} onChange={setName} placeholder="کود اوره" /><TextField label="واحد" value={unit} onChange={setUnit} placeholder="کیسه" /><SelectField label="نوع" value={kind} onChange={(value) => setKind(value as "input" | "product")} options={[{ value: "input", label: "نهاده" }, { value: "product", label: "محصول" }]} /><AmountField label="موجودی اولیه" value={stock} onChange={setStock} /><AmountField label="حد سفارش" value={min} onChange={setMin} /><AmountField label="بهای واحد" value={cost} onChange={setCost} /></div>{error && <p className="text-[10px] text-[#f0a59a]">{error}</p>}<button type="button" onClick={submit} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">{initial ? "ذخیره تغییرات" : "ثبت کالا"}</button></div></Modal>;
 }
 
 function MoveModal({ open, items, onClose, onSubmit }: { open: boolean; items: InventoryItem[]; onClose: () => void; onSubmit: (move: InventoryMove) => void }) {
