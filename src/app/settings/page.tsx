@@ -19,9 +19,9 @@ export default async function SettingsPage() {
   const rows: { label: string; value: string }[] = [
     { label: "سطح زیرکشت", value: `${formatNumber(o.totals.landArea, 1)} هکتار` },
     { label: "تعداد کشت‌ها", value: formatNumber(o.cropStats.length) },
-    { label: "ارزش انبار", value: `${formatMoney(Math.round(o.totals.inventoryValue))}` },
-    { label: "بدهی تسویه‌نشده", value: `${formatMoney(o.totals.payable)}` },
-    { label: "طلب وصول‌نشده", value: `${formatMoney(o.totals.receivable)}` },
+    { label: "ارزش انبار", value: formatMoney(Math.round(o.totals.inventoryValue)) },
+    { label: "بدهی تسویه‌نشده", value: formatMoney(o.totals.payable) },
+    { label: "طلب وصول‌نشده", value: formatMoney(o.totals.receivable) },
   ];
 
   return (
@@ -32,7 +32,7 @@ export default async function SettingsPage() {
         <StatCard label="وضعیت پایگاه داده" value={seeded ? "آماده" : "در حال راه‌اندازی"} tone={seeded ? "farm" : "red"} icon="check" />
         <StatCard label="موتور هوش" value={aiProvider} tone="slate" icon="sparkles" />
         <StatCard label="حالت‌های هوش" value="پشتیبان + دستیار" tone="farm" icon="bolt" />
-        <StatCard label="نسخه" value="1.0.0" tone="clay" icon="settings" hint="وب و اندروید ۸ به بالا" />
+        <StatCard label="نسخه" value="1.0.0" tone="clay" icon="settings" hint="نسخه ثابت تا انتشار رسمی — وب و اندروید ۸ به بالا" />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -98,17 +98,17 @@ export default async function SettingsPage() {
               فایل APK (اندروید ۸ و بالاتر)
             </p>
             <p className="mt-1.5 text-[11px] leading-6 text-[#5b6a5e]">
-              بسته اندروید با Capacitor ساخته می‌شود؛ شرط minSdk = 26 (اندروید ۸). فایل نهایی و مشخصات کلید امضا در صفحه اصلی مخزن گیت‌هاب پروژه درج شده
-              است.
+              بسته اندروید با Capacitor ساخته می‌شود؛ شرط minSdk = 26 (اندروید ۸). نسخه تا اولین انتشار رسمی روی ۱.۰.۰ ثابت می‌ماند و با هر تغییر در
+              شاخه main به‌صورت خودکار بازسازی می‌شود. لینک دانلود و مشخصات کلید امضا در صفحه اصلی مخزن گیت‌هاب است.
             </p>
             <a
-              href="https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk"
+              href="https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.0/KishavarHesab-1.0.0.apk"
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-farm-700 px-3 py-2 text-[11px] font-bold text-white"
             >
               <Icon name="box" className="h-3.5 w-3.5" />
-              دانلود مستقیم APK (۳.۹ مگابایت)
+              دانلود مستقیم APK — نسخه ۱.۰.۰
             </a>
             <a
               href="https://github.com/havedays67-ai/kishavar-hesab"
@@ -149,7 +149,7 @@ export default async function SettingsPage() {
           ))}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Badge tone="green">داده نمونه قابل ویرایش</Badge>
+          <Badge tone="green">ویرایش و حذف در همه بخش‌ها</Badge>
           <Badge tone="blue">رابط راست‌به‌چپ و موبایل‌محور</Badge>
           <Badge tone="amber">بدون کتابخانه سنگین نمودار</Badge>
         </div>

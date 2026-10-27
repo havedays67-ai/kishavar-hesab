@@ -1,5 +1,4 @@
 /* Persian-aware formatting helpers (pure, no dependencies) */
-import { tomanWords } from "@/lib/money-words";
 
 const FA_DIGITS = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 
@@ -23,8 +22,8 @@ export function formatNumber(value: number, digits = 0): string {
   );
 }
 
-/** عدد با جداکنندهٔ هزارگان و رقم لاتین (برای مبالغ) */
-export function formatAmountNumber(value: number, digits = 0): string {
+/** Latin digits + thousands separators (as requested: 100,000,000). */
+export function formatLatin(value: number, digits = 0): string {
   if (!Number.isFinite(value)) return "0";
   return new Intl.NumberFormat("en-US", {
     minimumFractionDigits: digits,
@@ -33,30 +32,71 @@ export function formatAmountNumber(value: number, digits = 0): string {
 }
 
 /**
- * مبالغ در پایگاه داده «تومان» ذخیره می‌شوند.
- * نمایش به ریال است: ۱۰٫۰۰۰٫۰۰۰ تومان → «100,000,000 ریال»
+ * همه مبالغ در پایگاه داده به «تومان» ذخیره می‌شوند.
+ * نمایش رسمی به «ریال» و با جداکننده هزارگان است: 100,000,000 ریال
  */
+export function formatRialNumber(valueInToman: number): string {
+  return formatLatin(Math.round(valueInToman || 0) * 10);
+}
+
+/** مبلغ ذخیره‌شده (تومان) → «100,000,000 ریال» */
 export function formatMoney(value: number, opts?: { sign?: boolean }): string {
-  const toman = Math.round(value || 0);
-  const rial = Math.abs(toman) * 10;
-  const sign = opts?.sign && toman > 0 ? "+" : toman < 0 ? "−" : "";
-  return `${sign}${formatAmountNumber(rial)} ریال`;
+  const v = Math.round(value || 0);
+  const sign = opts?.sign && v > 0 ? "+" : v < 0 ? "−" : "";
+  return `${sign}${formatRialNumber(Math.abs(v))} ریال`;
 }
 
-/** همان formatMoney با نام صریح‌تر برای خوانایی کد */
-export function formatRial(value: number, opts?: { sign?: boolean }): string {
-  return formatMoney(value, opts);
+const WORD_ONES = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+const WORD_TEENS = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+const WORD_TENS = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+const WORD_HUNDREDS = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+const WORD_SCALES = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
+
+function threeDigitsToWords(value: number): string {
+  const parts: string[] = [];
+  const hundreds = Math.floor(value / 100);
+  if (hundreds) parts.push(WORD_HUNDREDS[hundreds]);
+  const rest = value % 100;
+  if (rest >= 10 && rest < 20) {
+    parts.push(WORD_TEENS[rest - 10]);
+  } else {
+    const tens = Math.floor(rest / 10);
+    const ones = rest % 10;
+    if (tens) parts.push(WORD_TENS[tens]);
+    if (ones) parts.push(WORD_ONES[ones]);
+  }
+  return parts.filter(Boolean).join(" و ");
 }
 
-/** معادل حروفی مبلغ، بر حسب تومان: «ده میلیون تومان» */
-export function formatMoneyWords(value: number): string {
-  return tomanWords(value);
+/** 25_000_000 → «بیست و پنج میلیون» */
+export function numberToPersianWords(value: number): string {
+  let rest = Math.round(Math.abs(value || 0));
+  if (!rest) return "صفر";
+  const groups: string[] = [];
+  let scale = 0;
+  while (rest > 0 && scale < WORD_SCALES.length) {
+    const group = rest % 1000;
+    if (group) {
+      const words = threeDigitsToWords(group);
+      groups.unshift(`${words}${scale ? ` ${WORD_SCALES[scale]}` : ""}`);
+    }
+    rest = Math.floor(rest / 1000);
+    scale += 1;
+  }
+  return groups.join(" و ");
 }
 
-/** مبلغ ریالی ورودی کاربر → تومان برای ذخیره‌سازی */
-export function rialsToToman(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.round(value / 10);
+/**
+ * حروفی مبلغ به «تومان» نوشته می‌شود (مثلاً ۱۰۰ میلیون ریال → «ده میلیون تومان»).
+ */
+export function formatMoneyWords(valueInToman: number): string {
+  const v = Math.round(valueInToman || 0);
+  return `${v < 0 ? "منفی " : ""}${numberToPersianWords(v)} تومان`;
+}
+
+/** دو خط نمایش مبلغ: عدد ریالی مرتب + حروفی تومانی */
+export function moneyLines(valueInToman: number): { rial: string; words: string } {
+  return { rial: formatMoney(valueInToman), words: formatMoneyWords(valueInToman) };
 }
 
 export function formatCompactMoney(value: number): string {
@@ -69,7 +109,7 @@ export function formatCompactMoney(value: number): string {
 }
 
 export function formatMoneyUnit(value: number): string {
-  return `${formatMoney(value)} · ${tomanWords(value)}`;
+  return `${formatMoney(value)} تومان`;
 }
 
 export const JALALI_MONTHS = [

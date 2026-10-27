@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatMoney, formatMoneyWords } from "@/lib/format";
 
 /* --------------------------------- icons --------------------------------- */
 
@@ -20,6 +21,7 @@ const ICON_PATHS: Record<string, ReactNode> = {
   check: <><path d="M20 6 9 17l-5-5" /></>,
   alert: <><path d="M12 3 2 21h20z" /><path d="M12 9v5M12 18h.01" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
+  edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 11h18" /></>,
   arrow: <><path d="M19 12H5" /><path d="m12 5-7 7 7 7" /></>,
   phone: <path d="M5 3h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2Z" />,
@@ -160,6 +162,36 @@ export function Progress({ value, tone = "farm" }: { value: number; tone?: "farm
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#eee9dc]">
       <div className={`h-full rounded-full ${tones[tone]}`} style={{ width: `${Math.min(100, Math.max(2, value * 100))}%` }} />
     </div>
+  );
+}
+
+/** نمایش استاندارد مبلغ: عدد ریالی مرتب‌شده + حروفی تومانی */
+export function Amount({
+  value,
+  tone = "plain",
+  className = "",
+  showWords = true,
+}: {
+  value: number;
+  tone?: "plain" | "income" | "expense" | "muted";
+  className?: string;
+  showWords?: boolean;
+}) {
+  const tones = {
+    plain: "text-[#2b3a2e]",
+    income: "text-farm-700",
+    expense: "text-clay-600",
+    muted: "text-[#7c8a7f]",
+  } as const;
+  return (
+    <span className={`block ${className}`}>
+      <span className={`num block whitespace-nowrap font-bold ${tones[tone]}`}>{formatMoney(value)}</span>
+      {showWords ? (
+        <span className="mt-0.5 block whitespace-normal text-[10px] font-normal leading-4 text-[#84907f]">
+          {formatMoneyWords(value)}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

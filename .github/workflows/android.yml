@@ -15,13 +15,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "offline/**"
-      - "capacitor-web/**"
-      - "scripts/**"
-      - "capacitor.config.ts"
-      - "package.json"
-      - ".github/workflows/android.yml"
     tags:
       - "v*"
 

@@ -48,9 +48,11 @@ describe("پول و ورودی فارسی", () => {
     expect(toAmount("1,500,000")).toBe(1500000);
     expect(toAmount("abc")).toBe(0);
   });
-  it("قالب‌بندی فارسی و واحد تومان", () => {
+  it("قالب‌بندی مبلغ به ریال با معادل حروفی تومان", () => {
+    expect(fmt(450000)).toContain("ریال");
     expect(fmt(450000)).toContain("تومان");
-    expect(fmt(0)).toBe("۰ تومان");
+    expect(fmt(450000)).toBe("4,500,000 ریال · چهارصد و پنجاه هزار تومان");
+    expect(fmt(0)).toBe("0 ریال · صفر تومان");
     expect(fmt(-1200)).toContain("−");
   });
 });

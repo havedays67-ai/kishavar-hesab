@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { getFarmOverview, getTasks } from "@/lib/data";
 import { formatDate, formatMoney, formatMoneyWords, formatNumber, pct, todayISO, statusLabel } from "@/lib/format";
-import { Card, Icon, StatCard, Badge, Progress, EmptyState } from "@/components/ui";
+import { Amount, Card, Icon, StatCard, Badge, Progress, EmptyState } from "@/components/ui";
+import { RecordActions } from "@/components/RecordActions";
 import { MonthlyBars, Donut } from "@/components/charts";
-import { toggleTask } from "@/app/actions";
+import { createTask, toggleTask } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const [o, tasks] = await Promise.all([getFarmOverview(), getTasks()]);
-  const openTasks = tasks.filter((t) => t.status === "open").slice(0, 4);
+  const openTasks = tasks.slice(0, 8);
   const profitTone = o.totals.profit >= 0 ? "farm" : "red";
 
   return (
@@ -28,7 +29,7 @@ export default async function DashboardPage() {
               {o.totals.landArea > 0
                 ? `${formatNumber(o.totals.landArea, 1)} هکتار زمین، ${formatNumber(o.totals.activeCrops)} کشت فعال. سود خالص تا امروز ${formatMoney(
                     o.totals.profit,
-                  )} است (${formatMoneyWords(o.totals.profit)}).`
+                  )} است.`
                 : "برای شروع، زمین و کشت خود را ثبت کنید یا از دستیار هوشمند بخواهید اطلاعات را وارد کند."}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -46,12 +47,10 @@ export default async function DashboardPage() {
             <div className="rounded-xl bg-white/10 p-3">
               <span className="block text-[10px] text-farm-100">درآمد کل</span>
               <span className="num mt-1 block text-sm font-bold">{formatMoney(o.totals.income)}</span>
-              <span className="num mt-0.5 block text-[9px] text-farm-100/90">{formatMoneyWords(o.totals.income)}</span>
             </div>
             <div className="rounded-xl bg-white/10 p-3">
               <span className="block text-[10px] text-farm-100">هزینه کل</span>
               <span className="num mt-1 block text-sm font-bold">{formatMoney(o.totals.expense)}</span>
-              <span className="num mt-0.5 block text-[9px] text-farm-100/90">{formatMoneyWords(o.totals.expense)}</span>
             </div>
             <div className="col-span-2 rounded-xl bg-[#d8a24a]/20 p-3">
               <span className="block text-[10px] text-farm-100">حاشیه سود</span>
@@ -62,10 +61,10 @@ export default async function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="سود / زیان خالص" value={`${formatMoney(o.totals.profit)}`} tone={profitTone} icon="chart" hint={`درآمد منهای هزینه · ${formatMoneyWords(o.totals.profit)}`} />
-        <StatCard label="هزینه هر هکتار" value={o.totals.landArea ? `${formatMoney(Math.round(o.totals.expense / o.totals.landArea))}` : "—"} tone="clay" icon="land" hint={o.totals.landArea ? formatMoneyWords(Math.round(o.totals.expense / o.totals.landArea)) : "برای مقایسه قطعات"} />
-        <StatCard label="بدهی + چک نزدیک" value={`${formatMoney(o.totals.payable + o.totals.chequeUpcoming)}`} tone="red" icon="wallet" hint={formatMoneyWords(o.totals.payable + o.totals.chequeUpcoming)} />
-        <StatCard label="طلب از دیگران" value={`${formatMoney(o.totals.receivable)}`} tone="slate" icon="phone" hint={formatMoneyWords(o.totals.receivable)} />
+        <StatCard label="سود / زیان خالص" value={formatMoney(o.totals.profit)} tone={profitTone} icon="chart" hint={formatMoneyWords(o.totals.profit)} />
+        <StatCard label="هزینه هر هکتار" value={o.totals.landArea ? formatMoney(Math.round(o.totals.expense / o.totals.landArea)) : "—"} tone="clay" icon="land" hint={o.totals.landArea ? formatMoneyWords(Math.round(o.totals.expense / o.totals.landArea)) : "برای مقایسه قطعات"} />
+        <StatCard label="بدهی + چک نزدیک" value={formatMoney(o.totals.payable + o.totals.chequeUpcoming)} tone="red" icon="wallet" hint={formatMoneyWords(o.totals.payable + o.totals.chequeUpcoming)} />
+        <StatCard label="طلب از دیگران" value={formatMoney(o.totals.receivable)} tone="slate" icon="phone" hint={formatMoneyWords(o.totals.receivable)} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -134,9 +133,18 @@ export default async function DashboardPage() {
           <div className="section-title mb-3">
             <span className="flex items-center gap-1.5">
               <Icon name="check" className="h-4 w-4 text-farm-600" />
-              کارهای پیش‌رو
+              کارها و یادآورها
             </span>
+            <span className="chip">{tasks.filter((task) => task.status === "open").length} باز</span>
           </div>
+          <form action={createTask} className="mb-2 grid gap-1.5 rounded-xl bg-sand-50 p-2 sm:grid-cols-[1fr_auto_auto]">
+            <input name="title" required placeholder="کار جدید…" className="input" />
+            <input name="dueDate" type="date" defaultValue={todayISO()} className="input num" />
+            <button type="submit" className="btn btn-primary btn-sm">
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              افزودن
+            </button>
+          </form>
           {openTasks.length ? (
             <ul className="space-y-2">
               {openTasks.map((task) => (
@@ -145,14 +153,18 @@ export default async function DashboardPage() {
                     <p className="truncate text-xs font-semibold text-[#2b3a2e]">{task.title}</p>
                     <p className="num mt-0.5 text-[10px] text-[#84907f]">
                       {task.dueDate ? formatDate(task.dueDate) : "بدون موعد"} · {statusLabel(task.priority)}
+                      {task.status === "done" ? " · انجام‌شده" : ""}
                     </p>
                   </div>
-                  <form action={toggleTask}>
-                    <input type="hidden" name="id" value={task.id} />
-                    <button type="submit" className="btn btn-sm" title="انجام شد">
-                      <Icon name="check" className="h-3.5 w-3.5" />
-                    </button>
-                  </form>
+                  <div className="flex items-center gap-1">
+                    <form action={toggleTask}>
+                      <input type="hidden" name="id" value={task.id} />
+                      <button type="submit" className="btn btn-sm" title="انجام شد">
+                        <Icon name="check" className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                    <RecordActions entity="tasks" id={task.id} label={`کار ${task.title}`} />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -213,6 +225,7 @@ export default async function DashboardPage() {
                   <th>شرح</th>
                   <th>دسته</th>
                   <th>مبلغ</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -225,8 +238,11 @@ export default async function DashboardPage() {
                         {t.categoryIcon} {t.categoryName ?? "—"}
                       </Badge>
                     </td>
-                    <td className={`num whitespace-nowrap text-xs font-bold ${t.kind === "income" ? "text-farm-700" : "text-clay-600"}`}>
-                      {t.kind === "income" ? "+" : "−"} {formatMoney(t.amount)}
+                    <td>
+                      <Amount value={t.kind === "income" ? t.amount : -t.amount} tone={t.kind === "income" ? "income" : "expense"} showWords={false} className="text-xs" />
+                    </td>
+                    <td>
+                      <RecordActions entity="transactions" id={t.id} label={`تراکنش ${t.description || t.party || t.id}`} />
                     </td>
                   </tr>
                 ))}

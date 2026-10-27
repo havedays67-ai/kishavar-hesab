@@ -180,7 +180,7 @@ export default async function ReportsPage({
             </div>
             <div className="flex items-center justify-between rounded-xl bg-farm-50 px-3 py-2.5">
               <span className="text-xs font-bold text-farm-900">سود / زیان دوره</span>
-              <span className={`num text-sm font-extrabold ${profit >= 0 ? "text-farm-800" : "text-red-600"}`}>{formatMoney(profit)}<small className="mt-0.5 block text-[10px] font-normal text-[#84907f]">{formatMoneyWords(profit)}</small></span>
+              <span className={`num text-sm font-extrabold ${profit >= 0 ? "text-farm-800" : "text-red-600"}`}>{formatMoney(profit)}</span>
             </div>
           </div>
         </Card>

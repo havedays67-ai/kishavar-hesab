@@ -2,9 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCrops, getFarmOverview, getLabor, getLands, listTransactions } from "@/lib/data";
 import { formatDate, formatMoney, formatMoneyWords, formatNumber, statusLabel } from "@/lib/format";
-import { Badge, Card, EmptyState, Icon, PageHeader, Progress, StatCard } from "@/components/ui";
-import { DeleteForm } from "@/components/record-actions";
-import { deleteLabor, deleteTransaction } from "@/app/actions";
+import { Amount, Badge, Card, EmptyState, Icon, PageHeader, Progress, StatCard } from "@/components/ui";
+import { RecordActions } from "@/components/RecordActions";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +35,13 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
         subtitle={`${formatNumber(land.areaHa, 1)} هکتار · ${land.region || "منطقه نامشخص"} · ${land.irrigation || "آبیاری نامشخص"}`}
         icon="land"
         actions={
-          <Link href="/lands" className="btn btn-sm">
-            <Icon name="arrow" className="h-3.5 w-3.5" />
-            همه زمین‌ها
-          </Link>
+          <>
+            <Link href="/lands" className="btn btn-sm">
+              <Icon name="arrow" className="h-3.5 w-3.5" />
+              همه زمین‌ها
+            </Link>
+            <RecordActions entity="lands" id={land.id} label={`زمین ${land.name}`} redirectTo="/lands" />
+          </>
         }
       />
 
@@ -47,7 +49,7 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
         <StatCard label="درآمد این قطعه" value={formatMoney(income)} hint={formatMoneyWords(income)} tone="farm" icon="chart" />
         <StatCard label="هزینه این قطعه" value={formatMoney(expense)} hint={formatMoneyWords(expense)} tone="clay" icon="receipt" />
         <StatCard label="سود قطعه" value={formatMoney(profit)} hint={formatMoneyWords(profit)} tone={profit >= 0 ? "farm" : "red"} icon="wallet" />
-        <StatCard label="هزینه هر هکتار" value={formatMoney(Math.round(stat?.costPerHa ?? 0))} tone="slate" icon="land" />
+        <StatCard label="هزینه هر هکتار" value={formatMoney(Math.round(stat?.costPerHa ?? 0))} hint={formatMoneyWords(Math.round(stat?.costPerHa ?? 0))} tone="slate" icon="land" />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -98,15 +100,18 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                       <span className="text-xs font-bold text-farm-900">
                         {crop.name} {crop.variety ? `· ${crop.variety}` : ""}
                       </span>
-                      <Badge tone={crop.status === "harvested" ? "green" : crop.status === "planned" ? "neutral" : "amber"}>
-                        {statusLabel(crop.status)}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge tone={crop.status === "harvested" ? "green" : crop.status === "planned" ? "neutral" : "amber"}>
+                          {statusLabel(crop.status)}
+                        </Badge>
+                        <RecordActions entity="crops" id={crop.id} label={`کشت ${crop.name}`} />
+                      </div>
                     </div>
                     <div className="num mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[#7c8a7f]">
                       <span>کاشت: {formatDate(crop.plantingDate)}</span>
                       <span>برداشت: {formatDate(crop.harvestDate)}</span>
                       <span>عملکرد: {formatNumber(crop.actualYieldKg || crop.expectedYieldKg)} کیلو</span>
-                      {cs ? <span>سود کشت: {formatMoney(cs.profit)}</span> : null}
+                      {cs ? <span>سود کشت: {formatMoney(cs.profit)} ({formatMoneyWords(cs.profit)})</span> : null}
                     </div>
                   </div>
                 );
@@ -133,8 +138,8 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                   <th>دسته</th>
                   <th>شرح</th>
                   <th>طرف حساب</th>
-                  <th>مبلغ (ریال)</th>
-                  <th>حذف</th>
+                  <th>مبلغ</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -147,12 +152,11 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                     <td className="whitespace-nowrap text-xs">{t.categoryName ?? "—"}</td>
                     <td className="max-w-[200px] truncate text-xs">{t.description || "—"}</td>
                     <td className="whitespace-nowrap text-[11px] text-[#7c8a7f]">{t.party || "—"}</td>
-                    <td className={`num whitespace-nowrap text-xs font-bold ${t.kind === "income" ? "text-farm-700" : "text-clay-600"}`}>
-                      {formatMoney(t.amount)}
-                      <span className="mt-0.5 block text-[9px] font-normal text-[#84907f]">{formatMoneyWords(t.amount)}</span>
+                    <td>
+                      <Amount value={t.amount} tone={t.kind === "income" ? "income" : "expense"} />
                     </td>
                     <td>
-                      <DeleteForm action={deleteTransaction} id={t.id} label="حذف تراکنش" confirmText={`تراکنش ${formatMoney(t.amount)} حذف شود؟`} />
+                      <RecordActions entity="transactions" id={t.id} label={`تراکنش ${t.description || t.party || t.id}`} />
                     </td>
                   </tr>
                 ))}
@@ -173,9 +177,11 @@ export default async function LandDetailPage({ params }: { params: Promise<{ id:
                 <span className="truncate">
                   {l.workerName} — {l.task}
                 </span>
-                <span className="num shrink-0 font-semibold">{formatMoney(l.amount)}</span>
-                <Badge tone={l.paid ? "green" : "red"}>{l.paid ? "پرداخت‌شده" : "پرداخت‌نشده"}</Badge>
-                <DeleteForm action={deleteLabor} id={l.id} label="حذف دستمزد" confirmText="این دستمزد حذف شود؟" />
+                <div className="flex items-center gap-2">
+                  <Amount value={l.amount} showWords={false} className="shrink-0 font-semibold" />
+                  <Badge tone={l.paid ? "green" : "red"}>{l.paid ? "پرداخت‌شده" : "پرداخت‌نشده"}</Badge>
+                  <RecordActions entity="labor_logs" id={l.id} label={`دستمزد ${l.workerName}`} />
+                </div>
               </li>
             ))}
           </ul>
