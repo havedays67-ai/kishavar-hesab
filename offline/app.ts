@@ -119,6 +119,11 @@ function handle(text: string): void {
     render();
     return;
   }
+  if (state.draft) {
+    state.messages.push({ role: "bot", text: "یک پیش‌نویس باز است. اول «تأیید» یا «لغو» را بفرست." });
+    render();
+    return;
+  }
   if (/(پاک|حذف همه|ریست|reset)/.test(t)) {
     state.messages.push({ role: "bot", text: "برای پاک کردن داده‌ها از تب «گزارش» و دکمه «پاک کردن همه داده‌ها» استفاده کن. من به‌تنهایی چیزی را پاک نمی‌کنم." });
     render();
