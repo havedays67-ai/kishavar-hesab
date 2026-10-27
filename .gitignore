@@ -41,3 +41,6 @@ __pycache__/
 
 # dependency folder (never commit)
 /node_modules
+
+# آزمایشی: کلید ثابت debug برای ساخت قابل ارتقا (کلید تولید نیست)
+!signing/debug.keystore
