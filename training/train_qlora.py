@@ -161,6 +161,8 @@ def main() -> int:
     parser.add_argument("--adapter", default=None)
     parser.add_argument("--hard-test", default=None)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--save-steps", type=int, default=100, help="چک‌پوینت هر چند قدم (برای ادامه بعد از قطع سشن)")
+    parser.add_argument("--resume", action="store_true", help="ادامه از آخرین چک‌پوینت در --out")
     args = parser.parse_args()
 
     import torch
@@ -257,7 +259,9 @@ def main() -> int:
             lr_scheduler_type="cosine",
             warmup_ratio=0.03,
             logging_steps=10,
-            save_strategy="no",
+            save_strategy="steps",
+            save_steps=args.save_steps,
+            save_total_limit=2,
             eval_strategy="no",
             bf16=bf16,
             fp16=not bf16,
@@ -275,7 +279,7 @@ def main() -> int:
             eval_dataset=val_ds,
             data_collator=Collator(),
         )
-        trainer.train()
+        trainer.train(resume_from_checkpoint=args.resume or None)
         model.save_pretrained(args.out)
         tokenizer.save_pretrained(args.out)
 
