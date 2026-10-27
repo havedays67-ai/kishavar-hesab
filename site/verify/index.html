@@ -27,6 +27,8 @@
   .note{margin-top:16px;border:1px solid rgba(227,196,127,.22);background:rgba(227,196,127,.06);border-radius:12px;padding:10px 12px;font-size:10px;line-height:1.9;color:#d8cca6}
   .btn{display:block;text-align:center;margin-top:14px;background:var(--mint);color:#07110d;text-decoration:none;border-radius:12px;padding:11px;font-size:12px;font-weight:800}
   .empty{font-size:12px;color:var(--muted);line-height:2}
+  .backhint{margin:10px 0 0;text-align:center;font-size:9px;line-height:1.9;color:var(--muted)}
+  button.btn{border:0;cursor:pointer;width:100%;font-family:inherit}
 </style>
 </head>
 <body>
@@ -43,7 +45,8 @@
   <div class="note">
     این صفحه فقط می‌تواند «یکپارچگی داده ثبت‌شده در QR» را کنترل کند (اینکه اطلاعات دست‌کاری نشده باشد). کد کنترل، امضای الکترونیکی یا تأیید حقوقی نیست و جایگزین ثبت رسمی، مهر و امضای حضوری یا استعلام از صادرکننده اصلی نمی‌شود.
   </div>
-  <a class="btn" href="https://github.com/havedays67-ai/kishavar-hesab">صفحه رسمی برنامه در GitHub</a>
+  <button class="btn" type="button" id="backBtn">بازگشت به برنامه</button>
+  <p class="backhint" id="backHint">اگر صفحه از داخل برنامه با اسکن QR باز شده باشد، این دکمه به برنامه برمی‌گردد؛ در غیر این صورت مرورگر را ببندید.</p>
 </main>
 <script>
   const PARAM_KEYS = ["s","k","d","a","c"];
@@ -84,6 +87,11 @@
       '<tr><td>کد محاسبه‌شده</td><td class="code">' + expected + '</td></tr>' +
       '</table>' + (valid ? "" : '<div class="note">اگر کد نمی‌خواند، ممکن است QR یا بخشی از نشانی در اسکن تغییر کرده باشد. شماره سند و کد کنترل چاپ‌شده را با صادرکننده تطبیق دهید.</div>');
   }
+  document.getElementById("backBtn").addEventListener("click", function () {
+    if (window.history.length > 1) window.history.back();
+    else if (document.referrer) location.href = document.referrer;
+    else document.getElementById("backHint").textContent = "صفحه‌ای برای بازگشت پیدا نشد. برنامه را از فهرست برنامه‌های گوشی باز کنید.";
+  });
 </script>
 </body>
 </html>
