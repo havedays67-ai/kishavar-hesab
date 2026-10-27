@@ -355,6 +355,16 @@ export function todayJalali(): string {
   return formatJalaliNumeric(todayInIranISO());
 }
 
+/** تاریخ شمسی امروز + یک سال؛ برای تاریخ پایان پیش‌فرض قرارداد */
+export function todayJalaliNextYear(): string {
+  const today = parseISO(todayInIranISO());
+  if (!today) return todayJalali();
+  const { jy, jm, jd } = gregorianToJalali(today.getUTCFullYear(), today.getUTCMonth() + 1, today.getUTCDate());
+  const nextYear = jy + 1;
+  const nextDay = Math.min(jd, jalaliMonthLength(nextYear, jm));
+  return formatJalaliNumeric(jalaliToISO(nextYear, jm, nextDay));
+}
+
 export function currentJalaliYear(): number {
   const d = parseISO(todayInIranISO());
   if (!d) return 1404;

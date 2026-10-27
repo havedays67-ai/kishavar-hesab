@@ -736,7 +736,7 @@ function formBudget(db: E.DB): string {
 function formContact(): string {
   return `<form data-form="contact">
     <label>نام</label><input name="name" required />
-    <label>نوع</label><select name="kind"><option value="customer">مشتری</option><option value="supplier">تأمین‌کننده</option><option value="both">هر دو</option><option value="worker">کارگر</option><option value="partner">شریک</option></select>
+    <label>نوع</label><select name="kind"><option value="customer">مشتری</option><option value="supplier">تأمین‌کننده</option><option value="both">هر دو</option><option value="worker">کارگر</option><option value="partner">شریک</option><option value="landlord">مالک زمین (موجر)</option><option value="tenant">مستاجر / بهره‌بردار</option></select>
     <label>تلفن</label><input name="phone" inputmode="tel" />
     <button class="btn pri" type="submit" style="width:100%">ثبت طرف‌حساب</button>
   </form>`;
@@ -956,21 +956,32 @@ function initSignaturePads(): void {
 
 function leaseForm(): string {
   const today = E.todayISO();
-  return `<form data-form="lease">
+  const startJalali = E.formatJalali(today);
+  const endJalali = E.formatJalali(E.addMonths(today, 12));
+  const contacts = [...state.db.contacts].sort((a, b) => Number(b.kind === "landlord") - Number(a.kind === "landlord"));
+  const existingOptions = contacts.length
+    ? `<label>یا انتخاب از طرف‌حساب‌های موجود</label>
+       <select name="counterpartyId"><option value="">— طرف قرارداد جدید (از کادرهای زیر) —</option>${options(contacts.map((contact) => ({ id: contact.id, name: `${contact.name} — ${E.contactKindLabel(contact.kind)}` })))}</select>`
+    : `<div class="note">هنوز طرف‌حسابی ثبت نشده است. نام مالک/مستاجر را در کادرهای زیر بنویسید؛ هنگام ثبت قرارداد، خودکار ساخته می‌شود.</div>`;
+  return `<form data-form="lease" autocomplete="off">
     <div class="note">اول جهت قرارداد را انتخاب کنید: اگر زمین را برای کشت می‌گیرید شما <b>مستاجر</b> هستید و طرف قرارداد مالک زمین است؛ اگر زمین/باغ خود را به کشاورز می‌دهید شما <b>موجر</b> هستید. سند مالی بر همین اساس ساخته می‌شود.</div>
     <label>جهت قرارداد (نقش من)</label>
-    <select name="role" required><option value="tenant" selected>${LEASE_ROLE_LABEL.tenant}</option><option value="owner">${LEASE_ROLE_LABEL.owner}</option></select>
+    <select name="role" data-lease-role required><option value="tenant" selected>${LEASE_ROLE_LABEL.tenant}</option><option value="owner">${LEASE_ROLE_LABEL.owner}</option></select>
     <label>عنوان ملک / زمین</label><input name="title" required placeholder="زمین آبی روستای سبز — ۴ هکتار" />
     <div class="grid2">
       <div><label>نوع قرارداد</label><select name="kind"><option value="cash">اجاره نقدی</option><option value="share">مزارعه (سهم محصول)</option><option value="mixed">اجاره + سهم محصول</option></select></div>
       <div><label>محصول</label><input name="crop" placeholder="گندم" /></div>
     </div>
-    <label>طرف قرارداد (مالک زمین اگر مستاجرید / مستاجر اگر موجرید)</label>
-    <select name="counterpartyId" required><option value="">انتخاب…</option>${options(state.db.contacts)}</select>
-    <div class="note">طرف دیگر همیشه «کسب‌وکار من» است و به‌صورت خودکار در قرارداد و اسناد نوشته می‌شود.</div>
+    <label data-lease-counterparty-label>طرف قرارداد — مالک زمین (موجر) / مستاجر (بهره‌بردار)</label>
+    ${existingOptions}
     <div class="grid2">
-      <div><label>شروع</label><input name="start" type="date" value="${today}" required /></div>
-      <div><label>پایان</label><input name="end" type="date" value="${E.addMonths(today, 12)}" required /></div>
+      <div><label>نام طرف قرارداد جدید</label><input name="counterpartyName" data-lease-party-name placeholder="نام مالک زمین" /></div>
+      <div><label>تلفن طرف قرارداد</label><input name="counterpartyPhone" inputmode="tel" placeholder="۰۹۱۲…" /></div>
+    </div>
+    <div class="note">اگر طرف قرارداد را از فهرست بالا انتخاب کردید، این دو کادر را خالی بگذارید. یکی از دو راه کافی است؛ طرف دیگر همیشه «کسب‌وکار من» است و خودکار در سند نوشته می‌شود.</div>
+    <div class="grid2">
+      <div><label>تاریخ شروع (شمسی)</label><input name="start" inputmode="numeric" value="${startJalali}" placeholder="۱۴۰۵/۰۸/۰۵" required /><div class="note">نمونه: ۱۴۰۵/۰۸/۰۵</div></div>
+      <div><label>تاریخ پایان (شمسی)</label><input name="end" inputmode="numeric" value="${endJalali}" placeholder="۱۴۰۶/۰۸/۰۵" required /><div class="note">نمونه: ۱۴۰۶/۰۸/۰۵</div></div>
     </div>
     <div class="grid2">
       <div><label>مساحت (هکتار)</label><input name="area" inputmode="decimal" value="0" /></div>
@@ -983,7 +994,7 @@ function leaseForm(): string {
     </div>
     <div class="grid2">
       <div><label>دوره پرداخت</label><select name="cycle"><option value="once">یک‌جا</option><option value="monthly">ماهانه</option><option value="seasonal" selected>فصلی</option><option value="annual">سالانه</option></select></div>
-      <div><label>سهم صاحب زمین از محصول (٪)</label><input name="sharePercent" inputmode="numeric" value="0" /></div>
+      <div><label>سهم صاحب زمین از محصول (٪)</label><input name="sharePercent" inputmode="numeric" value="0" min="0" max="99" /></div>
     </div>
     <label>حقابه / سهم آب</label><input name="waterShare" placeholder="۶ ساعت در هفته از چاه مشترک" />
     <label>هزینه آب و برق و پمپ بر عهده</label><select name="waterPaidBy"><option>مستاجر</option><option>موجر</option><option>بالتساوی</option></select></label>
@@ -992,7 +1003,7 @@ function leaseForm(): string {
     <label>پرداخت از حساب</label><select name="accountId">${options(cashAccounts(state.db))}</select>
     ${signaturePad("امضای طرف قرارداد (اختیاری، بعداً هم می‌توانید ثبت کنید)")}
     <button class="btn pri" type="submit" style="width:100%">ثبت قرارداد</button>
-    <div class="note">ارکان لازم: مورد قرارداد، مدت، مال‌الاجاره یا سهم محصول، ودیعه، حقابه، تعهدات و امضای طرفین. ثبت رسمی در دفتر اسناد رسمی برای مبالغ بالا توصیه می‌شود.</div>
+    <div class="note">ارکان لازم: مورد قرارداد، مدت، مال‌الاجاره یا سهم محصول، ودیعه، حقابه، تعهدات و امضای طرفین. تاریخ‌ها را با تقویم هجری شمسی وارد کنید. ثبت رسمی در دفتر اسناد رسمی برای مبالغ بالا توصیه می‌شود.</div>
   </form>`;
 }
 
@@ -1373,6 +1384,18 @@ function bindEvents(): void {
     render();
   });
 
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || !target.matches("[data-lease-role]")) return;
+    const form = target.closest<HTMLFormElement>('form[data-form="lease"]');
+    if (!form) return;
+    const isOwner = target.value === "owner";
+    const label = form.querySelector<HTMLElement>("[data-lease-counterparty-label]");
+    const nameInput = form.querySelector<HTMLInputElement>("[data-lease-party-name]");
+    if (label) label.textContent = isOwner ? "طرف قرارداد — مستاجر / بهره‌بردار" : "طرف قرارداد — مالک زمین (موجر)";
+    if (nameInput) nameInput.placeholder = isOwner ? "نام مستاجر / بهره‌بردار" : "نام مالک زمین (موجر)";
+  });
+
   document.getElementById("fab")?.addEventListener("click", () => openSheet("quick"));
   document.getElementById("sheetClose")?.addEventListener("click", closeSheet);
   document.getElementById("sheet")?.addEventListener("click", (event) => {
@@ -1604,18 +1627,27 @@ function bindEvents(): void {
         }
         case "lease": {
           const leaseUserRole: "tenant" | "owner" = str("role") === "owner" ? "owner" : "tenant";
-          const counterpartyId = Number(data.get("counterpartyId"));
-          let next = S.addLease(state.db, {
+          const counterparty = S.ensureLeaseCounterparty(state.db, {
+            role: leaseUserRole,
+            counterpartyId: Number(data.get("counterpartyId") || 0),
+            name: str("counterpartyName"),
+            phone: str("counterpartyPhone"),
+          });
+          const startIso = E.jalaliInputToISO(str("start"));
+          const endIso = E.jalaliInputToISO(str("end"));
+          if (!startIso || !endIso) throw new Error("تاریخ شروع و پایان را به شکل شمسی و کامل وارد کنید؛ نمونه: ۱۴۰۵/۰۸/۰۵");
+          if (endIso <= startIso) throw new Error("تاریخ پایان باید بعد از تاریخ شروع باشد.");
+          let next = S.addLease(counterparty.db, {
             title: str("title"),
             kind: (str("kind") as "cash" | "share" | "mixed") || "cash",
             role: leaseUserRole,
-            counterpartyId,
+            counterpartyId: counterparty.contactId,
             location: str("location"),
             plate: str("plate"),
             area: num("area"),
             crop: str("crop"),
-            start: str("start"),
-            end: str("end"),
+            start: startIso,
+            end: endIso,
             cycle: (str("cycle") as "once" | "monthly" | "seasonal" | "annual") || "seasonal",
             total: num("total"),
             sharePercent: num("sharePercent"),
@@ -1632,10 +1664,10 @@ function bindEvents(): void {
             next = S.addLeaseSignature(next, {
               leaseId,
               role: leaseUserRole === "tenant" ? "موجر" : "مستاجر",
-              signerName: state.db.contacts.find((c) => c.id === counterpartyId)?.name ?? "طرف قرارداد",
+              signerName: counterparty.name,
               image,
             });
-          commit(next, "قرارداد اجاره ثبت شد");
+          commit(next, "قرارداد اجاره با طرف قرارداد ثبت شد");
           break;
         }
         case "leasepay": {

@@ -658,6 +658,36 @@ export const REPORTING = {
 
 
 /** ثبت مانده اول دوره طرف‌حساب (فقط یک‌بار در شروع کار) */
+/**
+ * طرف قرارداد قرارداد زمین را قطعی می‌کند:
+ * یا از طرف‌حساب‌های قبلی انتخاب می‌شود، یا همین‌جا با نام/تلفن ساخته می‌شود.
+ * این تابع رفع باگ «فقط انتخاب…» در نصب تازه است.
+ */
+export function ensureLeaseCounterparty(
+  db: DB,
+  input: { role: "tenant" | "owner"; counterpartyId?: number; name?: string; phone?: string },
+): { db: DB; contactId: number; name: string } {
+  const selectedId = Number(input.counterpartyId ?? 0);
+  if (selectedId) {
+    const existing = db.contacts.find((contact) => contact.id === selectedId);
+    if (!existing) throw new Error("طرف قرارداد انتخاب‌شده پیدا نشد؛ دوباره انتخاب کنید.");
+    return { db, contactId: existing.id, name: existing.name };
+  }
+  const name = String(input.name ?? "").trim();
+  const phone = String(input.phone ?? "").trim();
+  if (name.length < 3) {
+    throw new Error(
+      input.role === "tenant"
+        ? "نام مالک زمین (طرف قرارداد) را وارد کنید یا از فهرست انتخاب کنید."
+        : "نام مستاجر / بهره‌بردار (طرف قرارداد) را وارد کنید یا از فهرست انتخاب کنید.",
+    );
+  }
+  const kind: Contact["kind"] = input.role === "tenant" ? "landlord" : "tenant";
+  const next = addContact(db, { name, kind, phone: phone || undefined });
+  const created = next.contacts[next.contacts.length - 1];
+  return { db: next, contactId: created.id, name: created.name };
+}
+
 export function addContactOpening(
   db: DB,
   input: { contactId: number; amount: number; side: "debit" | "credit"; date: string },

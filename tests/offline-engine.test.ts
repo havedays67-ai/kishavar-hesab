@@ -25,6 +25,7 @@ import {
   expenseOf,
   fmt,
   formatJalali,
+  jalaliInputToISO,
   fromJalali,
   incomeOf,
   invoiceRemaining,
@@ -63,6 +64,13 @@ describe("تقویم شمسی", () => {
     const j = toJalali(date);
     expect(j.jy).toBe(1405);
     expect(toISO(fromJalali(j.jy, j.jm, j.jd))).toBe("2026-10-27");
+  });
+  it("ورودی تاریخ شمسی برای فرم قرارداد", () => {
+    expect(jalaliInputToISO("۱۴۰۵/۰۸/۰۵")).toBe("2026-10-27");
+    expect(jalaliInputToISO("1405-8-5")).toBe("2026-10-27");
+    expect(jalaliInputToISO("1404/12/30")).toBeNull();
+    expect(jalaliInputToISO("1405/13/01")).toBeNull();
+    expect(jalaliInputToISO("2026-10-27")).toBeNull();
   });
   it("قالب‌بندی و دوره جاری", () => {
     expect(formatJalali("2026-10-27")).toMatch(/۱۴۰۵/);

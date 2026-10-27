@@ -4,7 +4,7 @@ import { agriContractPayments, agriContracts } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { addContractPayment, createContract, deleteContract, deleteContractPayment, setContractStatus } from "@/app/contracts/actions";
 import { Card, Disclosure, EmptyState, Field, Icon, PageHeader, StatCard } from "@/components/ui";
-import { formatDate, formatMoney, formatMoneyWords, formatNumber, todayJalali } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyWords, formatNumber, todayJalali, todayJalaliNextYear } from "@/lib/format";
 import { getContractStats } from "@/lib/contracts/service";
 import { contractTypeLabel, perspectiveLabel } from "@/lib/contracts/model";
 
@@ -92,7 +92,7 @@ export default async function ContractsPage({
             <input name="startDate" required className="input num" defaultValue={todayJalali()} placeholder="۱۴۰۴/۰۳/۱۵" />
           </Field>
           <Field label="تاریخ پایان (شمسی) *">
-            <input name="endDate" required className="input num" defaultValue={todayJalali()} placeholder="۱۴۰۵/۰۳/۱۵" />
+            <input name="endDate" required className="input num" defaultValue={todayJalaliNextYear()} placeholder="۱۴۰۶/۰۳/۱۵" />
           </Field>
           <Field label="دوره پرداخت">
             <select name="cycle" className="input" defaultValue="once">

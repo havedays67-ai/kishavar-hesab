@@ -19,7 +19,8 @@ export interface Account {
 export interface Contact {
   id: number;
   name: string;
-  kind: "customer" | "supplier" | "both" | "worker" | "partner";
+  /** customer/supplier = حساب تجاری، landlord = مالک زمین، tenant = مستاجر/بهره‌بردار */
+  kind: "customer" | "supplier" | "both" | "worker" | "partner" | "landlord" | "tenant";
   phone?: string;
 }
 
@@ -466,6 +467,24 @@ export function formatJalali(value: string | Date, style: "short" | "long" | "mo
   if (style === "month") return `${MONTHS[jm - 1]} ${faDigits(jy)}`;
   if (style === "long") return `${faDigits(jd)} ${MONTHS[jm - 1]} ${faDigits(jy)}`;
   return `${faDigits(jy)}/${faDigits(String(jm).padStart(2, "0"))}/${faDigits(String(jd).padStart(2, "0"))}`;
+}
+
+/** ورودی تاریخ شمسی (۱۴۰۵/۰۸/۰۵ یا 1405-8-5) → ISO میلادی؛ ورودی نامعتبر null */
+export function jalaliInputToISO(value: string): string | null {
+  const text = normalizeDigits(String(value ?? ""))
+    .trim()
+    .replace(/[.\-]/g, "/")
+    .replace(/\s+/g, "");
+  const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(text);
+  if (!match) return null;
+  const jy = Number(match[1]);
+  const jm = Number(match[2]);
+  const jd = Number(match[3]);
+  if (jy < 1200 || jy > 1600 || jm < 1 || jm > 12 || jd < 1 || jd > 31) return null;
+  const date = fromJalali(jy, jm, jd);
+  const back = toJalali(date);
+  if (back.jy !== jy || back.jm !== jm || back.jd !== jd) return null;
+  return toISO(date);
 }
 
 export function addDays(value: string | Date, days: number): string {
@@ -924,7 +943,16 @@ export interface ContactLedger {
 }
 
 export function contactKindLabel(kind: Contact["kind"]): string {
-  return kind === "customer" ? "مشتری" : kind === "supplier" ? "تأمین‌کننده" : kind === "both" ? "مشتری و تأمین‌کننده" : kind === "worker" ? "کارگر" : "شریک";
+  const labels: Record<Contact["kind"], string> = {
+    customer: "مشتری",
+    supplier: "تأمین‌کننده",
+    both: "مشتری و تأمین‌کننده",
+    worker: "کارگر",
+    partner: "شریک",
+    landlord: "مالک زمین (موجر)",
+    tenant: "مستاجر / بهره‌بردار",
+  };
+  return labels[kind] ?? "طرف‌حساب";
 }
 
 /** گردش کامل یک طرف‌حساب: هر ردیف با مانده‌ی تجمعی (بدهکار مثبت، بستانکار منفی) */

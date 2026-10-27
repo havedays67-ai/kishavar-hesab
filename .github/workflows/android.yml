@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Regression tests (counterparty + Jalali contract dates)
+        run: npx vitest run tests/offline-engine.test.ts tests/lease.test.ts tests/lease-forms.test.ts
+
       - name: Build offline web app
         run: npm run build:offline
 
@@ -85,7 +88,7 @@ jobs:
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' android/app/src/main/AndroidManifest.xml
           sed -i -E 's/versionCode [0-9]+/versionCode 1/' android/app/build.gradle
-          sed -i -E 's/versionName "[^"]*"/versionName "1.0"/' android/app/build.gradle
+          sed -i -E 's/versionName "[^"]*"/versionName "1.0.0"/' android/app/build.gradle
           grep -n "versionCode\|versionName" android/app/build.gradle
 
       - name: Decode release keystore (optional)
@@ -145,6 +148,27 @@ jobs:
           path: KishavarHesab-1.0.0.apk
           retention-days: 30
 
+      - name: Prepare release notes (Jalali date, single download URL)
+        run: |
+          node - <<'NODE' > release-notes.md
+          const date = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+            dateStyle: 'full',
+            timeZone: 'Asia/Tehran',
+          }).format(new Date());
+          console.log(`نسخه اندروید کشاورزحساب ۱.۰.۰ (شماره نسخه ثابت ۱ — نسخه رسمی منتشرنشده).`);
+          console.log(``);
+          console.log(`آخرین بازسازی: ${date} — تاریخ کامل شمسی به وقت ایران.`);
+          console.log(`حداقل اندروید ۸ (API 26) · امضای debug برای نسخه آزمایشی.`);
+          console.log(``);
+          console.log(`دانلود از همین صفحه: https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk`);
+          console.log(``);
+          console.log(`اصلاحات نسخه:`);
+          console.log(`- طرف قرارداد در نصب تازه دیگر خالی نیست؛ نام مالک/مستاجر مستقیم در فرم ثبت می‌شود.`);
+          console.log(`- تاریخ شروع و پایان قرارداد زمین، شمسی و اعتبارسنجی‌شده است.`);
+          console.log(`- نوع طرف‌حساب «مالک زمین» و «مستاجر» اضافه شد.`);
+          NODE
+          cat release-notes.md
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -152,19 +176,8 @@ jobs:
           name: کشاورزحساب ۱.۰ (اندروید ۸+)
           make_latest: true
           overwrite_files: true
-          body: |
-            نسخه اندروید کشاورزحساب ۱.۰ (شماره نسخه ثابت ۱ — نسخه رسمی منتشرنشده).
-            این Release با هر push روی main به‌روزرسانی می‌شود؛ لینک دانلود همیشه ثابت است:
-            https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk
-
-            حداقل اندروید ۸ (API 26). ویرایش/حذف همهٔ بخش‌ها و نمایش مبالغ به ریال + حروفی تومان.
-
-            نصب: فایل APK را دانلود کنید، «نصب از منابع ناشناس» را برای فایل‌منیجر فعال کنید و نصب کنید.
-            در اولین اجرا آدرس سرور نسخه وب را وارد کنید.
-
-            امضای این نسخه: debug اندروید (alias: androiddebugkey / storePassword: android / keyPassword: android).
-            برای نسخه امضاشده اختصاصی، Secrets مربوط به KEYSTORE_* را تنظیم کنید.
+          body_path: release-notes.md
           files: KishavarHesab-1.0.0.apk
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

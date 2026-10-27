@@ -13,6 +13,7 @@ import {
   demoSignature,
   emptyDB,
   endLease,
+  ensureLeaseCounterparty,
   settleCheque,
 } from "../offline/store";
 import { balanceSheet, cashOf, codeOf, expenseOf, todayISO, trialBalance } from "../offline/engine";
@@ -83,6 +84,47 @@ describe("اجاره — اعتبارسنجی ارکان قرارداد", () => 
     expect(validateLeaseInput({ title: "x", landlordId: 1, tenantId: 1, start: "2026-01-01", end: "2026-06-01", kind: "cash", total: 100, sharePercent: 0 })).toContain("یک نفر");
     expect(validateLeaseInput({ title: "x", landlordId: 1, tenantId: 2, start: "2026-06-01", end: "2026-01-01", kind: "cash", total: 100, sharePercent: 0 })).toContain("پایان");
     expect(() => addLease(emptyDB(), { title: "", kind: "cash", landlordId: 1, tenantId: 2, location: "", plate: "", area: 0, crop: "", start: "2026-01-01", end: "2026-06-01", cycle: "once", total: 100, sharePercent: 0, deposit: 0, waterShare: "", waterPaidBy: "", terms: "", witnesses: "" })).toThrow();
+  });
+
+  it("نصب تازه: طرف قرارداد گم‌شده خودکار ساخته می‌شود و قرارداد ثبت می‌شود", () => {
+    const fresh = ensureLeaseCounterparty(emptyDB(), {
+      role: "tenant",
+      name: "حاج رضا کاویانی",
+      phone: "09120000000",
+    });
+    expect(fresh.db.contacts).toHaveLength(1);
+    expect(fresh.db.contacts[0].kind).toBe("landlord");
+    expect(fresh.contactId).toBe(fresh.db.contacts[0].id);
+    const next = addLease(fresh.db, {
+      title: "قطعه شمالی",
+      kind: "cash",
+      role: "tenant",
+      counterpartyId: fresh.contactId,
+      location: "پارس‌آباد",
+      plate: "۱۲/۳",
+      area: 2,
+      crop: "گندم",
+      start: "2026-10-27",
+      end: "2027-10-27",
+      cycle: "monthly",
+      total: 120_000_000,
+      sharePercent: 0,
+      deposit: 10_000_000,
+      waterShare: "۶ ساعت در هفته",
+      waterPaidBy: "مستاجر",
+      terms: "کشت گندم",
+      witnesses: "",
+    });
+    expect(next.leases[0].role).toBe("tenant");
+    expect(next.leases[0].landlordId).toBe(fresh.contactId);
+    expect(next.leases[0].tenantId).toBe(0);
+    expect(next.leases[0].start).toBe("2026-10-27");
+  });
+
+  it("زمین را اجاره می‌دهم (موجر): طرف مقابل مستاجر ساخته می‌شود", () => {
+    const fresh = ensureLeaseCounterparty(emptyDB(), { role: "owner", name: "سعید نوروزی" });
+    expect(fresh.db.contacts[0].kind).toBe("tenant");
+    expect(() => ensureLeaseCounterparty(emptyDB(), { role: "owner", name: "" })).toThrow();
   });
 
   it("مزارعه بدون سهم کسری معتبر رد می‌شود", () => {
