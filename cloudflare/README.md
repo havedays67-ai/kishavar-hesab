@@ -37,3 +37,9 @@ curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/worker
 3. دوباره استقرار بدهید و با `curl /api/latest.json` بررسی کنید.
 
 > عدد نسخه/هش را از خروجی واقعی build بگیرید؛ هیچ عدد دستی و ادعایی در manifest نمی‌نویسیم.
+
+
+## نسخه آفلاین MVP
+
+- APK: `apk-offline-mvp` → `KishavarHesab-1.0.0-offline.apk`
+- بدون سرور؛ داده‌ها روی گوشی؛ مدل هنوز همراه نیست.

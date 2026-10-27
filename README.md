@@ -7,7 +7,7 @@
 > وضعیت: نسخه `1.0.0` (وب + APK) و `1.1` (هسته آفلاین، دیتاست و خط لوله آموزش). APK اندروید ۸+ در Releases است.
 
 ### 🚀 شروع سریع
-- **دانلود اپ اندروید:** [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk)
+- **دانلود اپ اندروید:** [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-offline-mvp/KishavarHesab-1.0.0-offline.apk)
 - **اجرای نسخه وب:** `cp .env.example .env` ← تنظیم `DATABASE_URL` ← `npm install` ← `npx drizzle-kit push` ← `npm run dev`
 - **آموزش و معماری:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **تصمیم آفلاین و مدل:** [docs/ROADMAP-DECISION.md](docs/ROADMAP-DECISION.md)
 - **پایگاه دانش داخل نرم‌افزار:** `/knowledge` · **تست موتور:** `npx vitest run`
@@ -18,7 +18,7 @@
 
 | مورد | مقدار |
 |---|---|
-| ⬇️ دانلود مستقیم APK | **[KishavarHesab-1.0.0.apk (۳.۹ مگابایت)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.2/KishavarHesab-1.0.0.apk)** |
+| ⬇️ دانلود مستقیم APK | **[KishavarHesab-1.0.0-offline.apk (۳.۸ مگابایت)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-offline-mvp/KishavarHesab-1.0.0-offline.apk)** |
 | صفحه نسخه | [Releases · apk-v1.0.2](https://github.com/havedays67-ai/kishavar-hesab/releases/tag/apk-v1.0.2) |
 | آخرین نسخه‌ها | [releases/latest](https://github.com/havedays67-ai/kishavar-hesab/releases/latest) |
 | وضعیت ساخت | ✅ ساخته‌شده با GitHub Actions (Build موفق، خروجی ۳٬۹ مگابایت) |
@@ -55,7 +55,7 @@
 ### نصب روی گوشی
 1. فایل APK را دانلود کنید.
 2. در گوشی، «نصب برنامه‌های ناشناس» را برای مرورگر/فایل‌منیجر فعال کنید.
-3. نصب کنید و آدرس سرور نرم‌افزار (نسخه وب مستقرشده خودتان) را وارد کنید.
+3. نصب کنید و بدون هیچ سروری وارد شوید؛ داده‌ها روی همان گوشی ذخیره می‌شوند.
 4. اگر فقط نسخه وب می‌خواهید: در کروم گوشی منوی ⋮ ← **افزودن به صفحه اصلی** (PWA).
 
 ---
@@ -111,8 +111,8 @@
 | خط لوله دو معلم + پالایش با موتور | 🕒 اسکریپت هست؛ کلید GLM در دسترس نیست و هیچ نمونه‌ای تولید/تأیید نشده |
 | QLoRA + ارزیابی با آستانه ۹۸٪/۱۰۰٪ | 🕒 اسکریپت آماده است؛ **هنوز اجرا نشده و `eval_report.json` واقعی وجود ندارد** |
 | استخراج GGUF + هش | ✅ `training/export_gguf.sh` |
-| مدل روی گوشی + دانلود قابل ادامه | 🕒 فاز ۳ (جدول `download_state` آماده است) |
-| APK واقعاً آفلاین | ❌ APK فعلی WebView است و در اولین اجرا آدرس سرور می‌خواهد |
+| مدل روی گوشی + دانلود قابل ادامه | 🕒 فاز ۳ (APK فعلی بدون مدل است؛ دانلود مدل در نسخه بعد) |
+| APK واقعاً آفلاین | ✅ MVP آفلاین: ثبت/دستیار/گزارش محلی؛ مدل زبانی هنوز همراه APK نیست |
 | صفحه دانلود + manifest نسخه | ✅ https://kishavar.tivachat-vflash-ai.ir · `/api/latest.json` |
 | حذف سرور | ⛔ در فاز ۱ رد شد؛ سرور «اختیاری» برای بکاپ/همگام‌سازی می‌ماند |
 
