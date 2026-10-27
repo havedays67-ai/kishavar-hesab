@@ -151,10 +151,15 @@ jobs:
       - name: Prepare release notes (Jalali date, single download URL)
         run: |
           node - <<'NODE' > release-notes.md
-          const date = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-            dateStyle: 'full',
+          const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
             timeZone: 'Asia/Tehran',
-          }).format(new Date());
+          }).formatToParts(new Date());
+          const get = (type) => parts.find((part) => part.type === type)?.value ?? '';
+          const date = `${get('weekday')} ${get('day')} ${get('month')} ${get('year')}`;
           console.log(`نسخه اندروید کشاورزحساب ۱.۰.۰ (شماره نسخه ثابت ۱ — نسخه رسمی منتشرنشده).`);
           console.log(``);
           console.log(`آخرین بازسازی: ${date} — تاریخ کامل شمسی به وقت ایران.`);
