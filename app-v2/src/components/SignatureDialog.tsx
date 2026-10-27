@@ -15,6 +15,7 @@ import { cn } from "../utils/cn";
 import { useProfile } from "../lib/profile";
 import { useSignatures } from "../lib/signatureContext";
 import { formatJalali, toPersianDigits } from "../lib/format";
+import { SignatureViewer } from "./SignatureViewer";
 import { signatureTierExplanation, shortHash, type SignableEntity, type SignatureRoleRequirement } from "../lib/signatures";
 import { TextField } from "./FormControls";
 import { Toast } from "./ui";
@@ -28,6 +29,14 @@ function DrawPad({ onSave, disabled }: { onSave: (data: string) => void; disable
     const rect = canvas.getBoundingClientRect();
     return { x: ((event.clientX - rect.left) / rect.width) * canvas.width, y: ((event.clientY - rect.top) / rect.height) * canvas.height };
   };
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
   const start = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const ctx = ref.current?.getContext("2d");
     if (!ctx) return;
@@ -53,15 +62,15 @@ function DrawPad({ onSave, disabled }: { onSave: (data: string) => void; disable
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    ctx.fillStyle = "#fbfaf4";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setEmpty(true);
   };
   return (
     <div>
       <div className="label">امضای دستی روی کادر <span className="text-[#c9967e]">*</span></div>
-      <div className="rounded-xl border border-white/[0.1] bg-[#fbfaf4] p-1">
-        <canvas ref={ref} width={640} height={180} onPointerDown={start} onPointerMove={move} onPointerUp={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} className="h-[140px] w-full touch-none rounded-lg" aria-label="کادر امضای دستی" />
+      <div className="rounded-xl border border-white/[0.1] bg-white p-1">
+        <canvas ref={ref} width={1280} height={360} onPointerDown={start} onPointerMove={move} onPointerUp={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} className="h-[140px] w-full touch-none rounded-lg" aria-label="کادر امضای دستی" />
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={clear} className="rounded-lg border border-white/[0.09] px-2.5 py-2 text-[9px] text-[#a8bfb3]">پاک کردن کادر</button>
@@ -81,6 +90,7 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [viewer, setViewer] = useState<{ image: string; name: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -154,7 +164,7 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
                   {record && (
                     <div className="mt-2 rounded-lg bg-[#071510]/50 px-2 py-1.5">
                       <div className="mb-1 flex items-start gap-2">
-                        {record.image ? <img src={record.image} alt={`امضای ${record.signerName}`} className="h-10 w-20 shrink-0 rounded bg-white object-contain" /> : null}
+                        {record.image ? <button type="button" onClick={() => setViewer({ image: record.image, name: record.signerName })} className="shrink-0" aria-label={`مشاهده امضای ${record.signerName}`}><img src={record.image} alt={`امضای ${record.signerName}`} className="h-10 w-20 rounded border border-white/10 bg-white object-contain" /></button> : null}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1 text-[8px]"><span className="text-[#d3e4da]">{record.signerName}</span><button type="button" onClick={() => { if (window.confirm("این امضا حذف شود؟")) { remove(record.id); setToast("امضا حذف شد"); } }} className="text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف امضا"><Trash2 className="h-3 w-3" /></button></div>
                           <div className="mt-0.5 break-all font-mono text-[7px] text-[#6f8c7f]">{record.crypto?.keyFingerprint ? `اثر کلید: ${record.crypto.keyFingerprint}` : ""}</div>
@@ -204,6 +214,7 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
           </div>
         </div>
       </div>
+      {viewer && <SignatureViewer image={viewer.image} name={viewer.name} onClose={() => setViewer(null)} />}
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />
     </div>,
     document.body

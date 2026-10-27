@@ -144,7 +144,7 @@ export default function App() {
   const [rentPayments, setRentPayments] = useState<RentPaymentRecord[]>(() => loadList(STORAGE_RENTS, []));
   const [signatures, setSignatures] = useState<LeaseSignature[]>(() => loadList(STORAGE_SIGNATURES, []));
   const [activeDocument, setActiveDocument] = useState<DocumentSpec | null>(null);
-  const documents = buildDocumentRegistry(trades, contracts, plots);
+  const documents = buildDocumentRegistry(trades, contracts, plots, ledger.cheques);
   const { audit } = useSignatures();
   const health = useMemo(() => {
     const entities = buildSignableEntities({ ledger, trades, documents });
@@ -226,6 +226,15 @@ export default function App() {
   const deleteEntry = (id: string) => updateLedger({ entries: ledger.entries.filter((entry) => entry.id !== id) });
   const addCheque = (cheque: Cheque) => updateLedger({ cheques: [cheque, ...ledger.cheques] });
   const setChequeStatus = (id: string, status: Cheque["status"]) => updateLedger({ cheques: ledger.cheques.map((cheque) => (cheque.id === id ? { ...cheque, status } : cheque)) });
+  const updateCheque = (cheque: Cheque) => updateLedger({ cheques: ledger.cheques.map((row) => (row.id === cheque.id ? cheque : row)) });
+  const settleCheque = (id: string, status: Cheque["status"], date: import("./lib/format").JDate) => {
+    const cheque = ledger.cheques.find((row) => row.id === id);
+    if (!cheque) return;
+    updateLedger({
+      cheques: ledger.cheques.map((row) => (row.id === id ? { ...row, status, settledDate: date } : row)),
+      entries: cheque.status === "pending" ? [{ id: `fin-${Date.now()}`, kind: cheque.direction === "received" ? "income" : "expense", date, amount: cheque.amount, reason: `${cheque.direction === "received" ? "وصول چک دریافتی" : "پرداخت چک"} — ${cheque.serial}`, category: cheque.direction === "received" ? "فروش محصول" : "سایر هزینه", method: "cheque", partyId: null, note: cheque.bank }, ...ledger.entries] : ledger.entries,
+    });
+  };
   const deleteCheque = (id: string) => updateLedger({ cheques: ledger.cheques.filter((cheque) => cheque.id !== id) });
   const addLoan = (loan: Loan) => updateLedger({ loans: [loan, ...ledger.loans] });
   const payLoan = (id: string) => updateLedger({ loans: ledger.loans.map((loan) => (loan.id === id ? { ...loan, paidInstallments: Math.min(loan.months, loan.paidInstallments + 1) } : loan)) });
@@ -323,6 +332,8 @@ export default function App() {
             onAddCheque={addCheque}
             onSetChequeStatus={setChequeStatus}
             onDeleteCheque={deleteCheque}
+            onUpdateCheque={updateCheque}
+            onSettleCheque={settleCheque}
             onAddLoan={addLoan}
             onPayLoan={payLoan}
             onDeleteLoan={deleteLoan}

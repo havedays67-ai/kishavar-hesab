@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -1012,6 +1012,14 @@ function ContractSignaturePad({ onSave }: { onSave: (image: string) => void }) {
     const rect = canvas.getBoundingClientRect();
     return { x: ((event.clientX - rect.left) / rect.width) * canvas.width, y: ((event.clientY - rect.top) / rect.height) * canvas.height };
   };
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
   const start = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const ctx = ref.current?.getContext("2d");
     if (!ctx) return;
@@ -1037,15 +1045,15 @@ function ContractSignaturePad({ onSave }: { onSave: (image: string) => void }) {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    ctx.fillStyle = "#fbfaf4";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setEmpty(true);
   };
   return (
     <div>
       <div className="label"><PenLine className="h-3.5 w-3.5 text-[#7fa294]" />امضای دستی روی کادر همین فرم</div>
-      <div className="rounded-xl border border-white/[0.1] bg-[#fbfaf4] p-1">
-        <canvas ref={ref} width={640} height={160} onPointerDown={start} onPointerMove={move} onPointerUp={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} className="h-[120px] w-full touch-none rounded-lg" aria-label="کادر امضای قرارداد" />
+      <div className="rounded-xl border border-white/[0.1] bg-white p-1">
+        <canvas ref={ref} width={1280} height={320} onPointerDown={start} onPointerMove={move} onPointerUp={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} className="h-[120px] w-full touch-none rounded-lg" aria-label="کادر امضای قرارداد" />
       </div>
       <div className="mt-2 flex gap-2">
         <button type="button" onClick={clear} className="flex items-center gap-1 rounded-lg border border-white/[0.09] px-2.5 py-2 text-[9px] text-[#a8bfb3]"><RotateCcw className="h-3 w-3" /> پاک کردن</button>

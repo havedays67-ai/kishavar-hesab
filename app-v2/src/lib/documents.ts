@@ -20,7 +20,8 @@ export type DocumentKind =
   | "cost-report"
   | "party-statement"
   | "finance-report"
-  | "inventory-report";
+  | "inventory-report"
+  | "cheque-sheet";
 
 export type DocumentFamily = "trade" | "lease" | "report";
 
@@ -137,6 +138,16 @@ export const DOCUMENT_TYPES: DocumentMeta[] = [
     needsStamp: false,
   },
   {
+    kind: "cheque-sheet",
+    family: "trade",
+    title: "برگه چک و رسید تعهد",
+    description: "مشخصات کامل چک: شماره، بانک، شعبه، صاحب حساب، مبلغ، سررسید و محل امضا.",
+    legalBasis: "قانون صدور چک (اصلاحی ۱۳۹۷) و دستورالعمل سامانه صیاد بانک مرکزی",
+    copies: "دو نسخه: صادرکننده/دریافت‌کننده و بایگانی",
+    signatureRoles: ["صادرکننده چک", "دریافت‌کننده چک"],
+    needsStamp: true,
+  },
+  {
     kind: "inventory-report",
     family: "report",
     title: "گزارش انبار، دارایی و بودجه",
@@ -175,6 +186,23 @@ export function documentMeta(kind: DocumentKind): DocumentMeta {
 export interface DocumentPayload {
   trade?: CropTrade;
   contract?: SavedContract;
+  cheque?: {
+    id: string;
+    direction: "received" | "paid";
+    amount: number;
+    serial: string;
+    bank: string;
+    branch?: string;
+    accountOwner?: string;
+    nationalId?: string;
+    due: JDate;
+    issueDate?: JDate;
+    partyName: string;
+    reason: string;
+    status: "pending" | "cleared" | "bounced";
+    sayadId?: string;
+    note?: string;
+  };
   trades?: CropTrade[];
   costRows?: {
     title: string;
@@ -235,7 +263,7 @@ export function makeDocument(kind: DocumentKind, payload: DocumentPayload, seria
   const meta = documentMeta(kind);
   const today = todayJalali();
   const prefix = { trade: "TRD", lease: "LSE", report: "RPT" }[meta.family];
-  const source = payload.trade?.serial ?? payload.contract?.code ?? `${today.jy}${today.jm}${today.jd}`;
+  const source = payload.trade?.serial ?? payload.contract?.code ?? (payload.cheque ? `CHQ-${payload.cheque.serial}` : `${today.jy}${today.jm}${today.jd}`);
   const suffix = {
     "sale-contract": "CTR",
     "weigh-ticket": "WGH",
@@ -250,12 +278,13 @@ export function makeDocument(kind: DocumentKind, payload: DocumentPayload, seria
     "party-statement": "PST",
     "finance-report": "FIN",
     "inventory-report": "INV2",
+    "cheque-sheet": "CHQ",
   }[kind];
   const serial = serialOverride ?? `KSH-${prefix}-${suffix}-${source}`;
   const verificationCode = fnvHash(
     `${serial}|${kind}|${payload.trade?.result.netReceipt ?? payload.contract?.rent ?? 0}|${formatJalali(today, "short")}`
   );
-  return { kind, meta, serial, date: payload.trade?.date ?? today, verificationCode, payload };
+  return { kind, meta, serial, date: payload.trade?.date ?? payload.cheque?.issueDate ?? today, verificationCode, payload };
 }
 
 export const VERIFY_BASE_URL = "https://havedays67-ai.github.io/kishavar-hesab/verify/";
@@ -275,6 +304,7 @@ export function verificationData(spec: DocumentSpec) {
   const amount = Math.round(
     spec.payload.trade?.result.netReceipt ??
     spec.payload.contract?.rent ??
+    spec.payload.cheque?.amount ??
     spec.payload.party?.amount ??
     spec.payload.parties?.reduce((sum, party) => sum + party.amount, 0) ??
     0

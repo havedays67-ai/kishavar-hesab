@@ -660,6 +660,45 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
           <FinanceReportBody spec={spec} />
         )}
 
+        {spec.kind === "cheque-sheet" && spec.payload.cheque && (() => { const cheque = spec.payload.cheque; return (
+          <>
+            <Section number="۱" title="مشخصات چک">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded border border-[#ddd8ca] p-2.5">
+                  <Row label="نوع چک" value={cheque.direction === "received" ? "دریافتی (به نفع ما)" : "پرداختی (از سوی ما)"} />
+                  <Row label="شماره چک" value={cheque.serial} strong />
+                  <Row label="بانک" value={cheque.bank} />
+                  <Row label="شعبه" value={cheque.branch || "—"} />
+                  <Row label="شناسه صیاد" value={cheque.sayadId || "—"} />
+                </div>
+                <div className="rounded border border-[#ddd8ca] p-2.5">
+                  <Row label="صاحب حساب" value={cheque.accountOwner || cheque.partyName} />
+                  <Row label="شناسه ملی" value={cheque.nationalId || "—"} />
+                  <Row label="طرف‌حساب" value={cheque.partyName} />
+                  <Row label="تاریخ صدور" value={cheque.issueDate ? formatJalali(cheque.issueDate, "long") : "—"} />
+                  <Row label="تاریخ سررسید" value={formatJalali(cheque.due, "long")} strong />
+                </div>
+              </div>
+            </Section>
+            <Section number="۲" title="مبلغ و بابت">
+              <table>
+                <thead><tr><th className={thClass}>مبلغ چک (ریال)</th><th className={thClass}>مبلغ به حروف</th><th className={thClass}>بابت</th><th className={thClass}>وضعیت</th></tr></thead>
+                <tbody><tr><td className={`${tdClass} font-bold`}>{money(cheque.amount)}</td><td className={tdClass}>{words(cheque.amount)}</td><td className={tdClass}>{cheque.reason || "—"}</td><td className={tdClass}>{cheque.status === "pending" ? "در جریان" : cheque.status === "cleared" ? "وصول‌شده" : "برگشتی"}</td></tr></tbody>
+              </table>
+              {cheque.note && <p className="mt-1 text-[8px] leading-5 text-[#66736a]">یادداشت: {cheque.note}</p>}
+            </Section>
+            <Section number="۳" title="تعهد و شرایط قانونی">
+              <p className="rounded border border-[#ddd8ca] bg-[#faf8f1] p-2.5 text-justify text-[9px] leading-6 text-[#35433a]">
+                این برگه، صورت‌چک/رسید اطلاعات چک است و جایگزین خود چک کاغذی، ثبت در سامانه صیاد یا ظهرنویسی قانونی نیست.
+                صدور و انتقال چک تابع قانون صدور چک (اصلاحی ۱۳۹۷) و دستورالعمل‌های بانک مرکزی است؛ صادرکننده مکلف است
+                اطلاعات چک را در سامانه صیاد ثبت و امضای صاحب حساب را روی چک کاغذی درج کند. دریافت‌کننده باید پیش از
+                پذیرش، اصالت، شناسه صیاد، هویت صاحب حساب و کفایت موجودی را کنترل کند. مبلغ چک به ریال است.
+              </p>
+            </Section>
+            <SignatureBoxes roles={["صادرکننده / صاحب حساب", "دریافت‌کننده چک", "شاهد (اختیاری)"]} />
+          </>
+        ); })()}
+
         {spec.kind === "inventory-report" && (
           <InventoryReportBody spec={spec} />
         )}
@@ -674,7 +713,6 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
               </p>
               <p className="mt-1">{spec.meta.copies} · کد کنترل: <span className="font-mono">{verificationData(spec).check}</span> · صادرکننده: {profileDisplayName(profile)}</p>
               <p className="mt-1">نشانی: {[profile.address, profile.city, profile.province].filter(Boolean).join("، ") || "ثبت نشده"} · تلفن: {profile.phone || "ثبت نشده"} · کد پستی: {profile.postalCode || "—"} · تاریخ چاپ: {formatJalali(spec.date, "long")}</p>
-              <p className="mt-1">مبالغ این سند به ریال (واحد رسمی پول ایران) است. هر تومان معادل ۱۰ ریال.</p>
             </div>
             <div className="flex items-end gap-2">
               <VerificationQR text={`سند ${spec.serial} | کد کنترل ${verificationData(spec).check} | تاریخ ${formatJalali(spec.date, "short")} | مبلغ ${rialOf(spec.payload.trade?.result.netReceipt ?? spec.payload.contract?.rent ?? 0)} ریال`} />

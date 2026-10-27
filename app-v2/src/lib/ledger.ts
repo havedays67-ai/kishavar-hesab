@@ -56,10 +56,17 @@ export interface Cheque {
   amount: number;
   serial: string;
   bank: string;
+  branch?: string;
+  accountOwner?: string;
+  nationalId?: string;
   due: JDate;
+  issueDate?: JDate;
   partyName: string;
   reason: string;
   status: "pending" | "cleared" | "bounced";
+  sayadId?: string;
+  note?: string;
+  settledDate?: JDate | null;
 }
 
 export interface Loan {
@@ -282,7 +289,7 @@ export function initialLedger(): LedgerState {
       { id: "fin-7", kind: "expense", date: addJalaliMonths(today, 0), amount: 84_000_000, reason: "خرید بذر گندم چمران", category: "بذر و نهال", method: "bank", partyId: null, note: "۲٬۴۰۰ کیلوگرم" },
     ],
     cheques: [
-      { id: "chq-1", direction: "received", amount: 400_000_000, serial: "۴۵۲۱۹۸۷", bank: "بانک کشاورزی", due: addJalaliMonths(today, 0), partyName: "کارخانه آرد آذربایجان", reason: "مانده فروش گندم", status: "pending" },
+      { id: "chq-1", direction: "received", amount: 400_000_000, serial: "۴۵۲۱۹۸۷", bank: "بانک کشاورزی", branch: "شعبه مرکزی پارس‌آباد", accountOwner: "کارخانه آرد آذربایجان", nationalId: "۱۴۰۰۳۲۵۶۷۸۹", due: addJalaliMonths(today, 0), issueDate: addJalaliMonths(today, -1), partyName: "کارخانه آرد آذربایجان", reason: "مانده فروش گندم", status: "pending", sayadId: "۱۴۰۵۱۲۳۴۵۶۷۸۹۰۱" },
       { id: "chq-2", direction: "paid", amount: 45_000_000, serial: "۹۹۳۴۵۱", bank: "بانک ملت", due: addJalaliMonths(today, 0), partyName: "نهاده‌های زاگرس", reason: "تسویه بخشی از کود", status: "pending" },
       { id: "chq-3", direction: "received", amount: 85_000_000, serial: "۳۳۲۱۸۸", bank: "بانک ملی", due: addJalaliMonths(today, -1), partyName: "بازار میوه البرز", reason: "فروش زردآلو", status: "bounced" },
     ],

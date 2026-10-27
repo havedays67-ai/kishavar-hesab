@@ -2,9 +2,10 @@ import { makeDocument, type DocumentSpec } from "./documents";
 import type { SavedContract } from "./data";
 import { PRODUCT_PROFILES, type CropTrade } from "./trade";
 import { plotMetrics, type CropPlot } from "./samples";
+import type { LedgerState } from "./ledger";
 
 /** همه اسناد قابل تولید از داده واقعی — بدون سند خالی */
-export function buildDocumentRegistry(trades: CropTrade[], contracts: SavedContract[], plots: CropPlot[]): DocumentSpec[] {
+export function buildDocumentRegistry(trades: CropTrade[], contracts: SavedContract[], plots: CropPlot[], cheques: LedgerState["cheques"] = []): DocumentSpec[] {
   const documents: DocumentSpec[] = [];
   for (const trade of trades) {
     for (const kind of ["sale-contract", "weigh-ticket", "quality-minutes", "sale-invoice", "settlement"] as const) {
@@ -16,6 +17,7 @@ export function buildDocumentRegistry(trades: CropTrade[], contracts: SavedContr
       documents.push(makeDocument(kind, { contract }));
     }
   }
+  for (const cheque of cheques) documents.push(makeDocument("cheque-sheet", { cheque }));
   if (trades.length > 0) documents.push(makeDocument("trades-report", { trades }));
   if (plots.length > 0) {
     const costRows = plots.map((plot) => {

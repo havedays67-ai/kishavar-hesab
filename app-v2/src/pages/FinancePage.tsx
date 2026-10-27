@@ -40,6 +40,8 @@ import {
 import { AmountField, SelectField, TextField } from "../components/FormControls";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Modal, Toast } from "../components/ui";
+import { makeDocument } from "../lib/documents";
+import { DocumentDialog } from "../components/PrintSheet";
 
 const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
 const money = (value: number) => `${fa(value)} تومان`;
@@ -59,6 +61,8 @@ export function FinancePage({
   onAddCheque,
   onSetChequeStatus,
   onDeleteCheque,
+  onUpdateCheque,
+  onSettleCheque,
   onAddLoan,
   onPayLoan,
   onDeleteLoan,
@@ -71,6 +75,8 @@ export function FinancePage({
   onAddCheque: (cheque: Cheque) => void;
   onSetChequeStatus: (id: string, status: Cheque["status"]) => void;
   onDeleteCheque: (id: string) => void;
+  onUpdateCheque: (cheque: Cheque) => void;
+  onSettleCheque: (id: string, status: Cheque["status"], date: ReturnType<typeof todayJalali>) => void;
   onAddLoan: (loan: Loan) => void;
   onPayLoan: (id: string) => void;
   onDeleteLoan: (id: string) => void;
@@ -80,6 +86,8 @@ export function FinancePage({
   const [entryOpen, setEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [chequeOpen, setChequeOpen] = useState(false);
+  const [editCheque, setEditCheque] = useState<Cheque | null>(null);
+  const [printCheque, setPrintCheque] = useState<Cheque | null>(null);
   const [loanOpen, setLoanOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -201,6 +209,9 @@ export function FinancePage({
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/[0.05] pt-2.5">
                 <button type="button" onClick={() => setSignTarget({ kind: "cheque", id: cheque.id })} className="flex items-center gap-1 rounded-lg border border-[#9fd4ee]/25 bg-[#9fd4ee]/[0.07] px-2.5 py-1.5 text-[8px] text-[#bfe6f7]"><Fingerprint className="h-3 w-3" /> امضا ({toPersianDigits(audit(chequeEntity(cheque)).signed)}/{toPersianDigits(audit(chequeEntity(cheque)).required)})</button>
+                <button type="button" onClick={() => setPrintCheque(cheque)} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]"><Printer className="h-3 w-3" /> چاپ برگه چک</button>
+                <button type="button" onClick={() => { setEditCheque(cheque); setChequeOpen(true); }} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]"><Check className="h-3 w-3" /> ویرایش</button>
+                {cheque.status === "pending" && <button type="button" onClick={() => onSettleCheque(cheque.id, cheque.direction === "received" ? "cleared" : "cleared", todayJalali())} className="flex items-center gap-1 rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2.5 py-1.5 text-[8px] text-mint-300"><Wallet className="h-3 w-3" /> ثبت وصول/پرداخت</button>}
                 {cheque.status === "pending" && (
                   <>
                     <button type="button" onClick={() => onSetChequeStatus(cheque.id, "cleared")} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300"><Check className="h-3 w-3" /> وصول شد</button>
@@ -255,8 +266,9 @@ export function FinancePage({
       )}
 
       <EntryModal open={entryOpen} initial={editingEntry} onClose={() => { setEntryOpen(false); setEditingEntry(null); }} onSubmit={(entry) => { if (editingEntry) { onUpdateEntry(entry); setToast("تغییرات سند ذخیره شد"); } else { onAddEntry(entry); setToast("سند مالی ثبت شد"); } setEntryOpen(false); setEditingEntry(null); }} />
-      <ChequeModal open={chequeOpen} onClose={() => setChequeOpen(false)} onSubmit={(cheque) => { onAddCheque(cheque); setChequeOpen(false); setToast("چک ثبت شد"); }} />
+      <ChequeModal open={chequeOpen} initial={editCheque} onClose={() => { setChequeOpen(false); setEditCheque(null); }} onSubmit={(cheque) => { if (editCheque) { onUpdateCheque(cheque); setToast("تغییرات چک ذخیره شد"); } else { onAddCheque(cheque); setToast("چک ثبت شد"); } setChequeOpen(false); setEditCheque(null); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} onSubmit={(loan) => { onAddLoan(loan); setLoanOpen(false); setToast("وام و جدول اقساط ساخته شد"); }} />
+      {printCheque && <DocumentDialog spec={makeDocument("cheque-sheet", { cheque: printCheque })} onClose={() => setPrintCheque(null)} />}
       <SignatureDialog entity={signTarget ? signTarget.kind === "cheque" ? chequeEntity(ledger.cheques.find((cheque) => cheque.id === signTarget.id)!) : loanEntity(ledger.loans.find((loan) => loan.id === signTarget.id)!) : null} open={Boolean(signTarget)} onClose={() => setSignTarget(null)} />
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />
     </div>
@@ -316,27 +328,47 @@ function EntryModal({ open, onClose, onSubmit, initial }: { open: boolean; onClo
   );
 }
 
-function ChequeModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (cheque: Cheque) => void }) {
+function ChequeModal({ open, onClose, onSubmit, initial }: { open: boolean; onClose: () => void; onSubmit: (cheque: Cheque) => void; initial?: Cheque | null }) {
   const [direction, setDirection] = useState<"received" | "paid">("received");
   const [amount, setAmount] = useState(0);
   const [serial, setSerial] = useState("");
   const [bank, setBank] = useState("");
+  const [branch, setBranch] = useState("");
+  const [accountOwner, setAccountOwner] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [sayadId, setSayadId] = useState("");
   const [partyName, setPartyName] = useState("");
   const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
   const [due, setDue] = useState(todayJalali());
+  const [issueDate, setIssueDate] = useState(todayJalali());
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    if (initial) {
+      setDirection(initial.direction); setAmount(initial.amount); setSerial(initial.serial); setBank(initial.bank);
+      setBranch(initial.branch ?? ""); setAccountOwner(initial.accountOwner ?? ""); setNationalId(initial.nationalId ?? "");
+      setSayadId(initial.sayadId ?? ""); setPartyName(initial.partyName); setReason(initial.reason); setNote(initial.note ?? "");
+      setDue(initial.due); setIssueDate(initial.issueDate ?? todayJalali()); setError("");
+      return;
+    }
+    setDirection("received"); setAmount(0); setSerial(""); setBank(""); setBranch(""); setAccountOwner(""); setNationalId(""); setSayadId(""); setPartyName(""); setReason(""); setNote(""); setDue(todayJalali()); setIssueDate(todayJalali()); setError("");
+  }, [open, initial]);
 
   const submit = () => {
     if (amount <= 0) return setError("مبلغ چک را وارد کنید.");
     if (partyName.trim().length < 3) return setError("نام طرف‌حساب را وارد کنید.");
     if (!serial.trim()) return setError("شماره سریال چک را وارد کنید.");
+    if (!bank.trim()) return setError("نام بانک را وارد کنید.");
     if (!reason.trim()) return setError("بابت چک را بنویسید.");
-    onSubmit({ id: `chq-${Date.now()}`, direction, amount, serial: serial.trim(), bank: bank.trim() || "—", partyName: partyName.trim(), reason: reason.trim(), due, status: "pending" });
-    setAmount(0); setSerial(""); setReason(""); setPartyName(""); setError("");
+    if (new Date(due.jy, due.jm - 1, due.jd).getTime() < new Date(issueDate.jy, issueDate.jm - 1, issueDate.jd).getTime()) return setError("سررسید نمی‌تواند قبل از تاریخ صدور باشد.");
+    onSubmit({ id: initial?.id ?? `chq-${Date.now()}`, direction, amount, serial: serial.trim(), bank: bank.trim(), branch: branch.trim(), accountOwner: accountOwner.trim() || partyName.trim(), nationalId: nationalId.trim(), sayadId: sayadId.trim(), partyName: partyName.trim(), reason: reason.trim(), due, issueDate, status: initial?.status ?? "pending", note: note.trim(), settledDate: initial?.settledDate ?? null });
+    setError("");
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="ثبت چک" description="چک دریافتی یا پرداختی با سررسید ثبت و در هشدارها پیگیری می‌شود." size="md">
+    <Modal open={open} onClose={onClose} title={initial ? "ویرایش چک" : "ثبت چک"} description="مشخصات کامل چک را وارد کنید تا برگه چک قابل چاپ و سند مالی درست ساخته شود." size="md">
       <div className="space-y-3.5 p-5">
         <div className="grid grid-cols-2 gap-2">
           {([["received", "چک دریافتی", "از طرف‌حساب به نفع ما"], ["paid", "چک پرداختی", "از سوی ما به طرف‌حساب"]] as ["received" | "paid", string, string][]).map(([value, label, hint]) => (
@@ -344,15 +376,21 @@ function ChequeModal({ open, onClose, onSubmit }: { open: boolean; onClose: () =
           ))}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <AmountField label="مبلغ چک" value={amount} onChange={setAmount} required />
-          <TextField label="شماره سریال چک" value={serial} onChange={setSerial} placeholder="۴۵۲۱۹۸۷" />
-          <TextField label="بانک" value={bank} onChange={setBank} placeholder="بانک کشاورزی" />
-          <TextField label="طرف‌حساب" value={partyName} onChange={setPartyName} placeholder="نام خریدار یا فروشنده" />
-          <TextField label="بابت" value={reason} onChange={setReason} placeholder="مانده فروش گندم" />
-          <JalaliDatePicker label="تاریخ سررسید" value={due} onChange={setDue} />
+          <AmountField label="مبلغ چک (تومان)" value={amount} onChange={setAmount} required />
+          <TextField label="شماره سریال چک" value={serial} onChange={setSerial} numeric placeholder="۴۵۲۱۹۸۷" required />
+          <TextField label="بانک" value={bank} onChange={setBank} placeholder="بانک کشاورزی" required />
+          <TextField label="شعبه" value={branch} onChange={setBranch} placeholder="شعبه مرکزی" />
+          <TextField label="نام صاحب حساب" value={accountOwner} onChange={setAccountOwner} suggestions={[partyName]} placeholder="نام صاحب حساب" />
+          <TextField label="شناسه ملی صاحب حساب" value={nationalId} onChange={setNationalId} numeric placeholder="۱۰ رقم" />
+          <TextField label="شناسه صیاد (اختیاری)" value={sayadId} onChange={setSayadId} numeric placeholder="۱۶ رقم" />
+          <TextField label="طرف‌حساب" value={partyName} onChange={setPartyName} placeholder="نام خریدار یا فروشنده" required />
+          <TextField label="بابت" value={reason} onChange={setReason} placeholder="مانده فروش گندم" required />
+          <JalaliDatePicker label="تاریخ صدور" value={issueDate} onChange={setIssueDate} />
+          <JalaliDatePicker label="تاریخ سررسید" value={due} onChange={setDue} minDate={issueDate} />
+          <TextField label="یادداشت" value={note} onChange={setNote} placeholder="توضیح اختیاری" />
         </div>
         {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a]">{error}</p>}
-        <button type="button" onClick={submit} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">ثبت چک</button>
+        <button type="button" onClick={submit} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">{initial ? "ذخیره تغییرات" : "ثبت چک"}</button>
       </div>
     </Modal>
   );
