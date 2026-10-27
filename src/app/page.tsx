@@ -5,11 +5,13 @@ import { Amount, Card, Icon, StatCard, Badge, Progress, EmptyState } from "@/com
 import { RecordActions } from "@/components/RecordActions";
 import { MonthlyBars, Donut } from "@/components/charts";
 import { createTask, toggleTask } from "@/app/actions";
+import { getContractStats } from "@/lib/contracts/service";
+import { formatJalaliDate } from "@/lib/contracts/model";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [o, tasks] = await Promise.all([getFarmOverview(), getTasks()]);
+  const [o, tasks, contracts] = await Promise.all([getFarmOverview(), getTasks(), getContractStats()]);
   const openTasks = tasks.slice(0, 8);
   const profitTone = o.totals.profit >= 0 ? "farm" : "red";
 
@@ -66,6 +68,55 @@ export default async function DashboardPage() {
         <StatCard label="بدهی + چک نزدیک" value={formatMoney(o.totals.payable + o.totals.chequeUpcoming)} tone="red" icon="wallet" hint={formatMoneyWords(o.totals.payable + o.totals.chequeUpcoming)} />
         <StatCard label="طلب از دیگران" value={formatMoney(o.totals.receivable)} tone="slate" icon="phone" hint={formatMoneyWords(o.totals.receivable)} />
       </div>
+
+      <Card className="card-pad">
+        <div className="section-title mb-2">
+          <span className="flex items-center gap-1.5">
+            <Icon name="land" className="h-4 w-4 text-farm-600" />
+            قرارداد زمین کشاورزی
+          </span>
+          <Link href="/contracts" className="link-quiet">
+            مدیریت قراردادها ←
+          </Link>
+        </div>
+        <p className="text-[11px] leading-5 text-[#6a7a6d]">
+          زمین را برای کشت می‌گیرید (مستاجر) یا زمین/باغ خود را به کشاورز می‌دهید (موجر)؟ هر دو جهت جدا ثبت می‌شوند تا هزینه و درآمد اجاره درست تفکیک شود.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+          <div className="rounded-xl bg-sand-50 p-2">
+            <span className="block text-[10px] text-[#84907f]">قرارداد فعال</span>
+            <span className="num mt-0.5 block font-bold text-farm-900">{formatNumber(contracts.active)}</span>
+          </div>
+          <div className="rounded-xl bg-sand-50 p-2">
+            <span className="block text-[10px] text-[#84907f]">من مستاجرم</span>
+            <span className="num mt-0.5 block font-bold text-farm-900">{formatNumber(contracts.asLessee)}</span>
+          </div>
+          <div className="rounded-xl bg-sand-50 p-2">
+            <span className="block text-[10px] text-[#84907f]">اجاره دریافتی</span>
+            <span className="num mt-0.5 block font-bold text-farm-700">{formatMoney(contracts.cashIncoming)}</span>
+          </div>
+          <div className="rounded-xl bg-sand-50 p-2">
+            <span className="block text-[10px] text-[#84907f]">اجاره معوق</span>
+            <span className={`num mt-0.5 block font-bold ${contracts.overdue ? "text-red-600" : "text-farm-700"}`}>{formatMoney(contracts.overdue)}</span>
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <Link href="/contracts/new?view=lessee" className="btn btn-sm btn-primary">
+            ＋ زمین اجاره می‌کنم
+          </Link>
+          <Link href="/contracts/new?view=lessor" className="btn btn-sm">
+            ＋ زمین اجاره می‌دهم
+          </Link>
+          <Link href="/diagnostics" className="btn btn-sm btn-ghost">
+            تست و عیب‌یابی
+          </Link>
+          {contracts.nextDue ? (
+            <span className="chip num">
+              قسط بعدی: {formatJalaliDate(contracts.nextDue.dueDate)} · {formatMoney(contracts.nextDue.amountToman)}
+            </span>
+          ) : null}
+        </div>
+      </Card>
 
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="card-pad lg:col-span-2">

@@ -703,8 +703,10 @@ export function addLease(
   input: {
     title: string;
     kind: Lease["kind"];
-    landlordId: number;
-    tenantId: number;
+    role?: "tenant" | "owner";
+    counterpartyId?: number;
+    landlordId?: number;
+    tenantId?: number;
     location: string;
     plate: string;
     area: number;
@@ -722,10 +724,12 @@ export function addLease(
     accountId?: number;
   },
 ): DB {
+  const role: "tenant" | "owner" = input.role === "owner" ? "owner" : "tenant";
+  const counterpartyId = Number(input.counterpartyId ?? (role === "tenant" ? input.landlordId : input.tenantId) ?? 0);
+  const landlordId = role === "tenant" ? counterpartyId : 0;
+  const tenantId = role === "owner" ? counterpartyId : 0;
   if (!input.title.trim()) throw new Error("عنوان ملک یا زمین را وارد کنید.");
-  if (!input.landlordId) throw new Error("موجر (مالک) را انتخاب کنید.");
-  if (!input.tenantId) throw new Error("مستاجر را انتخاب کنید.");
-  if (input.landlordId === input.tenantId) throw new Error("موجر و مستاجر نمی‌توانند یک نفر باشند.");
+  if (!counterpartyId) throw new Error(role === "tenant" ? "مالک زمین (طرف قرارداد) را انتخاب کنید." : "مستاجر (کشاورز) را انتخاب کنید.");
   if (!input.start || !input.end) throw new Error("تاریخ شروع و پایان قرارداد لازم است.");
   if (input.end <= input.start) throw new Error("تاریخ پایان باید بعد از شروع باشد.");
   if (input.kind === "share" && (input.sharePercent <= 0 || input.sharePercent >= 100)) throw new Error("در مزارعه سهم باید بین ۱ تا ۹۹ درصد از محصول باشد.");
@@ -740,8 +744,9 @@ export function addLease(
     id,
     title: input.title.trim(),
     kind: input.kind,
-    landlordId: input.landlordId,
-    tenantId: input.tenantId,
+    role,
+    landlordId,
+    tenantId,
     location: input.location.trim(),
     plate: input.plate.trim(),
     area: Number(input.area) || 0,
@@ -760,7 +765,7 @@ export function addLease(
     schedule,
     createdAt: new Date().toISOString(),
   };
-  return audit({ ...next, leases: [...next.leases, lease] }, `قرارداد اجاره «${lease.title}» ثبت شد`, "lease");
+  return audit({ ...next, leases: [...next.leases, lease] }, `${role === "tenant" ? "اجاره زمین (ما مستاجر)" : "اجاره دادن زمین (ما موجر)"} «${lease.title}» ثبت شد`, "lease");
 }
 
 export function addLeasePayment(
@@ -772,17 +777,23 @@ export function addLeasePayment(
   const amount = Math.round(Math.abs(input.amount));
   if (amount <= 0) throw new Error("مبلغ اجاره معتبر نیست.");
   const postId = db.seq + 1;
+  const isOwner = (lease.role ?? "tenant") === "owner";
   const posted = postEntry(
     { ...db, seq: postId },
     {
       date: input.date || todayISO(),
-      desc: `پرداخت اجاره — ${lease.title}${input.scheduleNo ? ` (قسط ${input.scheduleNo})` : ""}`,
+      desc: `${isOwner ? "دریافت اجاره" : "پرداخت اجاره"} — ${lease.title}${input.scheduleNo ? ` (قسط ${input.scheduleNo})` : ""}`,
       source: "payment",
-      contactId: lease.landlordId,
-      lines: [
-        { accountId: codeOf(db, "5140"), debit: amount, credit: 0 },
-        { accountId: input.accountId || codeOf(db, "1020"), debit: 0, credit: amount },
-      ],
+      contactId: isOwner ? lease.tenantId : lease.landlordId,
+      lines: isOwner
+        ? [
+            { accountId: input.accountId || codeOf(db, "1020"), debit: amount, credit: 0 },
+            { accountId: codeOf(db, "4150"), debit: 0, credit: amount },
+          ]
+        : [
+            { accountId: codeOf(db, "5140"), debit: amount, credit: 0 },
+            { accountId: input.accountId || codeOf(db, "1020"), debit: 0, credit: amount },
+          ],
     },
   );
   const rent: RentPayment = { id: postId, leaseId: lease.id, date: input.date || todayISO(), amount, accountId: input.accountId, scheduleNo: input.scheduleNo ?? null, note: input.note ?? "" };
@@ -800,7 +811,7 @@ export function addLeasePayment(
   }
   return audit(
     { ...posted.db, rents: [...posted.db.rents, rent], leases: posted.db.leases.map((l) => (l.id === lease.id ? { ...l, schedule } : l)) },
-    `پرداخت اجاره ${lease.title} به مبلغ ${fmt(amount)}`,
+    `${isOwner ? "دریافت" : "پرداخت"} اجاره ${lease.title} به مبلغ ${fmt(amount)}`,
     "rent",
   );
 }

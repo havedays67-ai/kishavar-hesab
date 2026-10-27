@@ -8,7 +8,10 @@ import {
   LEASE_KIND_LABEL,
   LEASE_STATUS_LABEL,
   businessInsights,
+  LEASE_ROLE_LABEL,
   leaseContractText,
+  leaseParties,
+  leaseRole,
   leaseIsOverdue,
   leaseNextDue,
   leasePaid,
@@ -376,7 +379,7 @@ function viewReports(): string {
         return `<div class="row" style="align-items:flex-start"><span class="ico">🏞️</span><div class="grow">
           <div class="t">${esc(l.title)}</div>
           <div class="s">${esc(LEASE_KIND_LABEL[l.kind])} · ${esc(E.formatJalali(l.start))} تا ${esc(E.formatJalali(l.end))} · اجاره ${money(leaseTotalRent(l))}${l.sharePercent ? ` + ${E.faDigits(l.sharePercent)}٪ محصول` : ""}</div>
-          <div class="s">موجر: ${esc(db.contacts.find((c) => c.id === l.landlordId)?.name ?? "—")} · مستاجر: ${esc(db.contacts.find((c) => c.id === l.tenantId)?.name ?? "—")}</div>
+          <div class="s">موجر: ${esc(leaseParties(db, l).owner)} · مستاجر: ${esc(leaseParties(db, l).tenant)}</div>
           <div class="s">پرداخت‌شده ${money(leasePaid(l, db.rents))} · مانده ${money(leaseRemaining(l, db.rents))}${next ? ` · قسط بعدی ${esc(E.formatJalali(next.due))}` : " · تسویه"}</div>
           <div class="chip-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
             <span class="chip ${l.status === "active" ? "pos" : "warn"}">${esc(LEASE_STATUS_LABEL[l.status])}</span>
@@ -575,7 +578,7 @@ function formExpense(db: E.DB, kind: "expense" | "income", f?: Record<string, st
   const selectedCat = f?.categoryCode ? db.accounts.find((a) => a.code === f.categoryCode)?.id : cats[0]?.id;
   return `<form data-form="txn" data-kind="${kind}">
     <label>مبلغ (ریال)</label>
-    <input name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" placeholder="۴۵۰٬۰۰۰" />
+    <input data-money="1" name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" placeholder="۴۵۰٬۰۰۰" />
     <label>شرح</label>
     <input name="desc" required value="${esc(val(f, "desc"))}" placeholder="${kind === "expense" ? "گازوئیل تراکتور" : "فروش محصول"}" />
     <div class="grid2">
@@ -598,7 +601,7 @@ function formTransfer(db: E.DB, f?: Record<string, string>): string {
   const from = f?.fromCode ? db.accounts.find((a) => a.code === f.fromCode)?.id : cash[0]?.id;
   const to = f?.toCode ? db.accounts.find((a) => a.code === f.toCode)?.id : cash[1]?.id;
   return `<form data-form="transfer">
-    <label>مبلغ</label><input name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" />
+    <label>مبلغ</label><input data-money="1" name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" />
     <label>شرح</label><input name="desc" value="${esc(val(f, "desc", "انتقال بین حساب‌ها"))}" />
     <div class="grid2">
       <div><label>از حساب</label><select name="fromId">${options(cash, from)}</select></div>
@@ -621,10 +624,10 @@ function formInvoice(db: E.DB, type: "sale" | "purchase", f?: Record<string, str
     <label>شرح ردیف</label><input name="desc" required value="${esc(val(f, "desc"))}" placeholder="${type === "sale" ? "گندم — برداشت جاری" : "کود اوره"}" />
     <div class="grid2">
       <div><label>تعداد</label><input name="qty" inputmode="decimal" value="1" /></div>
-      <div><label>مبلغ واحد</label><input name="price" inputmode="numeric" required value="${esc(val(f, "amount"))}" /></div>
+      <div><label>مبلغ واحد</label><input data-money="1" name="price" inputmode="numeric" required value="${esc(val(f, "amount"))}" /></div>
     </div>
     <div class="grid2">
-      <div><label>تخفیف</label><input name="discount" inputmode="numeric" value="0" /></div>
+      <div><label>تخفیف</label><input data-money="1" name="discount" inputmode="numeric" value="0" /></div>
       <div><label>مالیات (٪)</label><input name="taxRate" inputmode="numeric" value="${E.faDigits(db.settings.taxRate)}" /></div>
     </div>
     <div class="grid2">
@@ -642,7 +645,7 @@ function formPayment(db: E.DB, direction: "in" | "out", f?: Record<string, strin
   const cash = cashAccounts(db);
   const openInvoices = db.invoices.filter((i) => (direction === "in" ? i.type === "sale" : i.type === "purchase") && E.invoiceRemaining(i) > 0);
   return `<form data-form="payment" data-direction="${direction}">
-    <label>مبلغ</label><input name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" />
+    <label>مبلغ</label><input data-money="1" name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" />
     <label>تاریخ</label><input name="date" type="date" value="${esc(val(f, "date", E.todayISO()))}" />
     <div class="grid2">
       <div><label>حساب</label><select name="accountId">${options(cash, f?.accountCode ? db.accounts.find((a) => a.code === f.accountCode)?.id : cash[0]?.id)}</select></div>
@@ -660,7 +663,7 @@ function formCheque(db: E.DB, direction: "received" | "paid", f?: Record<string,
   return `<form data-form="cheque" data-direction="${direction}">
     <div class="grid2">
       <div><label>شماره چک</label><input name="serial" required value="${esc(val(f, "serial"))}" /></div>
-      <div><label>مبلغ</label><input name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" /></div>
+      <div><label>مبلغ</label><input data-money="1" name="amount" inputmode="numeric" required value="${esc(val(f, "amount"))}" /></div>
     </div>
     <label>بانک</label><input name="bank" value="بانک کشاورزی" />
     <label>سررسید</label><input name="due" type="date" required value="${esc(val(f, "due", E.addDays(E.todayISO(), 7)))}" />
@@ -678,8 +681,8 @@ function formProduct(db: E.DB): string {
       <div><label>نوع</label><select name="kind"><option value="product">محصول</option><option value="input">نهاده</option></select></div>
     </div>
     <div class="grid2">
-      <div><label>بهای تمام‌شده</label><input name="cost" inputmode="numeric" value="0" /></div>
-      <div><label>قیمت فروش</label><input name="price" inputmode="numeric" value="0" /></div>
+      <div><label>بهای تمام‌شده</label><input data-money="1" name="cost" inputmode="numeric" value="0" /></div>
+      <div><label>قیمت فروش</label><input data-money="1" name="price" inputmode="numeric" value="0" /></div>
     </div>
     <div class="grid2">
       <div><label>موجودی اولیه</label><input name="stock" inputmode="decimal" value="0" /></div>
@@ -697,7 +700,7 @@ function formStock(db: E.DB): string {
       <div><label>تعداد</label><input name="qty" inputmode="decimal" required /></div>
     </div>
     <div class="grid2">
-      <div><label>بهای واحد</label><input name="unitCost" inputmode="numeric" value="0" /></div>
+      <div><label>بهای واحد</label><input data-money="1" name="unitCost" inputmode="numeric" value="0" /></div>
       <div><label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" /></div>
     </div>
     <label>توضیح</label><input name="note" />
@@ -710,8 +713,8 @@ function formAsset(db: E.DB): string {
   return `<form data-form="asset">
     <label>نام دارایی</label><input name="name" required placeholder="تراکتور / آبیاری" />
     <div class="grid2">
-      <div><label>بهای خرید</label><input name="cost" inputmode="numeric" required /></div>
-      <div><label>ارزش اسقاط</label><input name="salvage" inputmode="numeric" value="0" /></div>
+      <div><label>بهای خرید</label><input data-money="1" name="cost" inputmode="numeric" required /></div>
+      <div><label>ارزش اسقاط</label><input data-money="1" name="salvage" inputmode="numeric" value="0" /></div>
     </div>
     <div class="grid2">
       <div><label>عمر (ماه)</label><input name="lifeMonths" inputmode="numeric" value="60" /></div>
@@ -725,7 +728,7 @@ function formAsset(db: E.DB): string {
 function formBudget(db: E.DB): string {
   return `<form data-form="budget">
     <label>سرفصل هزینه</label><select name="accountId">${acctOptions(db, (a) => a.type === "expense")}</select>
-    <label>سقف بودجه سالانه</label><input name="amount" inputmode="numeric" required />
+    <label>سقف بودجه سالانه</label><input data-money="1" name="amount" inputmode="numeric" required />
     <button class="btn pri" type="submit" style="width:100%">ثبت بودجه</button>
   </form>`;
 }
@@ -758,7 +761,7 @@ function formFarmOp(db: E.DB): string {
     <label>نوع عملیات</label><select name="kind"><option value="cost">هزینه</option><option value="plant">کاشت</option><option value="irrigate">آبیاری</option><option value="harvest">برداشت</option><option value="sale">فروش محصول</option><option value="labor">دستمزد</option></select>
     <label>شرح</label><input name="desc" required />
     <div class="grid2">
-      <div><label>مبلغ</label><input name="amount" inputmode="numeric" value="0" /></div>
+      <div><label>مبلغ</label><input data-money="1" name="amount" inputmode="numeric" value="0" /></div>
       <div><label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" /></div>
     </div>
     <div class="grid2">
@@ -776,7 +779,7 @@ function formLoan(): string {
     <label>عنوان وام</label><input name="title" required />
     <label>وام‌دهنده</label><input name="lender" />
     <div class="grid2">
-      <div><label>اصل وام</label><input name="principal" inputmode="numeric" required /></div>
+      <div><label>اصل وام</label><input data-money="1" name="principal" inputmode="numeric" required /></div>
       <div><label>نرخ سالانه (٪)</label><input name="rate" inputmode="numeric" value="18" /></div>
     </div>
     <div class="grid2">
@@ -840,7 +843,7 @@ function formOpening(id: number): string {
   if (!contact) return emptyBox("طرف‌حساب یافت نشد.");
   return `<form data-form="opening" data-id="${id}">
     <div class="note">مانده‌ی قبل از شروع کار با ${esc(contact.name)} را یک‌بار ثبت کنید. سند آن به حساب سرمایه می‌خورد و در گردش حساب دیده می‌شود.</div>
-    <label>مبلغ</label><input name="amount" inputmode="numeric" required placeholder="۵٬۰۰۰٬۰۰۰" />
+    <label>مبلغ</label><input data-money="1" name="amount" inputmode="numeric" required placeholder="۵٬۰۰۰٬۰۰۰" />
     <label>ماهیت مانده</label>
     <select name="side"><option value="debit">بدهکار — طرف‌حساب به من بدهکار است</option><option value="credit">بستانکار — من به طرف‌حساب بدهکار هستم</option></select>
     <label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" />
@@ -868,7 +871,7 @@ function debtorForm(kind: "customer" | "supplier"): string {
     <input name="name" required placeholder="${kind === "customer" ? "آقای احمدی" : "نهاده زاگرس"}" />
     <label>تلفن</label><input name="phone" inputmode="tel" />
     <div class="grid2">
-      <div><label>${kind === "customer" ? "طلب اولیه" : "بدهی اولیه"}</label><input name="amount" inputmode="numeric" value="0" /></div>
+      <div><label>${kind === "customer" ? "طلب اولیه" : "بدهی اولیه"}</label><input data-money="1" name="amount" inputmode="numeric" value="0" /></div>
       <div><label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" /></div>
     </div>
     <label>نوع ${kind === "customer" ? "مشتری" : "تأمین‌کننده"}</label>
@@ -954,16 +957,17 @@ function initSignaturePads(): void {
 function leaseForm(): string {
   const today = E.todayISO();
   return `<form data-form="lease">
-    <div class="note">ارکان لازم: مورد اجاره، مدت، مال‌الاجاره، ودیعه، حقابه، تعهدات طرفین و امضای موجر و مستاجر. سند مالی هنگام پرداخت اجاره ساخته می‌شود.</div>
+    <div class="note">اول جهت قرارداد را انتخاب کنید: اگر زمین را برای کشت می‌گیرید شما <b>مستاجر</b> هستید و طرف قرارداد مالک زمین است؛ اگر زمین/باغ خود را به کشاورز می‌دهید شما <b>موجر</b> هستید. سند مالی بر همین اساس ساخته می‌شود.</div>
+    <label>جهت قرارداد (نقش من)</label>
+    <select name="role" required><option value="tenant" selected>${LEASE_ROLE_LABEL.tenant}</option><option value="owner">${LEASE_ROLE_LABEL.owner}</option></select>
     <label>عنوان ملک / زمین</label><input name="title" required placeholder="زمین آبی روستای سبز — ۴ هکتار" />
     <div class="grid2">
       <div><label>نوع قرارداد</label><select name="kind"><option value="cash">اجاره نقدی</option><option value="share">مزارعه (سهم محصول)</option><option value="mixed">اجاره + سهم محصول</option></select></div>
       <div><label>محصول</label><input name="crop" placeholder="گندم" /></div>
     </div>
-    <div class="grid2">
-      <div><label>موجر (مالک)</label><select name="landlordId" required><option value="">انتخاب…</option>${options(state.db.contacts)}</select></div>
-      <div><label>مستاجر</label><select name="tenantId" required><option value="">انتخاب…</option>${options(state.db.contacts)}</select></div>
-    </div>
+    <label>طرف قرارداد (مالک زمین اگر مستاجرید / مستاجر اگر موجرید)</label>
+    <select name="counterpartyId" required><option value="">انتخاب…</option>${options(state.db.contacts)}</select>
+    <div class="note">طرف دیگر همیشه «کسب‌وکار من» است و به‌صورت خودکار در قرارداد و اسناد نوشته می‌شود.</div>
     <div class="grid2">
       <div><label>شروع</label><input name="start" type="date" value="${today}" required /></div>
       <div><label>پایان</label><input name="end" type="date" value="${E.addMonths(today, 12)}" required /></div>
@@ -974,21 +978,21 @@ function leaseForm(): string {
     </div>
     <label>موقعیت</label><input name="location" placeholder="روستا / شهرستان" />
     <div class="grid2">
-      <div><label>مبلغ کل اجاره</label><input name="total" inputmode="numeric" value="0" /></div>
-      <div><label>ودیعه (قابل استرداد)</label><input name="deposit" inputmode="numeric" value="0" /></div>
+      <div><label>مبلغ کل اجاره (تومان)</label><input data-money="1" name="total" inputmode="numeric" value="0" placeholder="100,000,000" /></div>
+      <div><label>ودیعه قابل استرداد (تومان)</label><input data-money="1" name="deposit" inputmode="numeric" value="0" /></div>
     </div>
     <div class="grid2">
       <div><label>دوره پرداخت</label><select name="cycle"><option value="once">یک‌جا</option><option value="monthly">ماهانه</option><option value="seasonal" selected>فصلی</option><option value="annual">سالانه</option></select></div>
-      <div><label>سهم محصول (٪)</label><input name="sharePercent" inputmode="numeric" value="0" /></div>
+      <div><label>سهم صاحب زمین از محصول (٪)</label><input name="sharePercent" inputmode="numeric" value="0" /></div>
     </div>
     <label>حقابه / سهم آب</label><input name="waterShare" placeholder="۶ ساعت در هفته از چاه مشترک" />
     <label>هزینه آب و برق و پمپ بر عهده</label><select name="waterPaidBy"><option>مستاجر</option><option>موجر</option><option>بالتساوی</option></select></label>
     <label>شرایط و تعهدات</label><textarea name="terms" rows="2" placeholder="کشت گندم، عدم تغییر کاربری، تحویل زمین شخم‌زده"></textarea>
     <label>شاهدها</label><input name="witnesses" placeholder="علی رضایی، محمد کریمی" />
     <label>پرداخت از حساب</label><select name="accountId">${options(cashAccounts(state.db))}</select>
-    ${signaturePad("امضای موجر (اختیاری، بعداً هم می‌توانید ثبت کنید)")}
+    ${signaturePad("امضای طرف قرارداد (اختیاری، بعداً هم می‌توانید ثبت کنید)")}
     <button class="btn pri" type="submit" style="width:100%">ثبت قرارداد</button>
-    <div class="note">این قرارداد در اپ ثبت می‌شود؛ برای اثر حقوقی کامل، ثبت رسمی/دفتر اسناد رسمی و مشورت حقوقی لازم است.</div>
+    <div class="note">ارکان لازم: مورد قرارداد، مدت، مال‌الاجاره یا سهم محصول، ودیعه، حقابه، تعهدات و امضای طرفین. ثبت رسمی در دفتر اسناد رسمی برای مبالغ بالا توصیه می‌شود.</div>
   </form>`;
 }
 
@@ -1004,7 +1008,7 @@ function leaseList(): string {
         <div class="row" style="border:0"><span class="ico">🏞️</span><div class="grow"><div class="t">${esc(l.title)}</div><div class="s">${esc(LEASE_KIND_LABEL[l.kind])} · ${esc(E.formatJalali(l.start))} تا ${esc(E.formatJalali(l.end))}</div>
         <div class="s">اجاره ${money(leaseTotalRent(l))}${l.sharePercent ? ` + ${E.faDigits(l.sharePercent)}٪ محصول` : ""} · پرداخت‌شده ${money(leasePaid(l, db.rents))} · مانده ${money(leaseRemaining(l, db.rents))}</div></div>
         <span class="chip ${l.status === "active" ? "pos" : "warn"}">${esc(LEASE_STATUS_LABEL[l.status])}</span></div>
-        <div class="note">موجر ${esc(db.contacts.find((c) => c.id === l.landlordId)?.name ?? "—")} · مستاجر ${esc(db.contacts.find((c) => c.id === l.tenantId)?.name ?? "—")}${next ? ` · قسط بعدی ${esc(E.formatJalali(next.due))} (${money(next.amount)})` : " · تسویه"}</div>
+        <div class="note">موجر ${esc(leaseParties(db, l).owner)} · مستاجر ${esc(leaseParties(db, l).tenant)}${next ? ` · قسط بعدی ${esc(E.formatJalali(next.due))} (${money(next.amount)})` : " · تسویه"}</div>
         <div class="note">ودیعه ${money(l.deposit)} · حقابه ${esc(l.waterShare || "—")} · هزینه آب/برق: ${esc(l.waterPaidBy)}</div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">${sig.complete ? '<span class="chip pos">امضا کامل</span>' : `<span class="chip warn">امضا ناقص (${signatures.length})</span>`}${leaseIsOverdue(l) ? '<span class="chip neg">معوق</span>' : ""}</div>
         <div class="btn-row">
@@ -1026,19 +1030,20 @@ function leasePayForm(leaseId?: number): string {
   const lease = active.find((l) => l.id === selected) ?? active[0];
   const remaining = leaseRemaining(lease, db.rents);
   const next = leaseNextDue(lease);
+  const isOwnerLease = leaseRole(lease) === "owner";
   return `<form data-form="leasepay">
     <label>قرارداد</label>
     <select name="leaseId">${active.map((l) => `<option value="${l.id}"${l.id === selected ? " selected" : ""}>${esc(l.title)} — مانده ${money(leaseRemaining(l, db.rents))}</option>`).join("")}</select>
     <label>قسط</label>
     <select name="scheduleNo"><option value="">تخصیص خودکار</option>${lease.schedule.map((r) => `<option value="${r.no}"${!r.paid && next?.no === r.no ? " selected" : ""}>قسط ${E.faDigits(r.no)} — ${esc(E.formatJalali(r.due))} — ${money(r.amount)}${r.paid ? " (پرداخت‌شده)" : ""}</option>`).join("")}</select>
     <div class="grid2">
-      <div><label>مبلغ</label><input name="amount" inputmode="numeric" required value="${next ? next.amount : remaining}" /></div>
+      <div><label>مبلغ</label><input data-money="1" name="amount" inputmode="numeric" required value="${next ? next.amount : remaining}" /></div>
       <div><label>تاریخ</label><input name="date" type="date" value="${E.todayISO()}" /></div>
     </div>
     <label>پرداخت از حساب</label><select name="accountId">${options(cashAccounts(db))}</select>
     <label>یادداشت</label><input name="note" />
-    <button class="btn pri" type="submit" style="width:100%">ثبت پرداخت اجاره</button>
-    <div class="note">سند خودکار: بدهکار «اجاره و آب و برق» / بستانکار حساب بانکی یا صندوق. مانده اجاره و اقساط هم‌زمان به‌روز می‌شود.</div>
+    <button class="btn pri" type="submit" style="width:100%">ثبت ${isOwnerLease ? "دریافت" : "پرداخت"} اجاره</button>
+    <div class="note">سند خودکار: ${isOwnerLease ? "بدهکار حساب بانکی یا صندوق / بستانکار «درآمد اجاره زمین و سهم محصول»" : "بدهکار «اجاره و آب و برق» / بستانکار حساب بانکی یا صندوق"}. مانده اجاره و اقساط هم‌زمان به‌روز می‌شود.</div>
   </form>`;
 }
 
@@ -1598,11 +1603,13 @@ function bindEvents(): void {
           break;
         }
         case "lease": {
+          const leaseUserRole: "tenant" | "owner" = str("role") === "owner" ? "owner" : "tenant";
+          const counterpartyId = Number(data.get("counterpartyId"));
           let next = S.addLease(state.db, {
             title: str("title"),
             kind: (str("kind") as "cash" | "share" | "mixed") || "cash",
-            landlordId: Number(data.get("landlordId")),
-            tenantId: Number(data.get("tenantId")),
+            role: leaseUserRole,
+            counterpartyId,
             location: str("location"),
             plate: str("plate"),
             area: num("area"),
@@ -1621,7 +1628,13 @@ function bindEvents(): void {
           });
           const leaseId = next.leases[next.leases.length - 1].id;
           const image = str("signature");
-          if (image) next = S.addLeaseSignature(next, { leaseId, role: "موجر", signerName: state.db.contacts.find((c) => c.id === Number(data.get("landlordId")))?.name ?? "موجر", image });
+          if (image)
+            next = S.addLeaseSignature(next, {
+              leaseId,
+              role: leaseUserRole === "tenant" ? "موجر" : "مستاجر",
+              signerName: state.db.contacts.find((c) => c.id === counterpartyId)?.name ?? "طرف قرارداد",
+              image,
+            });
           commit(next, "قرارداد اجاره ثبت شد");
           break;
         }
@@ -1717,3 +1730,32 @@ export function startApp(): void {
   render();
   bindEvents();
 }
+
+/* ---- جداکننده‌ی هزارگان هنگام تایپ مبلغ: 100,000,000 ---- */
+function setupMoneyFormatting(): void {
+  document.addEventListener(
+    "input",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.dataset.money !== "1") return;
+      const cleaned = E.normalizeDigits(target.value).replace(/[^0-9]/g, "");
+      if (!cleaned) {
+        target.value = "";
+        return;
+      }
+      const grouped = E.groupAmount(Number(cleaned));
+      if (target.value !== grouped) {
+        target.value = grouped;
+        try {
+          target.setSelectionRange(grouped.length, grouped.length);
+        } catch {
+          /* برخی مرورگرها پشتیبانی نمی‌کنند */
+        }
+      }
+    },
+    true,
+  );
+}
+
+if (typeof document !== "undefined") setupMoneyFormatting();

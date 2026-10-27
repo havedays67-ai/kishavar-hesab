@@ -194,6 +194,8 @@ export interface Lease {
   id: number;
   title: string;
   kind: "cash" | "share" | "mixed";
+  /** نقش کسب‌وکار ما در قرارداد: tenant = زمین را اجاره می‌کنیم، owner = زمین را اجاره می‌دهیم */
+  role?: "tenant" | "owner";
   landlordId: number;
   tenantId: number;
   location: string;
@@ -277,6 +279,12 @@ export function normalizeDigits(input: string): string {
 }
 
 /** ورودی کاربر (رقم فارسی، جداکننده، ضریب هزار/میلیون) → تومان صحیح */
+/** 100000000 → "100,000,000" برای نمایش هنگام تایپ مبلغ */
+export function groupAmount(value: unknown): string {
+  const n = Math.round(Math.abs(Number(typeof value === "number" ? value : toAmount(value)) || 0));
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 export function toAmount(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
   const text = normalizeDigits(String(value ?? ""))
@@ -536,6 +544,7 @@ export const CHART: ReadonlyArray<Omit<Account, "id">> = [
   { code: "2300", name: "مالیات پرداختنی", type: "liability" },
   { code: "3100", name: "سرمایه مالک", type: "equity" },
   { code: "4100", name: "درآمد فروش", type: "income" },
+  { code: "4150", name: "درآمد اجاره زمین و سهم محصول", type: "income" },
   { code: "4110", name: "درآمد خدمات و سایر", type: "income" },
   { code: "5100", name: "بهای تمام‌شده", type: "expense" },
   { code: "5110", name: "دستمزد کارگر", type: "expense" },

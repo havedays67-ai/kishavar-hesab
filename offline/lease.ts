@@ -49,6 +49,24 @@ export const LEASE_REQUIRED = [
   "مبلغ اجاره یا سهم محصول",
 ] as const;
 
+export const LEASE_ROLE_LABEL: Record<"tenant" | "owner", string> = {
+  tenant: "زمین را اجاره می‌کنم (من مستاجرم)",
+  owner: "زمین را اجاره می‌دهم (من موجرم)",
+};
+
+export function leaseRole(lease: Lease): "tenant" | "owner" {
+  return lease.role === "owner" ? "owner" : "tenant";
+}
+
+/** نام طرفین از دید کسب‌وکار ما — طرفی که «ما» هستیم همیشه «کسب‌وکار من» نمایش داده می‌شود. */
+export function leaseParties(db: DB, lease: Lease): { owner: string; tenant: string; counterparty: string; role: "tenant" | "owner" } {
+  const role = leaseRole(lease);
+  const name = (id: number) => (id ? db.contacts.find((c) => c.id === id)?.name ?? "—" : "کسب‌وکار من");
+  const owner = role === "tenant" ? name(lease.landlordId) : "کسب‌وکار من";
+  const tenant = role === "owner" ? name(lease.tenantId) : "کسب‌وکار من";
+  return { owner, tenant, counterparty: role === "tenant" ? owner : tenant, role };
+}
+
 export function leaseTotalRent(lease: Lease): number {
   return lease.schedule.reduce((s, r) => s + r.amount, 0);
 }
@@ -134,8 +152,9 @@ export function validateLeaseInput(input: {
 export function leaseContractText(db: DB, leaseId: number): string {
   const lease = db.leases.find((l) => l.id === leaseId);
   if (!lease) return "";
-  const landlord = db.contacts.find((c) => c.id === lease.landlordId)?.name ?? "—";
-  const tenant = db.contacts.find((c) => c.id === lease.tenantId)?.name ?? "—";
+  const parties = leaseParties(db, lease);
+  const landlord = parties.owner;
+  const tenant = parties.tenant;
   const paid = leasePaid(lease, db.rents);
   const remaining = leaseRemaining(lease, db.rents);
   const sig = leaseSignedBoth(lease, db.signatures);
@@ -143,13 +162,13 @@ export function leaseContractText(db: DB, leaseId: number): string {
     `قرارداد ${LEASE_KIND_LABEL[lease.kind]} — ${lease.title}`,
     `تاریخ تنظیم: ${formatJalali(lease.createdAt.slice(0, 10), "long")}`,
     "",
-    `ماده ۱ — طرفین: موجر ${landlord} و مستاجر ${tenant}.`,
+    `ماده ۱ — طرفین: موجر/مالک: ${landlord} و مستاجر/مزارع: ${tenant} (${LEASE_ROLE_LABEL[leaseRole(lease)]}).`,
     `ماده ۲ — مورد اجاره: ${lease.title}${lease.plate ? `، پلاک ${lease.plate}` : ""}${lease.location ? `، واقع در ${lease.location}` : ""}${lease.area ? `، به مساحت ${faDigits(lease.area)} هکتار` : ""}.`,
     `ماده ۳ — مدت: از ${formatJalali(lease.start)} تا ${formatJalali(lease.end)} (${faDigits(lease.months)} ماه).`,
     `ماده ۴ — مال‌الاجاره: ${lease.kind === "share" ? `${faDigits(lease.sharePercent)}٪ سهم محصول` : fmt(leaseTotalRent(lease))}${lease.kind === "mixed" ? ` به‌همراه ${faDigits(lease.sharePercent)}٪ سهم محصول` : ""}؛ نحوه پرداخت: ${lease.cycle === "monthly" ? "ماهانه" : lease.cycle === "seasonal" ? "فصلی" : lease.cycle === "annual" ? "سالانه" : "یک‌جا"} با ${faDigits(lease.schedule.length)} قسط.`,
     `ماده ۵ — ودیعه: ${lease.deposit > 0 ? `${fmt(lease.deposit)} (قابل استرداد پس از تسویه و تحویل زمین)` : "تعیین نشده"}.`,
     `ماده ۶ — حقابه: ${lease.waterShare || "بر اساس عرف محل"}؛ هزینه‌ی آب و برق و پمپ بر عهده‌ی ${lease.waterPaidBy}.`,
-    `ماده ۷ — تعهدات مستاجر: استفاده صرفاً برای کشت ${lease.crop || "زراعت"}، عدم تغییر کاربری، حفظ حدود و تجهیزات، نگهداری چاه و آبیاری و پرداخت هزینه‌های جاری کشت.`,
+    `ماده ۷ — تعهدات کشاورز: استفاده صرفاً برای کشت ${lease.crop || "زراعت"}، عدم تغییر کاربری، حفظ حدود و تجهیزات، نگهداری چاه و آبیاری و پرداخت هزینه‌های جاری کشت.`,
     `ماده ۸ — تعهدات موجر: تسلیم عین مستاجره در ابتدای مدت، تأمین حقابه توافق‌شده، عدم مزاحمت در بهره‌برداری و پرداخت عوارض اصل ملک (مگر توافق خلاف آن).`,
     `ماده ۹ — فسخ: در صورت عدم پرداخت اجاره در سررسید یا تغییر کاربری غیرمجاز، موجر حق فسخ دارد.`,
     `ماده ۱۰ — شاهدها: ${lease.witnesses || "—"}.`,

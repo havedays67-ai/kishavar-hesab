@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui";
 export const NAV_ITEMS = [
   { href: "/", label: "داشبورد", icon: "home" },
   { href: "/lands", label: "زمین و کشت", icon: "land" },
+  { href: "/contracts", label: "اجاره و قرارداد زمین", icon: "land" },
   { href: "/transactions", label: "دفتر عملیات", icon: "receipt" },
   { href: "/inventory", label: "انبار نهاده", icon: "box" },
   { href: "/labor", label: "کارگر و دستمزد", icon: "users" },
@@ -16,6 +17,7 @@ export const NAV_ITEMS = [
   { href: "/reports", label: "گزارش‌ها", icon: "chart" },
   { href: "/assistant", label: "دستیار هوشمند", icon: "sparkles" },
   { href: "/knowledge", label: "پایگاه دانش", icon: "book" },
+  { href: "/diagnostics", label: "تست و عیب‌یابی", icon: "alert" },
   { href: "/settings", label: "تنظیمات", icon: "settings" },
 ];
 
@@ -52,6 +54,7 @@ export function SidebarNav() {
 const MOBILE_PRIMARY = [
   { href: "/", label: "داشبورد", icon: "home" },
   { href: "/transactions", label: "دفتر", icon: "receipt" },
+  { href: "/contracts", label: "قرارداد", icon: "land" },
   { href: "/assistant", label: "دستیار", icon: "sparkles" },
   { href: "/reports", label: "گزارش", icon: "chart" },
 ];

@@ -255,3 +255,49 @@ export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull().default(""),
 });
+
+/**
+ * قراردادهای زمین کشاورزی — از دید «کسب‌وکار ما».
+ * perspective = lessee  → ما زمین را اجاره می‌کنیم (طرف مقابل مالک/مزارع است)
+ * perspective = lessor  → ما زمین را اجاره می‌دهیم (طرف مقابل مستاجر/عامل است)
+ */
+export const agriContracts = pgTable("agri_contracts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  perspective: text("perspective").notNull().default("lessee"), // lessee | lessor
+  type: text("type").notNull().default("cash"), // cash | crop_share | cash_share | mosaqat | partnership
+  counterpartyName: text("counterparty_name").notNull().default(""),
+  counterpartyPhone: text("counterparty_phone").notNull().default(""),
+  crop: text("crop").notNull().default(""),
+  areaHa: doublePrecision("area_ha").notNull().default(0),
+  location: text("location").notNull().default(""),
+  plate: text("plate").notNull().default(""),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  cycle: text("cycle").notNull().default("once"), // once | monthly | seasonal | annual
+  totalRentToman: bigint("total_rent_toman", { mode: "number" }).notNull().default(0),
+  depositToman: bigint("deposit_toman", { mode: "number" }).notNull().default(0),
+  landownerSharePercent: doublePrecision("landowner_share_percent").notNull().default(0),
+  waterShare: text("water_share").notNull().default(""),
+  waterPaidBy: text("water_paid_by").notNull().default("farmer"), // farmer | landowner | split
+  costsPaidBy: text("costs_paid_by").notNull().default("farmer"), // farmer | landowner | split
+  status: text("status").notNull().default("draft"), // draft | active | ended | canceled
+  witnesses: text("witnesses").notNull().default(""),
+  terms: text("terms").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const agriContractPayments = pgTable("agri_contract_payments", {
+  id: serial("id").primaryKey(),
+  contractId: integer("contract_id")
+    .notNull()
+    .references(() => agriContracts.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull().default("rent"), // rent | deposit | deposit_refund | crop_share | other
+  amountToman: bigint("amount_toman", { mode: "number" }).notNull().default(0),
+  paidAt: date("paid_at").notNull(),
+  account: text("account").notNull().default("bank"), // cash | bank
+  installmentNo: integer("installment_no"),
+  note: text("note").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
