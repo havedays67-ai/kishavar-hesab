@@ -384,3 +384,54 @@ export const tradeDocuments = pgTable("trade_documents", {
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
   snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull().default({}),
 });
+
+/* ------------------------------------------------------------------ */
+/* Assistant brain: curated knowledge, training samples, feedback      */
+/* (Seed: src/lib/ai/knowledge-data.ts — engine: knowledge-engine.ts)  */
+/* ------------------------------------------------------------------ */
+
+export const assistantKnowledge = pgTable("assistant_knowledge", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull(),
+  category: text("category").notNull().default("عمومی"),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  keywords: text("keywords").notNull().default(""),
+  aliases: text("aliases").notNull().default(""),
+  intent: text("intent").notNull().default("general"),
+  source: text("source").notNull().default(""),
+  authority: text("authority").notNull().default("curated"),
+  weight: doublePrecision("weight").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("assistant_knowledge_slug_idx").on(t.slug),
+  index("assistant_knowledge_category_idx").on(t.category),
+]);
+
+export const assistantTrainingSamples = pgTable("assistant_training_samples", {
+  id: serial("id").primaryKey(),
+  knowledgeId: integer("knowledge_id").references(() => assistantKnowledge.id, { onDelete: "set null" }),
+  prompt: text("prompt").notNull(),
+  completion: text("completion").notNull(),
+  intent: text("intent").notNull().default("general"),
+  split: text("split").notNull().default("train"), // train | val | test
+  tokens: integer("tokens").notNull().default(0),
+  source: text("source").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("assistant_training_intent_idx").on(t.intent),
+  index("assistant_training_split_idx").on(t.split),
+  uniqueIndex("assistant_training_prompt_intent_idx").on(t.prompt, t.intent),
+]);
+
+export const assistantInteractions = pgTable("assistant_interactions", {
+  id: serial("id").primaryKey(),
+  mode: text("mode").notNull().default("support"),
+  question: text("question").notNull(),
+  answer: text("answer").notNull().default(""),
+  confidence: doublePrecision("confidence").notNull().default(0),
+  knowledgeId: integer("knowledge_id").references(() => assistantKnowledge.id, { onDelete: "set null" }),
+  source: text("source").notNull().default("engine"),
+  helpful: boolean("helpful"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("assistant_interactions_created_idx").on(t.createdAt)]);

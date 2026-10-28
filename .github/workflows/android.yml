@@ -185,6 +185,22 @@ jobs:
           fi
           cp "$OUT" ../KishavarHesab-1.0.0.apk
           ls -lh ../KishavarHesab-1.0.0.apk
+          echo "versionCode=$CODE" > ../apk-build-info.txt
+          echo "variant=$VARIANT" >> ../apk-build-info.txt
+
+      - name: Verify APK is signed with the stable key (updates install over old version)
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          APKSIGNER=$(find "$SDK/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+          if [ -z "$APKSIGNER" ]; then echo "apksigner not found"; exit 1; fi
+          "$APKSIGNER" verify --print-certs KishavarHesab-1.0.0.apk | tee apk-cert.txt
+          grep -qi "Signer #1 certificate SHA-256 digest" apk-cert.txt || (echo "Unsigned APK" && exit 1)
+          # اثر انگشت کلید ثابت مخزن باید در همهٔ ساخت‌ها یکی باشد
+          EXPECTED=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android 2>/dev/null | grep -i "SHA256:" | head -1 | sed -E 's/.*SHA256: *//' | tr -d ' ' | tr 'A-F' 'a-f')
+          ACTUAL=$(grep -i "Signer #1 certificate SHA-256 digest" apk-cert.txt | head -1 | awk '{print $NF}' | tr -d ':' | tr 'A-F' 'a-f')
+          echo "expected=$EXPECTED"
+          echo "actual=$ACTUAL"
+          if [ -n "$EXPECTED" ] && [ "$EXPECTED" != "$ACTUAL" ]; then echo "APK signature key changed — updates would break"; exit 1; fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

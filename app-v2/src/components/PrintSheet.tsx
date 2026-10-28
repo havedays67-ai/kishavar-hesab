@@ -20,8 +20,9 @@ import { SignatureDialog } from "./SignatureDialog";
 import { Fingerprint } from "lucide-react";
 import type { DocumentSpec } from "../lib/documents";
 import { verificationData } from "../lib/documents";
-import { deliverDocumentPdf, deliverDocumentPng, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
-import { CHEQUE_PRINT_WARNING, documentCompleteness, reviewFor } from "../lib/legal";
+import { deliverDocumentPdf, deliverDocumentPng, deliverHtmlFile, printSheetOrPdf } from "../lib/pdf";
+import { buildPrintableHtml, collectDocumentStyles } from "../lib/exportFile";
+import { CHEQUE_PRINT_WARNING, chequeStatutoryChecks, documentCompleteness, reviewFor } from "../lib/legal";
 import {
   formatJalali,
   formatNumber,
@@ -219,6 +220,7 @@ export function DocumentDialog({
   const signatureReport = audit(signatureEntity);
   const legalReview = reviewFor(spec.kind);
   const completeness = documentCompleteness(spec, profile);
+  const chequeChecks = chequeStatutoryChecks(spec.payload.cheque as unknown as Record<string, unknown> | undefined);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -235,9 +237,13 @@ export function DocumentDialog({
 
   const downloadHtml = () => {
     const sheet = document.getElementById("print-root")?.outerHTML ?? "";
-    const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${spec.meta.title} — ${spec.serial}</title><style>${PRINT_CSS}</style></head><body>${sheet}</body></html>`;
+    if (!sheet) {
+      setStatus({ tone: "err", text: "سند برای ذخیره پیدا نشد؛ پیش‌نمایش را دوباره باز کنید." });
+      return;
+    }
+    const html = buildPrintableHtml(`${spec.meta.title} — ${spec.serial}`, sheet, collectDocumentStyles());
     const ok = deliverHtmlFile(html, spec.serial);
-    setStatus(ok ? { tone: "ok", text: "فایل HTML ذخیره شد؛ در مرورگر باز و چاپ کنید." } : { tone: "err", text: "ذخیره فایل ممکن نشد." });
+    setStatus(ok ? { tone: "ok", text: "فایل HTML با همین استایل ذخیره شد؛ در مرورگر باز و چاپ کنید." } : { tone: "err", text: "ذخیره فایل ممکن نشد." });
   };
 
   const downloadPdf = async () => {
@@ -265,14 +271,16 @@ export function DocumentDialog({
     window.setTimeout(() => setCopied(false), 2200);
   };
 
-  const printNow = () => {
+  const printNow = async () => {
     onPrint?.();
-    const done = printSheetInPage(document.getElementById("print-root"), `${spec.meta.title} — ${spec.serial}`);
-    setStatus(
-      done
-        ? { tone: "ok", text: "پنجرهٔ چاپ روشن در حال آماده‌سازی است؛ کاغذ A4 و مقصد «Save as PDF» را انتخاب کنید. اگر باز نشد، «دانلود PNG» مسیر قطعی جایگزین است." }
-        : { tone: "err", text: "چاپ در این دستگاه پشتیبانی نشد؛ از «دانلود PNG» یا «ذخیره HTML» استفاده کنید." }
-    );
+    if (busy) return;
+    setBusy("print");
+    setStatus({ tone: "info", text: "در حال آماده‌سازی چاپ سفید… در اندروید فایل PDF ساخته می‌شود." });
+    const element = document.getElementById("print-root");
+    const result = await printSheetOrPdf(element, `${spec.meta.title} — ${spec.serial}`);
+    setBusy(null);
+    if (result.url && result.filename) setDirectFile({ url: result.url, filename: result.filename });
+    setStatus({ tone: result.ok ? "ok" : "err", text: result.message });
   };
 
   return createPortal(
@@ -301,9 +309,9 @@ export function DocumentDialog({
               <Download className="h-3.5 w-3.5" />
               {busy === "png" ? "در حال ساخت…" : "دانلود PNG"}
             </button>
-            <button type="button" onClick={printNow} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#d4e5db] transition hover:bg-white/[0.08]">
+            <button type="button" onClick={printNow} disabled={busy !== null} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#d4e5db] transition hover:bg-white/[0.08] disabled:opacity-60">
               <Printer className="h-3.5 w-3.5" />
-              چاپ
+              {busy === "print" ? "در حال آماده‌سازی…" : "چاپ / PDF"}
             </button>
             <button type="button" onClick={downloadHtml} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#b9cec3] transition hover:bg-white/[0.08]">
               <FileCheck2 className="h-3.5 w-3.5" />
@@ -325,6 +333,19 @@ export function DocumentDialog({
         <div className="no-print flex flex-wrap items-center gap-2 px-3 pb-2 text-[8px] leading-5 sm:px-5">
           <span className={`flex items-center gap-1 rounded border px-1.5 py-0.5 ${completeness.complete ? "border-mint-300/20 bg-mint-300/[0.06] text-mint-300" : "border-sand-300/20 bg-sand-300/[0.06] text-sand-300"}`}><ShieldCheck className="h-2.5 w-2.5" />کنترل کم‌وکسری: {toPersianDigits(completeness.score)}٪</span>
           <span className={legalReview.legalClass === "cheque-note" ? "text-[#efad9f]" : "text-[#a8bfb3]"}>{legalReview.classLabel}</span>
+          {legalReview.legalClass === "cheque-note" && (
+            <details className="w-full rounded-lg border border-[#a25649]/25 bg-[#a25649]/[0.06] px-2 py-1 text-[8px] leading-5 text-[#e7c3bc]">
+              <summary className="cursor-pointer">کنترل مندرجات قانونی چک ({toPersianDigits(chequeChecks.filter((item) => item.ok).length)}/{toPersianDigits(chequeChecks.length)})</summary>
+              <ul className="mt-1 space-y-0.5">
+                {chequeChecks.map((item) => (
+                  <li key={item.label} className={item.ok ? "text-[#b7dcc7]" : "text-[#f0b3a5]"}>
+                    {item.ok ? "✓" : "✗"} {item.label} — <span className="text-[#cbb0a8]">{item.remedy}</span>
+                  </li>
+                ))}
+                <li className="pt-1 text-[#f1d0c8]">{CHEQUE_PRINT_WARNING}</li>
+              </ul>
+            </details>
+          )}
           {!completeness.complete && (
             <details className="text-[#9fb6aa]">
               <summary className="cursor-pointer">{toPersianDigits(completeness.missing.length)} فیلد الزامی ناقص — دیدن فهرست</summary>

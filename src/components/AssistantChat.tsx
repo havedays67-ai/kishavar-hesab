@@ -12,6 +12,10 @@ type Msg = {
     suggestions?: string[];
     actions?: { label: string; href?: string; kind: string }[];
     kind?: string;
+    refs?: { id: number; question: string; category: string; source: string; confidence: number }[];
+    confidence?: number;
+    interactionId?: number | null;
+    grounded?: boolean;
   };
 };
 
@@ -122,6 +126,25 @@ export function AssistantChat({ initialNotes }: { initialNotes: Note[] }) {
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
   const suggestions = lastAssistant?.meta?.suggestions?.length ? lastAssistant.meta.suggestions : STARTERS[mode];
+  const [feedback, setFeedback] = useState<Record<number, boolean>>({});
+  const [feedbackBusy, setFeedbackBusy] = useState<number | null>(null);
+  const sendFeedback = useCallback(async (interactionId: number, helpful: boolean) => {
+    setFeedbackBusy(interactionId);
+    try {
+      const response = await fetch("/api/knowledge", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ interactionId, helpful }),
+      });
+      if (response.ok) {
+        setFeedback((current) => ({ ...current, [interactionId]: helpful }));
+      }
+    } catch {
+      /* بازخورد اختیاری است */
+    } finally {
+      setFeedbackBusy(null);
+    }
+  }, []);
 
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -216,6 +239,40 @@ export function AssistantChat({ initialNotes }: { initialNotes: Note[] }) {
                         </Link>
                       ) : null,
                     )}
+                  </div>
+                ) : null}
+                {m.role === "assistant" && m.meta?.refs?.length ? (
+                  <details className="mt-2 rounded-lg bg-white/10 px-2 py-1 text-[10px] text-farm-100">
+                    <summary className="cursor-pointer">
+                      منابع دانش ({m.meta.refs.length})
+                      {typeof m.meta.confidence === "number" && m.meta.confidence > 0 ? ` · اطمینان ${Math.round(m.meta.confidence * 100)}٪` : ""}
+                    </summary>
+                    <ul className="mt-1 space-y-0.5">
+                      {m.meta.refs.map((ref) => (
+                        <li key={ref.id}>• {ref.category}: {ref.question} <span className="opacity-70">({ref.source})</span></li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+                {m.role === "assistant" && m.meta?.interactionId ? (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px] text-farm-100">
+                    <span className="opacity-80">این پاسخ مفید بود؟</span>
+                    <button
+                      type="button"
+                      disabled={feedbackBusy === m.meta.interactionId}
+                      onClick={() => void sendFeedback(m.meta!.interactionId!, true)}
+                      className={`rounded-md px-1.5 py-0.5 ${feedback[m.meta.interactionId] === true ? "bg-white text-farm-900" : "bg-white/15 hover:bg-white/25"}`}
+                    >
+                      بله
+                    </button>
+                    <button
+                      type="button"
+                      disabled={feedbackBusy === m.meta.interactionId}
+                      onClick={() => void sendFeedback(m.meta!.interactionId!, false)}
+                      className={`rounded-md px-1.5 py-0.5 ${feedback[m.meta.interactionId] === false ? "bg-white text-farm-900" : "bg-white/15 hover:bg-white/25"}`}
+                    >
+                      نه
+                    </button>
                   </div>
                 ) : null}
               </div>

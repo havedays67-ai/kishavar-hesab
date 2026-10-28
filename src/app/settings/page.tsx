@@ -102,7 +102,7 @@ export default async function SettingsPage() {
               شاخه main به‌صورت خودکار بازسازی می‌شود. لینک دانلود و مشخصات کلید امضا در صفحه اصلی مخزن گیت‌هاب است.
             </p>
             <a
-              href="https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1.0.0/KishavarHesab-1.0.0.apk"
+              href="https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk"
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-farm-700 px-3 py-2 text-[11px] font-bold text-white"

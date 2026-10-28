@@ -1,6 +1,6 @@
 import { AlertTriangle, Ban, ChevronDown, FileCheck2, Landmark, Scale, ShieldCheck } from "lucide-react";
 import { cn } from "../utils/cn";
-import { CHEQUE_PRINT_WARNING, LEGAL_DISCLAIMER_SHORT, LEGAL_PRINCIPLES, LEGAL_REVIEWS, type LegalClass } from "../lib/legal";
+import { CHEQUE_PRINT_WARNING, LEGAL_DISCLAIMER_SHORT, LEGAL_PRINCIPLES, LEGAL_REVIEWS, PRINT_AND_SIGN_RESULT, type LegalClass } from "../lib/legal";
 
 const classStyle: Record<LegalClass, { label: string; className: string }> = {
   "ordinary-document": { label: "سند عادی امضاشده", className: "border-mint-300/20 bg-mint-300/[0.07] text-mint-300" },
@@ -40,6 +40,12 @@ export function LegalReviewPanel() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="mx-4 mb-3 grid gap-2 rounded-xl border border-mint-300/15 bg-mint-300/[0.04] p-3 text-[8px] leading-5 text-[#a9c3b6] sm:grid-cols-3">
+        <p><b className="block text-[9px] text-[#d8ecdf]">چاپ + امضای دستی اسناد</b>{PRINT_AND_SIGN_RESULT.documents}</p>
+        <p><b className="block text-[9px] text-[#d8ecdf]">امضای داخل برنامه</b>{PRINT_AND_SIGN_RESULT.electronic}</p>
+        <p><b className="block text-[9px] text-[#d8ecdf]">چک</b>{PRINT_AND_SIGN_RESULT.cheque}</p>
       </div>
 
       <div className="mx-4 mb-3 rounded-xl border border-[#a25649]/25 bg-[#a25649]/[0.07] p-3">

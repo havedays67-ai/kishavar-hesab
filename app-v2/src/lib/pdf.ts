@@ -10,6 +10,7 @@
 import {
   PRINT_RESET_CSS,
   collectDocumentStyles,
+  isNativeApp,
   printDocument,
   safeFileName,
   saveBlob,
@@ -168,6 +169,31 @@ export function printSheetInPage(element: HTMLElement | null, title: string): bo
     extraCss: `${PRINT_RESET_CSS}\nbody{padding:0;margin:0}#print-root{padding:0;margin:0;background:#fff}.sheet{background:#fff}.print-sheet{box-shadow:none!important}`,
     autoPrint: true,
   });
+}
+
+/**
+ * چاپ/ذخیرهٔ یک‌مرحله‌ای و مطمئن:
+ * • وب: چاپ در iframe سفید (بدون پاپ‌آپ، بدون صفحهٔ سیاه).
+ * • APK: WebView چاپ ندارد؛ PDF واقعی ساخته و پنجرهٔ سیستم باز می‌شود.
+ * در هر دو حالت، اگر مسیر اول ممکن نشد مسیر دوم اجرا و نتیجه گزارش می‌شود.
+ */
+export async function printSheetOrPdf(element: HTMLElement | null, title: string): Promise<PdfResult> {
+  if (!element) return { ok: false, mode: "error", message: "سند برای چاپ پیدا نشد." };
+  if (isNativeApp()) {
+    const result = await deliverDocumentPdf(element, title);
+    return {
+      ...result,
+      message: result.ok
+        ? "اندروید پنجرهٔ چاپ مرورگر ندارد؛ فایل PDF ساخته و پنجرهٔ سیستم باز شد. برای چاپ، «چاپ» یا یک برنامهٔ PDF‌خوان را انتخاب کنید."
+        : result.message,
+    };
+  }
+  const opened = printSheetInPage(element, title);
+  if (opened) {
+    return { ok: true, mode: "open", message: "پنجرهٔ چاپ سفید باز شد؛ کاغذ A4 را انتخاب کنید (مقصد Save as PDF هم ممکن است)." };
+  }
+  const fallback = await deliverDocumentPdf(element, title);
+  return { ...fallback, message: fallback.ok ? `چاپ مستقیم مسدود شد؛ ${fallback.message}` : fallback.message };
 }
 
 export function deliverHtmlFile(html: string, fileBaseName: string): boolean {

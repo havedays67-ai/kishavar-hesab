@@ -31,6 +31,54 @@ export const LEGAL_DISCLAIMER_SHORT =
 export const CHEQUE_PRINT_WARNING =
   "این برگهٔ چاپی «چک» نیست و در هیچ بانکی قابل وصول نیست. چک معتبر باید برگهٔ رسمی دسته‌چک بانک با شناسهٔ یکتای ۱۶ رقمی صیاد باشد، اطلاعاتش شامل مبلغ/تاریخ/گیرنده در سامانهٔ صیاد ثبت شود، امضای اصلی صاحب حساب با نمونهٔ بانک یکسان باشد و گیرنده هم در صیاد تأیید/وصول کند. صدور یا پشت‌نویسی بدون ثبت در صیاد، طبق رویه و بخشنامه‌های جدید بانک مرکزی فاقد اعتبار چک است.";
 
+/**
+ * نتیجهٔ صریح «چاپ + امضای دستی با خودکار»:
+ * برای قرارداد/رسید/صورت‌جلسه: معتبر به‌عنوان سند عادی بین طرفین.
+ * برای چک: برگهٔ A4 چک بانکی نیست؛ فقط دسته‌چک رسمی + صیاد معتبر است.
+ */
+export const PRINT_AND_SIGN_RESULT = {
+  documents: "نسخهٔ چاپی با مشخصات کامل، امضای دستی و اثر انگشت/مهر طرفین، بین همان طرفین سند عادی معتبر است؛ استناد آن علیه ثالث و آثار ثبتی محدود است (قانون مدنی، مواد ۱۰، ۲۱۹، ۱۲۸۹–۱۲۹۱).",
+  electronic: "امضای کشیده‌شده در برنامه «امضای الکترونیکی ساده» است؛ برای «امضای مطمئن» ماده ۱۰ قانون تجارت الکترونیکی و اثر ماده ۱۵، گواهی مرکز مجاز صدور گواهی و احراز هویت لازم است.",
+  cheque: "فرم چک برنامه سند یادآور/قرارداد پرداخت است، نه چک بانکی. چک قانونی باید روی دسته‌چک رسمی بانک باشد، شناسهٔ ۱۶ رقمی صیاد داشته باشد، مبلغ/تاریخ/گیرنده در صیاد ثبت و امضای صاحب حساب مطابق نمونهٔ بانک باشد و گیرنده در صیاد تأیید/وصول کند.",
+} as const;
+
+export const CHEQUE_STATUTORY_FIELDS = [
+  "برگهٔ رسمی دسته‌چک بانک (نه کاغذ A4)",
+  "نام و شعبهٔ بانک محال‌علیه",
+  "شمارهٔ حساب/شبا و شناسهٔ یکتای ۱۶ رقمی صیاد",
+  "تاریخ صدور و تاریخ سررسید (قابل وصول در تاریخ مندرج یا پس از آن)",
+  "مبلغ به عدد و به حروف، بدون اختلاف",
+  "نام دارنده/ذی‌نفع یا قید «در وجه حامل»",
+  "امضای صادرکننده مطابق نمونهٔ ثبت‌شدهٔ بانک (مهر کافی نیست)",
+  "عدم درج شرط/وعدهٔ پرداخت در متن چک",
+  "ثبت اطلاعات در سامانهٔ صیاد و تأیید/وصول گیرنده",
+] as const;
+
+export interface StatutoryCheck {
+  label: string;
+  ok: boolean;
+  remedy: string;
+}
+
+const digits = (value: unknown) => (typeof value === "string" ? value.replace(/\D/g, "") : "");
+const filled = (value: unknown) => typeof value === "string" && value.trim().length > 1;
+
+/** کنترل مندرجات قانونی چک (قانون صدور چک و قانون تجارت، ماده ۳۱۱). */
+export function chequeStatutoryChecks(cheque?: Record<string, unknown>): StatutoryCheck[] {
+  const source = cheque ?? {};
+  const sayad = digits(source.sayadId);
+  return [
+    { label: "شناسهٔ یکتای ۱۶ رقمی صیاد", ok: sayad.length === 16, remedy: sayad.length === 16 ? "ثبت شد" : "شناسهٔ ۱۶ رقمی صیاد الزامی است" },
+    { label: "نام صاحب حساب", ok: filled(source.accountOwner), remedy: filled(source.accountOwner) ? "کامل" : "نام کامل صاحب حساب را وارد کنید" },
+    { label: "کد ملی/شناسهٔ صاحب حساب", ok: digits(source.nationalId).length >= 10, remedy: digits(source.nationalId).length >= 10 ? "کامل" : "کد ملی ۱۰ رقمی لازم است" },
+    { label: "تاریخ صدور و سررسید", ok: Boolean(source.issueDate) && Boolean(source.due), remedy: Boolean(source.issueDate) && Boolean(source.due) ? "کامل" : "هر دو تاریخ را وارد کنید" },
+    { label: "بانک/شعبه", ok: filled(source.branch), remedy: filled(source.branch) ? "کامل" : "نام بانک و شعبه را بنویسید" },
+    { label: "شماره حساب یا شبا", ok: filled(source.accountNo) || filled(source.iban), remedy: filled(source.accountNo) || filled(source.iban) ? "کامل" : "شماره حساب/شبا را وارد کنید" },
+    { label: "بابت/علت پرداخت", ok: filled(source.reason), remedy: filled(source.reason) ? "کامل" : "علت صدور را مشخص کنید" },
+    { label: "ثبت در صیاد و تأیید گیرنده (خارج از برنامه)", ok: false, remedy: "باید در سامانهٔ صیاد ثبت و توسط گیرنده تأیید شود" },
+  ];
+}
+
 export const LEGAL_PRINCIPLES: { title: string; text: string; basis: string }[] = [
   {
     title: "امضای دستی روی کاغذ، سند عادی می‌سازد",

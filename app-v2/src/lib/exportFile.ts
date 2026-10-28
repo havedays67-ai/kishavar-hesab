@@ -1,15 +1,16 @@
 /**
- * لایهٔ یکپارچهٔ ذخیره و چاپ
- * ------------------------------------------------------------
- * مشکل گزارش‌شده: در برخی مرورگرها/WebViewها، دانلود خودکار پس از یک
- * await طولانی مسدود می‌شود و پنجرهٔ چاپ با استایل تیرهٔ برنامه، سیاه
- * چاپ می‌شود. این فایل:
- *  • داده را به Blob تبدیل و لینک دانلود واقعی می‌سازد؛
- *  • لینک مستقیم برمی‌گرداند تا حتی اگر دانلود خودکار مسدود شد،
- *    کاربر با کلیک خودش فایل را ذخیره کند؛
- *  • چاپ را در iframe مستقل با رنگ‌های روشن و انتظار برای فونت/عکس
- *    انجام می‌دهد؛
- *  • در APK از Filesystem/Share استفاده می‌کند.
+ * لایهٔ یکپارچهٔ ذخیره، اشتراک‌گذاری و چاپ اسناد
+ * ------------------------------------------------------------------
+ * باگ‌های گزارش‌شده و ریشهٔ آن‌ها:
+ *  ۱) «دانلود هیچ کاری نمی‌کند»: در WebView اندروید لینک
+ *     `<a download>` نه دانلود می‌شود و نه باز می‌شود؛ در وب هم اگر
+ *     کلیک بعد از چند await انجام شود، مرورگر آن را «بدون اشارهٔ
+ *     کاربر» می‌داند و مسدود می‌کند. راه‌حل: کلیک وب کاملاً همگام،
+ *     و در APK نوشتن فایل با Filesystem + پنجرهٔ ذخیره/ارسال سیستم.
+ *  ۲) «صفحهٔ سیاه چاپ»: تم تیرهٔ برنامه به پنجرهٔ چاپ منتقل می‌شد و
+ *     window.open در WebView برگهٔ خالی می‌ساخت. راه‌حل: چاپ فقط با
+ *     iframe هم‌صفحه و CSS سفید؛ در APK خروجی PDF واقعی ساخته و با
+ *     برنامهٔ PDF‌خوان سیستم چاپ می‌شود.
  */
 import { Capacitor } from "@capacitor/core";
 
@@ -23,8 +24,16 @@ export interface SaveResult {
   filename: string;
 }
 
+export function isNativeApp(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
 export function safeFileName(name: string, extension = "png"): string {
-  const clean = name
+  const clean = (name || "file")
     .replace(/[\\/:*?"<>|]+/g, "-")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
@@ -35,7 +44,7 @@ export function safeFileName(name: string, extension = "png"): string {
 
 export function dataUrlToBlob(dataUrl: string): Blob | null {
   try {
-    if (dataUrl.startsWith("blob:")) return null;
+    if (!dataUrl || dataUrl.startsWith("blob:")) return null;
     const [header, payload] = dataUrl.split(",");
     if (!payload) return null;
     const mime = /data:([^;]+)/.exec(header)?.[1] || "application/octet-stream";
@@ -63,41 +72,128 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-/** لینک زنده برای دکمهٔ «ذخیرهٔ مستقیم»؛ مالکیت revoke با caller است. */
+/**
+ * ذخیرهٔ فوری Data-URL. باید بدون await و مستقیماً داخل onClick صدا
+ * زده شود تا مرورگر اجازهٔ دانلود را نگیرد.
+ */
+export function downloadDataUrl(dataUrl: string, filename: string): SaveResult {
+  if (!dataUrl) {
+    return { ok: false, mode: "error", message: "دادهٔ فایل خالی است.", filename };
+  }
+  if (isNativeApp()) {
+    return {
+      ok: false,
+      mode: "error",
+      message: "برای ذخیره در اندروید از دکمهٔ «ذخیره / ارسال» استفاده کنید.",
+      url: dataUrl,
+      filename,
+    };
+  }
+  try {
+    const anchor = document.createElement("a");
+    anchor.href = dataUrl;
+    anchor.download = filename;
+    anchor.rel = "noopener";
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return { ok: true, mode: "download", message: `دانلود «${filename}» آغاز شد.`, url: dataUrl, filename };
+  } catch {
+    return { ok: false, mode: "error", message: "مرورگر اجازهٔ ذخیرهٔ فایل را نداد.", url: dataUrl, filename };
+  }
+}
+
 export function createObjectUrl(blob: Blob): string {
   return URL.createObjectURL(blob);
 }
 
+/**
+ * ذخیرهٔ Blob در وب (دانلود) و در APK (نوشتن فایل + پنجرهٔ ذخیره/ارسال).
+ * همیشه پیام روشن و در صورت امکان لینک مستقیم برمی‌گرداند تا هیچ
+ * کلیکی «بی‌صدا» نماند.
+ */
 export async function saveBlob(blob: Blob, filename: string, title = "فایل"): Promise<SaveResult> {
-  const native = Capacitor.isNativePlatform();
-  if (native) {
+  if (isNativeApp()) {
+    let savedUri = "";
+    let savedDirectory = "";
     try {
-      const [{ Filesystem, Directory }, shareModule] = await Promise.all([
-        import("@capacitor/filesystem"),
-        import("@capacitor/share").catch(() => null),
-      ]);
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
       const base64 = await blobToBase64(blob);
-      const written = await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Documents, recursive: true });
-      const share = shareModule?.Share;
-      const canShare = await share?.canShare().catch(() => ({ value: false }));
-      if (share && canShare?.value) {
-        await share.share({ title, text: `${title} — ساخت کشاورزحساب`, url: written.uri, dialogTitle: "ذخیره یا ارسال فایل" });
-        return { ok: true, mode: "share", message: "فایل ساخته شد؛ در پنجرهٔ سیستم «ذخیره» یا برنامهٔ دلخواه را بزنید.", filename };
+      const candidates = [
+        { directory: Directory.Cache, label: "حافظهٔ موقت برنامه" },
+        { directory: Directory.Documents, label: "پوشهٔ اسناد برنامه" },
+      ];
+      for (const candidate of candidates) {
+        try {
+          const written = await Filesystem.writeFile({
+            path: filename,
+            data: base64,
+            directory: candidate.directory,
+            recursive: true,
+          });
+          savedUri = written.uri;
+          savedDirectory = candidate.label;
+          break;
+        } catch {
+          /* پوشهٔ بعدی را امتحان می‌کنیم */
+        }
       }
-      return { ok: true, mode: "share", message: `فایل در پوشهٔ اسناد ذخیره شد: ${filename}`, filename };
     } catch {
-      // Web Share یا دانلود مرورگر را امتحان می‌کنیم.
+      savedUri = "";
+    }
+
+    if (savedUri) {
       try {
-        const file = new File([blob], filename, { type: blob.type });
-        const nav = navigator as Navigator & { canShare?: (data?: { files?: File[] }) => boolean; share?: (data: { files?: File[]; title?: string }) => Promise<void> };
-        if (nav.canShare?.({ files: [file] }) && nav.share) {
-          await nav.share({ files: [file], title });
-          return { ok: true, mode: "share", message: "پنجرهٔ ذخیره/ارسال سیستم باز شد.", filename };
+        const { Share } = await import("@capacitor/share");
+        const capability = await Share.canShare().catch(() => ({ value: false }));
+        if (capability.value) {
+          await Share.share({
+            title,
+            text: `${title} — کشاورزحساب`,
+            url: savedUri,
+            dialogTitle: "ذخیره، ارسال یا چاپ",
+          });
+          return {
+            ok: true,
+            mode: "share",
+            message: `فایل در ${savedDirectory} ذخیره شد؛ پنجرهٔ سیستم باز شد. برای چاپ، «چاپ» یا یک برنامهٔ PDF‌خوان را انتخاب کنید.`,
+            url: savedUri,
+            filename,
+          };
         }
       } catch {
-        /* ادامه می‌دهیم */
+        /* پیام ذخیره کافی است */
       }
+      return {
+        ok: true,
+        mode: "open",
+        message: `فایل با نام «${filename}» در ${savedDirectory} ذخیره شد.`,
+        url: savedUri,
+        filename,
+      };
     }
+
+    try {
+      const file = new File([blob], filename, { type: blob.type });
+      const nav = navigator as Navigator & {
+        canShare?: (data?: { files?: File[] }) => boolean;
+        share?: (data: { files?: File[]; title?: string; text?: string }) => Promise<void>;
+      };
+      if (nav.canShare?.({ files: [file] }) && nav.share) {
+        await nav.share({ files: [file], title, text: title });
+        return { ok: true, mode: "share", message: "پنجرهٔ ذخیره/ارسال سیستم باز شد.", filename };
+      }
+    } catch {
+      /* ادامه می‌دهیم */
+    }
+
+    return {
+      ok: false,
+      mode: "error",
+      message: "نوشتن فایل در حافظهٔ دستگاه ممکن نشد. اجازهٔ ذخیره‌سازی برنامه را بررسی کنید یا دکمهٔ «ارسال» را بزنید.",
+      filename,
+    };
   }
 
   try {
@@ -110,9 +206,14 @@ export async function saveBlob(blob: Blob, filename: string, title = "فایل")
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    // پنج دقیقه زنده می‌ماند تا دکمهٔ «ذخیرهٔ مستقیم» قابل استفاده باشد.
     window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
-    return { ok: true, mode: "download", message: "فایل ساخته شد؛ اگر دانلود خودکار شروع نشد، روی «ذخیرهٔ مستقیم» بزنید.", url, filename };
+    return {
+      ok: true,
+      mode: "download",
+      message: `فایل «${filename}» ساخته شد؛ اگر دانلود خودکار شروع نشد، روی «ذخیرهٔ مستقیم» بزنید.`,
+      url,
+      filename,
+    };
   } catch {
     return { ok: false, mode: "error", message: "مرورگر اجازهٔ ذخیرهٔ فایل را نداد؛ لینک را در تب جدید باز کنید.", filename };
   }
@@ -121,26 +222,12 @@ export async function saveBlob(blob: Blob, filename: string, title = "فایل")
 export async function saveDataUrl(dataUrl: string, filename: string, title = "فایل"): Promise<SaveResult> {
   const blob = dataUrlToBlob(dataUrl);
   if (!blob) {
-    const result = saveOriginalDataUrl(dataUrl, filename);
-    return result;
+    if (!dataUrl) return { ok: false, mode: "error", message: "دادهٔ فایل خالی است.", filename };
+    return isNativeApp()
+      ? { ok: false, mode: "error", message: "ذخیره در اندروید ممکن نشد؛ دکمهٔ «ارسال» را امتحان کنید.", url: dataUrl, filename }
+      : downloadDataUrl(dataUrl, filename);
   }
   return saveBlob(blob, filename, title);
-}
-
-function saveOriginalDataUrl(dataUrl: string, filename: string): SaveResult {
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = dataUrl;
-    anchor.download = filename;
-    anchor.rel = "noopener";
-    anchor.style.display = "none";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    return { ok: true, mode: "download", message: "دانلود آغاز شد.", url: dataUrl, filename };
-  } catch {
-    return { ok: false, mode: "error", message: "ذخیرهٔ تصویر ممکن نشد.", filename };
-  }
 }
 
 export function collectDocumentStyles(): string {
@@ -149,6 +236,10 @@ export function collectDocumentStyles(): string {
     .join("\n");
 }
 
+/**
+ * CSS بازنشانی چاپ: سفید کردن کامل پس‌زمینه، حذف سایه/شفافیت و
+ * جلوگیری از انتقال تم تیرهٔ برنامه به کاغذ (ریشهٔ «صفحهٔ سیاه»).
+ */
 export const PRINT_RESET_CSS = `
   @page { size: A4; margin: 10mm; }
   *, *::before, *::after { box-sizing: border-box; }
@@ -159,7 +250,7 @@ export const PRINT_RESET_CSS = `
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
   body { -webkit-text-size-adjust: 100%; }
-  .no-print { display: none !important; }
+  .no-print, .no-print * { display: none !important; }
   .print-sheet {
     width: 100% !important; max-width: none !important; min-height: 0 !important;
     margin: 0 !important; padding: 0 !important; border: 0 !important;
@@ -169,10 +260,14 @@ export const PRINT_RESET_CSS = `
   }
   .print-sheet table { page-break-inside: auto; }
   .print-sheet tr, .print-sheet section { page-break-inside: avoid; }
-  img, svg { max-width: 100%; }
+  .print-sheet img { max-width: 100%; }
+  .print-sheet .doc-overlay, .print-sheet .doc-scroll {
+    position: static !important; overflow: visible !important;
+    background: #ffffff !important; padding: 0 !important;
+  }
   @media print {
     html, body { background: #ffffff !important; }
-    .doc-overlay, .doc-scroll { position: static !important; overflow: visible !important; background: #ffffff !important; padding: 0 !important; }
+    .print-sheet { font-size: 10.5pt; }
   }
 `;
 
@@ -181,24 +276,40 @@ export interface PrintDocumentOptions {
   title: string;
   styles?: string;
   extraCss?: string;
-  /** اگر true باشد، بلافاصله پس از بارگذاری چاپ‌گر باز می‌شود. */
   autoPrint?: boolean;
   onDone?: () => void;
 }
 
-/**
- * چاپ در iframe هم‌صفحه (بدون پاپ‌آپ). iframe با رنگ روشن و بعد از
- * آماده‌شدن فونت‌ها و تصاویر چاپ می‌شود. اگر چاپ در دسترس نبود false
- * برمی‌گرداند تا caller مسیر جایگزین (دانلود PNG/PDF) را نشان دهد.
- */
-export function printDocument({ bodyHtml, title, styles = "", extraCss = "", autoPrint = true, onDone }: PrintDocumentOptions): boolean {
-  if (typeof window === "undefined" || typeof document === "undefined") return false;
+const PRINT_IFRAME_ID = "kishavar-print-frame";
 
+function removePrintFrame() {
+  document.getElementById(PRINT_IFRAME_ID)?.remove();
+}
+
+/**
+ * چاپ امن در همان صفحه با iframe سفید؛ بدون پاپ‌آپ و بدون برگهٔ سیاه.
+ * در APK (WebView) چاپ در دسترس نیست و false برمی‌گردد تا caller
+ * مسیر PDF/اشتراک را اجرا کند.
+ */
+export function printDocument({
+  bodyHtml,
+  title,
+  styles = "",
+  extraCss = "",
+  autoPrint = true,
+  onDone,
+}: PrintDocumentOptions): boolean {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  if (isNativeApp()) return false;
+  if (!bodyHtml.trim()) return false;
+
+  removePrintFrame();
   const iframe = document.createElement("iframe");
+  iframe.id = PRINT_IFRAME_ID;
   iframe.setAttribute("aria-hidden", "true");
   iframe.setAttribute("title", `نسخهٔ چاپ ${title}`);
-  // در صحنهٔ دید بماند تا Chrome آن را رندر کند؛ با opacity نزدیک صفر پنهان است.
-  iframe.style.cssText = "position:fixed;left:0;top:0;width:820px;height:1160px;opacity:0.01;pointer-events:none;border:0;z-index:2147483647;background:#fff;";
+  iframe.style.cssText =
+    "position:fixed;left:0;top:0;width:820px;height:1160px;opacity:0.01;pointer-events:none;border:0;z-index:2147483647;background:#fff;";
   document.body.appendChild(iframe);
 
   const frameDocument = iframe.contentDocument;
@@ -208,15 +319,6 @@ export function printDocument({ bodyHtml, title, styles = "", extraCss = "", aut
     return false;
   }
 
-  let printed = false;
-  let cleaned = false;
-  const cleanup = () => {
-    if (cleaned) return;
-    cleaned = true;
-    iframe.remove();
-    onDone?.();
-  };
-
   const safeTitle = (title || "سند").replace(/[<>&"]/g, "");
   const html = `<!doctype html>
 <html lang="fa" dir="rtl">
@@ -224,9 +326,6 @@ export function printDocument({ bodyHtml, title, styles = "", extraCss = "", aut
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${safeTitle}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   ${styles}
   <style>${PRINT_RESET_CSS}\n${extraCss}</style>
 </head>
@@ -237,6 +336,15 @@ export function printDocument({ bodyHtml, title, styles = "", extraCss = "", aut
   frameDocument.write(html);
   frameDocument.close();
 
+  let printed = false;
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    removePrintFrame();
+    onDone?.();
+  };
+
   const runPrint = async () => {
     if (printed) return;
     printed = true;
@@ -245,31 +353,55 @@ export function printDocument({ bodyHtml, title, styles = "", extraCss = "", aut
       if (fonts) await Promise.race([fonts, new Promise((resolve) => window.setTimeout(resolve, 900))]);
       const images = Array.from(frameDocument.images);
       await Promise.race([
-        Promise.all(images.map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve) => {
-          image.addEventListener("load", () => resolve(), { once: true });
-          image.addEventListener("error", () => resolve(), { once: true });
-        }))),
+        Promise.all(
+          images.map((image) =>
+            image.complete
+              ? Promise.resolve()
+              : new Promise<void>((resolve) => {
+                  image.addEventListener("load", () => resolve(), { once: true });
+                  image.addEventListener("error", () => resolve(), { once: true });
+                })
+          )
+        ),
         new Promise((resolve) => window.setTimeout(resolve, 1600)),
       ]);
+      if (!frameWindow.document.body || !frameWindow.document.body.innerHTML.trim()) return;
       frameWindow.focus();
       frameWindow.print();
     } catch {
-      // اگر چاپ داخل iframe ناموفق بود، چاپ صفحهٔ اصلی به‌عنوان پشتیبان
-      try { window.print(); } catch { /* ignore */ }
+      /* caller پیام جایگزین PDF را نمایش می‌دهد */
     } finally {
-      window.setTimeout(cleanup, 2500);
+      window.setTimeout(cleanup, 3000);
     }
   };
 
   if (autoPrint) {
-    iframe.addEventListener("load", () => { void runPrint(); }, { once: true });
-    // fallback برای مرورگرهایی که رویداد load را دیر یا اصلاً نمی‌دهند
-    window.setTimeout(() => { if (!printed) void runPrint(); }, 700);
+    iframe.addEventListener("load", () => void runPrint(), { once: true });
+    window.setTimeout(() => {
+      if (!printed) void runPrint();
+    }, 700);
   }
   return true;
 }
 
+/** ساخت HTML کامل و مستقل برای ذخیره یا چاپ دستی در مرورگر. */
+export function buildPrintableHtml(title: string, sheetHtml: string, styles = ""): string {
+  const safeTitle = (title || "سند").replace(/[<>&"]/g, "");
+  return `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${safeTitle}</title>
+${styles}
+<style>${PRINT_RESET_CSS}</style>
+</head>
+<body>${sheetHtml}</body>
+</html>`;
+}
+
 export async function renderSignaturePng(dataUrl: string): Promise<Blob | null> {
+  if (!dataUrl) return null;
   const image = new Image();
   image.decoding = "async";
   image.src = dataUrl;
@@ -294,4 +426,26 @@ export async function renderSignaturePng(dataUrl: string): Promise<Blob | null> 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), "image/png");
   });
+}
+
+/** Data-URL همگام از تصویر امضا؛ برای دانلود فوری بدون بلوکه‌شدن. */
+export function signatureDataUrlNow(dataUrl: string): string {
+  try {
+    const image = new Image();
+    image.src = dataUrl;
+    const width = image.naturalWidth || image.width || 0;
+    const height = image.naturalHeight || image.height || 0;
+    if (!width || !height) return dataUrl;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return dataUrl;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return dataUrl;
+  }
 }

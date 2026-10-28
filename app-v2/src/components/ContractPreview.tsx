@@ -5,7 +5,7 @@ import { formatJalali, formatNumber, numberToPersianWords, toPersianDigits } fro
 import { Modal } from "./ui";
 import { CONTRACT_TYPES } from "../lib/data";
 import { useProfile, profileDisplayName } from "../lib/profile";
-import { deliverDocumentPdf, printSheetInPage } from "../lib/pdf";
+import { deliverDocumentPdf, printSheetOrPdf } from "../lib/pdf";
 
 export function ContractPreview({
   open,
@@ -189,7 +189,11 @@ export function ContractPreview({
         </button>
         <button
           type="button"
-          onClick={() => printSheetInPage(document.getElementById("print-root"), `قرارداد ${contract.code}`)}
+          onClick={async () => {
+            setPdfStatus("در حال آماده‌سازی چاپ…");
+            const result = await printSheetOrPdf(document.getElementById("print-root"), `قرارداد ${contract.code}`);
+            setPdfStatus(result.message);
+          }}
           className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-4 py-2.5 text-[11px] text-[#c7dad0] transition hover:bg-white/[0.05]"
         >
           <Printer className="h-3.5 w-3.5" />
