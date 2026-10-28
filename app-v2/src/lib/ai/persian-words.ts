@@ -39,7 +39,9 @@ export function numberToPersianWords(value: number): string {
   for (const [size, label] of SCALES) {
     const count = Math.floor(remaining / size);
     if (count) {
-      parts.push(`${remaining >= 2 * size ? belowThousand(count) : count > 1 ? belowThousand(count) : ""} ${label}`.trim());
+      // «یک» هرگز حذف نمی‌شود؛ روی سند مالی «میلیون و ششصد هزار» غلط است و
+      // باید «یک میلیون و ششصد هزار» نوشته شود.
+      parts.push(`${belowThousand(count)} ${label}`.trim());
       remaining %= size;
     }
   }

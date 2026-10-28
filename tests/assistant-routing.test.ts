@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { askKeshavarYar } from "../app-v2/src/lib/ai/engine";
 import { emptyLedger } from "../app-v2/src/lib/ledger";
+import { numberToPersianWords } from "../app-v2/src/lib/ai/persian-words";
 
 const context = () => ({ ledger: emptyLedger(), trades: [], plots: [], contracts: [] }) as never;
 
@@ -35,5 +36,73 @@ describe("کشاورزیار — مسیردهی درست پرسش‌های کش�
   it("پرسش طلب همچنان از دفتر واقعی خوانده می‌شود", () => {
     const reply = askKeshavarYar("چقدر طلب دارم؟", context());
     expect(reply.meta.matchedId).toBe("data-receivable");
+  });
+});
+
+describe("کشاورزیار — رفع تطبیق زیررشته‌ای و پاسخ‌های دادهٔ جاافتاده", () => {
+  it("«کدام زمین سود بیشتری دارد؟» دیگر به دام و طیور نمی‌رود («دام» داخل «کدام»)", () => {
+    const reply = askKeshavarYar("کدام زمین سود بیشتری دارد؟", context());
+    expect(reply.meta.kind).toBe("data");
+    expect(reply.meta.matchedId).toBe("data-plots-empty");
+  });
+
+  it("«موجودی انبار» پاسخ فروش جو نمی‌گیرد («جو» داخل «موجودی»)", () => {
+    const reply = askKeshavarYar("موجودی انبار چقدر است؟", context());
+    expect(reply.meta.matchedId).toBe("data-inventory");
+  });
+
+  it("«اقساط وام» با گزارش چک‌ها اشتباه نمی‌شود", () => {
+    const reply = askKeshavarYar("اقساط وام من کی سررسیده؟", context());
+    expect(reply.meta.matchedId).toBe("data-loans");
+  });
+
+  it("«هزینهٔ کود چقدر بوده؟» از دفتر (سرفصل) جواب می‌گیرد، نه از راهنمای عمومی", () => {
+    const reply = askKeshavarYar("هزینهٔ کود چقدر بوده؟", context());
+    expect(reply.meta.matchedId).toBe("data-expense-category");
+    expect(reply.text).toContain("کود و سم");
+  });
+
+  it("«کی بیشترین بدهی رو به من داره؟» طلب است نه بدهی", () => {
+    const reply = askKeshavarYar("کی بیشترین بدهی رو به من داره؟", context());
+    expect(reply.meta.matchedId).toBe("data-receivable");
+  });
+
+  it("«چطور سند ثبت کنم؟» راهنمای خود برنامه را می‌دهد، نه ارکان قرارداد اجاره", () => {
+    const reply = askKeshavarYar("چطور سند ثبت کنم؟", context());
+    expect(reply.meta.matchedId).toBe("app-howto-record");
+    expect(reply.text).toContain("دفتر مالی");
+  });
+
+  it("«چقدر بدهکارم؟» قصد پرداختنی می‌گیرد", () => {
+    const reply = askKeshavarYar("چقدر بدهکارم؟", context());
+    expect(reply.meta.fastIntent).toBe("report_payable");
+  });
+});
+
+describe("موتور ریاضی — تبدیل واحد مساحت و سود مرکب", () => {
+  it("یک هکتار را ۱۰٬۰۰۰ متر مربع تبدیل می‌کند", () => {
+    const reply = askKeshavarYar("یک هکتار چند متر مربع است؟", context());
+    expect(reply.meta.matchedId).toBe("math-area");
+    expect(reply.text).toContain("۱۰,۰۰۰");
+  });
+
+  it("سود مرکب را با فرمول مرکب حساب می‌کند، نه سود ساده", () => {
+    const reply = askKeshavarYar("سود مرکب ۱۰ درصد روی ۵ میلیون برای ۳ سال", context());
+    expect(reply.meta.matchedId).toBe("math-profit");
+    expect(reply.text).toContain("۱,۶۵۵,۰۰۰");
+  });
+});
+
+describe("مبلغ به حروف — «یک» حذف نمی‌شود", () => {
+  it("۱٬۶۵۵٬۰۰۰ به «یک میلیون و ششصد و پنجاه و پنج هزار» تبدیل می‌شود", () => {
+    expect(numberToPersianWords(1655000)).toBe("یک میلیون و ششصد و پنجاه و پنج هزار");
+  });
+
+  it("۱٬۰۰۰٬۰۰۰ به «یک میلیون» تبدیل می‌شود، نه «میلیون»", () => {
+    expect(numberToPersianWords(1000000)).toBe("یک میلیون");
+  });
+
+  it("۲٬۵۰۰٬۰۰۰ بدون تغییر درست می‌ماند", () => {
+    expect(numberToPersianWords(2500000)).toBe("دو میلیون و پانصد هزار");
   });
 });

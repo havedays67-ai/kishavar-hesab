@@ -427,6 +427,35 @@ function domainSolvers(raw: string): DomainHit | null {
   const hasMathCue = /درصد|%|محاسبه|حساب کن|تقسیم|ضربدر|میانگین|تخفیف|مالیات|تبدیل کن|سهم هر نفر|افت رطوبت/.test(text);
   if (!hasMathCue && /خریدم|خرید کردم|فروختم|پرداخت کردم|ثبت کن/.test(text)) return null;
 
+  // سود مرکب: «۱۰ درصد مرکب روی ۵ میلیون برای ۳ سال»
+  // این مورد باید پیش از «درصد ساده» بررسی شود؛ وگرنه فقط سود یک سال حساب می‌شد
+  // و کاربر عددی می‌گرفت که با سود مرکب واقعی تفاوت جدی داشت.
+  if (/مرکب/.test(text)) {
+    const rateMatch = /([0-9]+(?:\.[0-9]+)?)\s*(?:درصد|٪|%)/.exec(text);
+    const yearsMatch = /([0-9]+)\s*سال/.exec(text);
+    const allNumbers = [...text.matchAll(new RegExp(NUMBER_TOKEN, "g"))].map((match) => match[1]);
+    if (rateMatch && yearsMatch) {
+      const rate = ratio(parseDecimal(rateMatch[1]));
+      const years = Number(yearsMatch[1]);
+      const rest = allNumbers.filter((value) => value !== rateMatch[1] && value !== yearsMatch[1]);
+      const baseRaw = rest.length ? rest.reduce((a, b) => (parseDecimal(b).n > parseDecimal(a).n ? b : a)) : null;
+      if (baseRaw && years >= 1 && years <= 12 && rate.n < 100n) {
+        const base = ratio(parseDecimal(baseRaw));
+        const factor = pow(add(ratio(100n), rate), years);
+        const finalAmount = div(mul(base, factor), pow(ratio(100n), years));
+        const interest = sub(finalAmount, base);
+        return {
+          result: buildResult("profit", interest, [
+            { title: "نرخ و مدت", detail: `${rateMatch[1]}٪ مرکب برای ${years} سال` },
+            { title: "ضریب رشد مرکب", detail: `(۱ + ${rateMatch[1]}٪) ^ ${years} = ${formatRatio(div(factor, pow(ratio(100n), years)), 6)}` },
+            { title: "مبلغ نهایی", detail: `${baseRaw} + سود = ${formatRatio(finalAmount, 2)}` },
+            { title: "سود مرکب", detail: `${formatRatio(finalAmount, 2)} − ${baseRaw} = ${formatRatio(interest, 2)}` },
+          ], { money: true, warnings: ["این محاسبه فقط سود مرکب است؛ کارمزد، تورم و مالیات در آن لحاظ نشده."] }),
+        };
+      }
+    }
+  }
+
   // درصد از مبلغ: «۱۸ درصد از ۲۵,۰۰۰,۰۰۰»
   const percentMatch = new RegExp(`${NUMBER_TOKEN}\\s*(?:درصد|٪|%)\\s*(?:[^0-9]{0,18}?)?${NUMBER_TOKEN}`).exec(text);
   if (percentMatch) {
@@ -467,6 +496,24 @@ function domainSolvers(raw: string): DomainHit | null {
       result: buildResult("unit", value, [
         { title: "به کیلوگرم", detail: `${unitMatch[1]} ${unitMatch[2]} = ${formatRatio(valueOfKg(unitMatch[1], unitMatch[2]), 4)} کیلوگرم` },
         { title: "به واحد خواسته‌شده", detail: `تقسیم بر ${unitMatch[3]} → ${formatRatio(value, 4)} ${unitMatch[3]}` },
+      ]),
+    };
+  }
+
+  // تبدیل واحد مساحت: «یک هکتار چند متر مربع است؟» یا «۵۰۰۰ متر مربع چند هکتار»
+  const areaUnitMatch = new RegExp(
+    `${NUMBER_TOKEN}\\s*(هکتار|متر\\s*مربع|مترمربع|متر)\\s*(?:به|چند|برابر|معادل|است)?\\s*(هکتار|متر\\s*مربع|مترمربع|متر)`,
+  ).exec(text);
+  if (areaUnitMatch) {
+    const key = (unit: string) => (/هکتار/.test(unit) ? "هکتار" : "مترمربع");
+    const from = key(areaUnitMatch[2]);
+    const to = key(areaUnitMatch[3]);
+    const amount = ratio(parseDecimal(areaUnitMatch[1]));
+    const value = div(mul(amount, UNIT_TO_SQM[from]), UNIT_TO_SQM[to]);
+    return {
+      result: buildResult("area", value, [
+        { title: "واحد مبدأ", detail: `${areaUnitMatch[1]} ${areaUnitMatch[2]} = ${formatRatio(mul(amount, UNIT_TO_SQM[from]), 4)} متر مربع` },
+        { title: "تبدیل به واحد خواسته‌شده", detail: `${formatRatio(mul(amount, UNIT_TO_SQM[from]), 4)} ÷ ${formatRatio(UNIT_TO_SQM[to], 2)} = ${formatRatio(value, 4)} ${areaUnitMatch[3]}` },
       ]),
     };
   }

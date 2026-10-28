@@ -8,7 +8,9 @@
  * ۵) حافظهٔ گفتگو در localStorage می‌ماند و هیچ داده‌ای ارسال نمی‌شود.
  */
 import {
+  EXPENSE_CATEGORIES,
   chequeTotals,
+  entryTotalsByCategory,
   financeTotals,
   inventoryValue,
   ledgerTotals,
@@ -159,6 +161,30 @@ function hasAny(text: string, values: string[]): boolean {
   return values.some((value) => text.includes(value));
 }
 
+const TAG_CACHE = new Map<string, RegExp>();
+
+/**
+ * تطبیق واژه با «مرز واژه» و نه زیررشته.
+ * چرا مهم است: پیش‌تر «دام» داخل «کدام» و «جو» داخل «موجودی» تطبیق داده می‌شد؛
+ * نتیجه این بود که «کدام زمین سود بیشتری دارد؟» پرسش دام و مرغ می‌شد و
+ * «موجودی انبار چقدر است؟» پاسخ «فروش جو» می‌گرفت. این تابع فقط وقتی تطبیق
+ * می‌دهد که واژه از ابتدای یک کلمه شروع شود؛ پسوندهایی مثل «بدهکارم» برای
+ * «بدهکار» همچنان پذیرفته می‌شوند.
+ */
+function hasTag(text: string, values: string[]): boolean {
+  return values.some((value) => {
+    const term = normalizePersian(value);
+    if (!term) return false;
+    let pattern = TAG_CACHE.get(term);
+    if (!pattern) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      pattern = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}`, "u");
+      TAG_CACHE.set(term, pattern);
+    }
+    return pattern.test(text);
+  });
+}
+
 /**
  * پرسش کشاورزی/فنی است یا پرسش از دفتر خود کاربر؟
  * این تفکیک جلوی خطای واقعی را می‌گیرد: «آبیاری گندم چند نوبت؟» نباید
@@ -178,19 +204,27 @@ const OWN_LEDGER_TERMS = [
   "هزینهٔ من", "هزینه من", "این فصل", "امسال", "تا امروز", "وضعیت مالی", "وضعیت انبار", "در دفتر", "در برنامه",
 ];
 
+/** نشانه‌های پرسش از «پول و دفتر خود کاربر» — حتی اگر واژهٔ کشاورزی هم در جمله باشد. */
+const LEDGER_SIGNALS = [
+  "هزینه", "خرج", "پرداخت", "خرید", "خریدم", "فروش", "فروختم", "درآمد", "سود", "زیان", "ضرر",
+  "تومان", "پول", "نقد", "دفتر", "حساب", "مانده", "بدهی", "طلب", "چک", "قسط", "وام", "انبار",
+  "موجودی", "فاکتور", "رسید", "قیمت خرید", "قیمت فروش",
+];
+
 function isAgronomyQuestion(text: string): boolean {
-  return hasAny(text, AGRONOMY_TERMS);
+  return hasTag(text, AGRONOMY_TERMS);
 }
 
 function isOwnLedgerQuestion(text: string): boolean {
-  if (hasAny(text, OWN_LEDGER_TERMS)) return true;
+  if (hasTag(text, OWN_LEDGER_TERMS)) return true;
   return /(^|\s)من(\s|$|\؟|\?)/.test(text) || /(طلبم|بدهیم|بدهی‌ام|بدهی ام|حسابم|دفترم|مزرعه‌ام|مزرعه ام|فروشم|خریدم)/.test(text);
 }
 
 function isDataQuestion(text: string): boolean {
-  return hasAny(text, [
-    "چقدر", "چند", "مانده", "جمع", "وضعیت", "هشدار", "ریسک", "کدام", "دفتر من", "حساب من", "سود", "هزینه من", "درآمد من",
-    "طلب من", "بدهی من", "بدهکار", "بستانکار", "معوق", "سررسید", "موجودی", "انبار", "قسط", "وام", "تحلیل",
+  return hasTag(text, [
+    "چقدر", "چند", "مانده", "جمع", "وضعیت", "هشدار", "ریسک", "کدام", "دفتر من", "حساب من", "سود", "هزینه", "درآمد",
+    "طلب من", "بدهی من", "بدهی", "بدهکار", "بستانکار", "معوق", "سررسید", "موجودی", "انبار", "قسط", "وام", "تحلیل",
+    "بیشترین", "بزرگ‌ترین", "بزرگترین", "نقد", "پول", "کارگر", "دستمزد", "کی بیشترین", "چه کسی",
   ]);
 }
 
@@ -251,7 +285,8 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
   const allCheques = context.ledger.cheques;
   const source: KnowledgeSource[] = [{ label: "دفتر مالی و اسناد ثبت‌شدهٔ شما در همین برنامه", note: "پاسخ عددی از دادهٔ واقعی، بدون تخمین" }];
 
-  if (hasAny(text, ["طلب", "طلبکار", "دریافتنی", "مطالبات"]) || /(کسی به من بدهکار|بیشترین بدهکار|بزرگ.?ترین بدهکار|بدهکاران|بدهکار من)/.test(text)) {
+  // «بدهی … به من» یعنی کسی به من بدهکار است (طلب)، نه بدهی من به دیگران.
+  if (hasTag(text, ["طلب", "طلبکار", "دریافتنی", "مطالبات"]) || /(کسی به من بدهکار|بیشترین بدهکار|بزرگ.?ترین بدهکار|بدهکاران|بدهکار من|بدهی[^.]{0,25}به من)/.test(text)) {
     const top = data.debtorRows[0];
     const body = data.debtorRows.length
       ? `مجموع طلب شما ${money(data.totals.receivable)} است.${data.totals.overdue > 0 ? ` از این مبلغ، ${money(data.totals.overdue)} معوق است.` : " ماندهٔ معوق ندارید."}${top ? `\nبزرگ‌ترین بدهکار: ${top.party.name} — ${money(top.totals.balance)} — بابت: ${top.party.reason || "ثبت نشده"}.` : ""}`
@@ -262,7 +297,7 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
     };
   }
 
-  if (hasAny(text, ["بدهی", "بستانکار", "بدهکارم", "پرداختنی"])) {
+  if (hasTag(text, ["بدهی", "بستانکار", "بدهکارم", "پرداختنی"])) {
     const top = data.creditorRows[0];
     const body = data.creditorRows.length
       ? `مجموع بدهی شما به طرف‌حساب‌ها ${money(data.totals.payable)} است.${top ? `\nبیشترین بدهی: ${top.party.name} — ${money(top.totals.balance)} — بابت: ${top.party.reason || "ثبت نشده"}.` : ""}`
@@ -273,8 +308,19 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
     };
   }
 
-  if (hasAny(text, ["چک", "سررسید", "برگشتی"])) {
-    const legalTone = hasAny(text, ["قانون", "معتبر", "صیاد", "چاپ", "امضا", "پشت", "انتقال"]);
+  // وام و قسط پیش از چک بررسی می‌شود؛ وگرنه جملهٔ «اقساط وام من کی سررسیده؟»
+  // به‌خاطر واژهٔ «سررسید» با گزارش چک‌ها جواب می‌گرفت.
+  if (hasTag(text, ["وام", "قسط", "اقساط", "تسهیلات", "بازپرداخت"])) {
+    return {
+      text: data.nextInstallments.length
+        ? `شما ${toPersianDigits(context.ledger.loans.length)} وام دارید. قسط‌های بعدی:\n${data.nextInstallments.map(({ loan, next }) => `• ${loan.title}: ${next ? `${formatJalali(next.due, "long")} — ${money(next.amount)}` : "—"}`).join("\n")}\n\nقبل از سررسید، مبلغ قسط را در جریان نقدی هفته کنار بگذارید. نرخ مؤثر و هزینهٔ کل بازپرداخت را برای تصمیم جدید مقایسه کنید.`
+        : "وام فعالی با قسط باقی‌مانده ثبت نشده است. برای خرید ماشین یا سرمایه در گردش، جدول بازپرداخت و نرخ مؤثر را قبل از پذیرش وام بسنجید.",
+      meta: signatureMeta(98, "دفتر مالی", source, ["جریان نقدی این ماه", "چطور توان بازپرداخت وام را حساب کنم؟", "بدهی و طلب را کنار هم ببین"], "data-loans", "data"),
+    };
+  }
+
+  if (hasTag(text, ["چک", "سررسید", "برگشتی"])) {
+    const legalTone = hasTag(text, ["قانون", "معتبر", "صیاد", "چاپ", "امضا", "پشت", "انتقال"]);
     if (!legalTone) {
       const nearest = data.nearestCheque;
       const rows = allCheques.slice(0, 5).map((cheque) => `• ${cheque.serial} — ${cheque.bank} — ${money(cheque.amount)} — سررسید ${formatJalali(cheque.due, "long")} — ${cheque.status === "pending" ? "در جریان" : cheque.status === "cleared" ? "وصول‌شده" : "برگشتی"}`).join("\n");
@@ -293,7 +339,7 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
     };
   }
 
-  if (hasAny(text, ["فروش", "محصول", "محموله", "گندم", "جو", "ذرت", "کلزا"]) && hasAny(text, ["چقدر", "چند", "مانده", "درآمد", "سود", "آخرین", "قیمت"])) {
+  if (hasTag(text, ["فروش", "محصول", "محموله", "گندم", "جو", "ذرت", "کلزا"]) && hasTag(text, ["چقدر", "چند", "مانده", "درآمد", "سود", "آخرین", "قیمت"])) {
     const latest = context.trades[0];
     const product = latest ? getProductProfile(latest.productId) : null;
     return {
@@ -304,16 +350,7 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
     };
   }
 
-  if (hasAny(text, ["وام", "قسط", "اقساط"])) {
-    return {
-      text: data.nextInstallments.length
-        ? `شما ${toPersianDigits(context.ledger.loans.length)} وام دارید. قسط‌های بعدی:\n${data.nextInstallments.map(({ loan, next }) => `• ${loan.title}: ${next ? `${formatJalali(next.due, "long")} — ${money(next.amount)}` : "—"}`).join("\n")}\n\nقبل از سررسید، مبلغ قسط را در جریان نقدی هفته کنار بگذارید. نرخ مؤثر و هزینهٔ کل بازپرداخت را برای تصمیم جدید مقایسه کنید.`
-        : "وام فعالی با قسط باقی‌مانده ثبت نشده است. برای خرید ماشین یا سرمایه در گردش، جدول بازپرداخت و نرخ مؤثر را قبل از پذیرش وام بسنجید.",
-      meta: signatureMeta(98, "دفتر مالی", source, ["جریان نقدی این ماه", "چطور توان بازپرداخت وام را حساب کنم؟", "بدهی و طلب را کنار هم ببین"], "data-loans", "data"),
-    };
-  }
-
-  if (hasAny(text, ["انبار", "موجودی", "کمبود", "نهاده"])) {
+  if (hasTag(text, ["انبار", "موجودی", "کمبود", "نهاده"])) {
     const value = inventoryValue(context.ledger.items);
     const low = data.lowItems;
     return {
@@ -322,7 +359,79 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
     };
   }
 
-  if (hasAny(text, ["زمین", "سود", "هزینه", "سربه"])) {
+  // هزینهٔ یک سرفصل مشخص: «هزینهٔ کود چقدر بوده؟» باید از دفتر جواب بگیرد،
+  // نه از راهنمای عمومی انبار.
+  if (hasTag(text, ["هزینه", "خرج", "خرید"]) && hasTag(text, ["کود", "سم", "بذر", "آب", "آبیاری", "سوخت", "کارگر", "دستمزد", "اجاره", "حمل", "تعمیر", "مالیات", "ماشین آلات", "بسته بندی"])) {
+    const aliases: [RegExp, string][] = [
+      [/(کود|سم|اوره|سولفات|آفت.?کش|علف.?کش)/, "کود و سم"],
+      [/(بذر|نهال|نشا)/, "بذر و نهال"],
+      [/(آب|آبیاری|انرژی|برق|گازوئیل|سوخت|گاز)/, "آب و انرژی"],
+      [/(کارگر|دستمزد|حقوق)/, "کارگر و دستمزد"],
+      [/(تراکتور|ماشین|ادوات)/, "ماشین‌آلات"],
+      [/(تعمیر|سرویس|قطعه)/, "تعمیرات"],
+      [/(اجاره)/, "اجاره زمین"],
+      [/(حمل|کرایه|باربری)/, "حمل و نقل"],
+      [/(مالیات|عوارض)/, "مالیات و عوارض"],
+    ];
+    const wanted = aliases.find(([pattern]) => pattern.test(text))?.[1];
+    if (wanted && EXPENSE_CATEGORIES.includes(wanted)) {
+      const rows = entryTotalsByCategory(context.ledger.entries).filter((row) => row.category === wanted);
+      const total = rows.reduce((sum, row) => sum + row.expense, 0);
+      const count = context.ledger.entries.filter((entry) => entry.kind === "expense" && entry.category === wanted).length;
+      const share = data.finance.expense > 0 ? Math.round((total / data.finance.expense) * 100) : 0;
+      return {
+        text: total > 0
+          ? `هزینهٔ «${wanted}» در دفتر شما ${money(total)} است (${toPersianDigits(count)} سند، ${toPersianDigits(share)}٪ کل هزینه‌ها).\nکل هزینهٔ ثبت‌شده ${money(data.finance.expense)} است.\n\nپیشنهاد: برای مقایسهٔ درست با سال قبل، همین سرفصل را در بازهٔ زمانی یکسان ببینید و فاکتورها را ضمیمه کنید.`
+          : `در سرفصل «${wanted}» هنوز هزینه‌ای ثبت نشده است. اگر خریدی انجام شده، آن را با همین دسته ثبت کنید تا گزارش هزینه و بهای تمام‌شده دقیق شود.`,
+        meta: signatureMeta(97, "دفتر مالی", source, ["بزرگ‌ترین سرفصل هزینهٔ من کدام است؟", "تفکیک هزینه‌ها را نشان بده", "سود این ماه چقدر است؟"], "data-expense-category", "data"),
+      };
+    }
+  }
+
+  if (hasTag(text, ["کارگر", "دستمزد", "حقوق", "نفر روز", "نفرروز"])) {
+    const labor = entryTotalsByCategory(context.ledger.entries).filter((row) => row.expense > 0 && /کارگر|دستمزد|حقوق/.test(row.category));
+    const laborTotal = labor.reduce((sum, row) => sum + row.expense, 0);
+    const laborCount = context.ledger.entries.filter((entry) => entry.kind === "expense" && /کارگر|دستمزد|حقوق/.test(entry.category)).length;
+    return {
+      text: laborTotal > 0
+        ? `جمع دستمزد ثبت‌شده در دفتر شما ${money(laborTotal)} است (${toPersianDigits(laborCount)} سند).\nتفکیک: ${labor.map((row) => `${row.category}: ${money(row.expense)}`).join(" — ")}\n\nتوجه: برنامه دفتر کارگر مستقل ندارد؛ برای پیگیری نفر-روز هر کارگر، در یادداشت همان سند نام کارگر و تعداد روز را بنویسید.`
+        : "هنوز سند دستمزدی با دستهٔ «کارگر و دستمزد» ثبت نشده است. در صفحهٔ «دفتر مالی» هزینه را با همان دسته ثبت کنید تا جمع دستمزد و سهم آن از هزینه‌ها دیده شود.",
+      meta: signatureMeta(97, "دفتر مالی", source, ["هزینه کارگر چقدر است؟", "بهای تمام‌شدهٔ هر کیلو", "جریان نقدی این ماه"], "data-labor", "data"),
+    };
+  }
+
+  if (hasTag(text, ["نقد", "پول نقد", "صندوق", "موجودی نقد", "پول دارم"])) {
+    const cashTx = context.ledger.entries.filter((entry) => entry.method === "cash");
+    const cashIn = cashTx.filter((entry) => entry.kind === "income").reduce((sum, entry) => sum + entry.amount, 0);
+    const cashOut = cashTx.filter((entry) => entry.kind === "expense").reduce((sum, entry) => sum + entry.amount, 0);
+    return {
+      text: `ماندهٔ نقدی دفتر شما ${money(cashIn - cashOut)} است (دریافت نقدی ${money(cashIn)} − پرداخت نقدی ${money(cashOut)}).\n\nاین عدد فقط بر اساس سندهایی است که روش پرداختشان «نقدی» ثبت شده؛ اگر پرداخت‌های بانکی را هم می‌خواهید، روش «حواله بانکی» را در گزارش‌ها ببینید.`,
+      meta: signatureMeta(97, "دفتر مالی", source, ["جریان نقدی این ماه را تحلیل کن", "چقدر پول لازم دارم؟", "چک‌های نزدیک سررسید"], "data-cash", "data"),
+    };
+  }
+
+  if (hasTag(text, ["بیشترین", "بزرگ‌ترین", "بزرگترین", "سرفصل"]) && hasTag(text, ["هزینه", "خرج", "سرفصل"])) {
+    const rows = entryTotalsByCategory(context.ledger.entries)
+      .filter((row) => row.expense > 0)
+      .sort((a, b) => b.expense - a.expense);
+    return {
+      text: rows.length
+        ? `بزرگ‌ترین سرفصل هزینهٔ شما: «${rows[0].category}» با ${money(rows[0].expense)}.\n${rows.slice(0, 5).map((row, index) => `${toPersianDigits(index + 1)}. ${row.category}: ${money(row.expense)}`).join("\n")}\n\nجمع هزینهٔ ثبت‌شده ${money(data.finance.expense)} است. برای تصمیم، همین سرفصل را با ماه قبل مقایسه کنید و سهم آن از هر هکتار را ببینید.`
+        : "هنوز هزینه‌ای در دفتر ثبت نشده است؛ با ثبت اولین سند، بزرگ‌ترین سرفصل هزینه مشخص می‌شود.",
+      meta: signatureMeta(97, "دفتر مالی", source, ["تفکیک هزینه‌ها را نشان بده", "سود این ماه چقدر است؟", "جریان نقدی این ماه"], "data-top-expense", "data"),
+    };
+  }
+
+  if (hasTag(text, ["زمین", "قطعه", "هکتار"])) {
+    if (!data.healthyPlots.length) {
+      return {
+        text: `هنوز زمین یا کشتی در برنامه ثبت نشده است، بنابراین مقایسهٔ سود زمین ممکن نیست.\nدر صفحهٔ «زمین و کشت» هر قطعه را با مساحت و هزینه‌های واقعی ثبت کنید تا سود و بهای تمام‌شدهٔ هر کیلو محاسبه شود.\nسود کل دفتر شما در همین حال ${money(data.finance.profit)} است.`,
+        meta: signatureMeta(95, "دفتر مالی", source, ["بهای تمام‌شدهٔ هر کیلو", "سود این ماه چقدر است؟", "نقطه سربه‌سر چطور حساب می‌شود؟"], "data-plots-empty", "data"),
+      };
+    }
+  }
+
+  if (hasTag(text, ["زمین", "سود", "هزینه", "سربه"])) {
     if (!data.healthyPlots.length) {
       return {
         text: `سود دورهٔ ثبت‌شده در دفتر شما ${money(data.finance.profit)} است (درآمد ${money(data.finance.income)} − هزینه ${money(data.finance.expense)}).\nخالص فروش محصول ${money(data.sale)} و ماندهٔ وصول‌نشده ${money(data.saleRemaining)} است.\nبرای محاسبهٔ بهای تمام‌شده و سود هر کیلو، در صفحهٔ «زمین و کشت» زمین و کشت را با هزینه‌های واقعی ثبت کنید.`,
@@ -441,14 +550,18 @@ function retrieve(text: string) {
   return { normalized, queryTokens, scored };
 }
 
-function knowledgeAnswer(match: { entry: KnowledgeEntry; score: number }, secondScore = 0): AssistantReply {
+function knowledgeAnswer(match: { entry: KnowledgeEntry; score: number }, secondScore = 0, question = ""): AssistantReply {
   const { entry, score } = match;
+  // اگر پاسخ با «خیر/بله» شروع می‌شود ولی کاربر پرسش بله/خیر نپرسیده،
+  // عنوانِ همان مدخل را جلو می‌گذاریم تا جمله بی‌ربط به نظر نرسد.
+  const yesNoQuestion = /(^|\s)(آیا|ایا)(\s|$)/.test(question) || /(معتبر است|درست است|هست)$/.test(question.trim());
+  const lead = /^(خیر|بله|نه|آری)/.test(entry.answer.trim()) && !yesNoQuestion ? `«${entry.title}»\n` : "";
   const confidence = Math.min(99, Math.round(45 + Math.min(0.52, score) * 82 + Math.min(0.16, Math.max(0, score - secondScore)) * 40));
   const sources = [...entry.sources];
   if (entry.highStakes) sources.push({ label: "هشدار: راهنمای عمومی؛ برای پروندهٔ مشخص مشاورهٔ حقوقی بگیرید" });
   const disclaimer = entry.highStakes ? `\n\n${LEGAL_DISCLAIMER}` : "";
   return {
-    text: `${entry.answer}${disclaimer}`,
+    text: `${lead}${entry.answer}${disclaimer}`,
     meta: signatureMeta(confidence, entry.category, sources, entry.followUps, entry.id, "knowledge", Boolean(entry.highStakes)),
   };
 }
@@ -509,6 +622,38 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
     return withFast(reply, fastUnderstand(raw));
   }
 
+  // ۰.۴) راهنمای رویه‌ای «چطور ثبت کنم؟» — پرسش دربارهٔ خود برنامه است، نه دانش حقوقی.
+  //    پیش‌تر «چطور سند ثبت کنم؟» با ارکان قرارداد اجاره جواب می‌گرفت.
+  const howToRecord = /(چطور|چگونه|چه ?جور|راهنما|مراحل|قدم)/.test(text) && /(ثبت|وارد|اضافه|ایجاد|بزنم|بنویسم|بسازم)/.test(text);
+  if (howToRecord && !isDataQuestion(text) && !/قانون|معتبر|اعتبار|دادگاه|شکایت|ماده/.test(text)) {
+    const section = /چک/.test(text) ? { path: "دفتر مالی ← چک و وام", label: "چک" }
+      : /وام|قسط|اقساط/.test(text) ? { path: "دفتر مالی ← چک و وام", label: "وام و قسط" }
+      : /معامله|محصول|محموله|فروش محصول|خرید محصول|باسکول/.test(text) ? { path: "معامله محصول", label: "معاملهٔ محصول" }
+      : /زمین|کشت|قطعه/.test(text) ? { path: "زمین و کشت", label: "زمین و کشت" }
+      : /انبار|نهاده|موجودی/.test(text) ? { path: "انبار", label: "انبار" }
+      : /طرف.?حساب|بدهکار|بستانکار/.test(text) ? { path: "بدهکار و بستانکار", label: "طرف‌حساب" }
+      : /رسید|فیش|پیوست/.test(text) ? { path: "همان رکورد ← افزودن تصویر رسید", label: "رسید" }
+      : { path: "دفتر مالی ← ثبت هزینه/درآمد", label: "سند مالی" };
+    const reply: AssistantReply = {
+      text:
+        `برای ثبت ${section.label} این مسیر را برو: «${section.path}».\n` +
+        `۱) نوع را انتخاب کن (${/چک|وام/.test(text) ? "دریافتی/پرداختی یا وام" : "هزینه/درآمد"}).\n` +
+        `۲) تاریخ شمسی، مبلغ به تومان و نام طرف‌حساب را وارد کن؛ مبلغ را می‌توانی «۲۵ میلیون» هم بنویسی و خودش تبدیل می‌شود.\n` +
+        `۳) اگر رسید یا فیش داری، زیر همان رکورد دکمهٔ «افزودن تصویر رسید» را بزن — هر رکورد چند رسید می‌گیرد.\n` +
+        `۴) ذخیره کن؛ هر ثبتی قابل ویرایش و واگرد است و در گزارش‌ها فوراً دیده می‌شود.\n` +
+        `می‌توانی همین را به من بسپاری: مثلاً بنویس «۲۵ میلیون کود اوره خریدم» تا پیش‌نویس بسازم.`,
+      meta: {
+        confidence: 95,
+        category: "برنامه",
+        sources: [{ label: "راهنمای داخلی برنامه — مسیر ثبت سند" }],
+        followUps: ["۲۵ میلیون کود اوره خریدم، نسیه", "چک دریافتی ثبت کن", "پشتیبان بگیرم؟"],
+        matchedId: "app-howto-record",
+        kind: "knowledge",
+      },
+    };
+    return withFast(reply, fastUnderstand(raw));
+  }
+
   // ۰.۵) اعتبار اسناد: پاسخ قطعی از جدول تحلیل‌شدهٔ حقوقی (قانون مدنی، صیاد،
   // مؤدیان، ثبت رسمی معاملات). هیچ حدسی در این دسته تولید نمی‌شود.
   if (!isDataQuestion(text)) {
@@ -533,7 +678,10 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   // ۱) سؤال عددی/مالی: اول دفتر واقعی، مگر اینکه سؤال صریحاً حقوقی باشد.
   const fast = fastUnderstand(raw);
   const legalIntent = hasAny(text, ["قانون", "قانونی", "معتبر", "اعتبار", "دادگاه", "شکایت", "ماده", "امضای الکترونیکی", "سند عادی", "سند رسمی", "ثبت رسمی", "دفتر اسناد"]);
-  const agronomyOnly = isAgronomyQuestion(text) && !isOwnLedgerQuestion(text);
+  // اگر جمله هم واژهٔ کشاورزی دارد و هم نشانهٔ پول/دفتر، پرسش از دفتر کاربر است.
+  // نمونهٔ واقعی: «هزینهٔ کود چقدر بوده؟» قبلاً با راهنمای عمومی انبار جواب می‌گرفت.
+  const ledgerSignal = isOwnLedgerQuestion(text) || hasTag(text, LEDGER_SIGNALS);
+  const agronomyOnly = isAgronomyQuestion(text) && !ledgerSignal;
   if (isDataQuestion(text) && !legalIntent && !agronomyOnly) {
     const direct = dataAnswer(text, context);
     if (direct) return withFast(direct, fast);
@@ -543,7 +691,7 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   const { normalized, scored } = retrieve(raw);
   const [first, second] = scored;
   if (first && first.score >= 0.14) {
-    const answer = knowledgeAnswer(first, second?.score ?? 0);
+    const answer = knowledgeAnswer(first, second?.score ?? 0, text);
     // اگر کاربر عدد دفتر خودش را خواسته و داده‌ای هست، خلاصهٔ دفتر را هم اضافه کن.
     if (isDataQuestion(text) && !agronomyOnly) {
       const direct = dataAnswer(text, context);
@@ -582,7 +730,7 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   //    به‌جای «نمی‌دانم» همان پاسخ را با برچسب «راهنمای نزدیک» و صداقت کامل می‌دهد.
   const near = scored.find((item) => item.score >= 0.075);
   if (near) {
-    const reply = knowledgeAnswer(near, scored[1]?.score ?? 0);
+    const reply = knowledgeAnswer(near, scored[1]?.score ?? 0, text);
     reply.meta.confidence = Math.min(88, Math.max(55, reply.meta.confidence));
     reply.meta.matchedId = `near-${near.entry.id}`;
     reply.text = `${reply.text}\n\n— راهنمای نزدیک —\nاین پاسخ بر پایهٔ نزدیک‌ترین موضوع دانشنامه («${near.entry.title}») آماده شده است. اگر مزرعه، محصول یا مبلغ مشخصی دارید، همان را بنویسید تا دقیق‌تر بررسی کنیم.`;
