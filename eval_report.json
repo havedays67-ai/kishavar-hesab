@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T08:18:44.375Z",
+  "generatedAt": "2026-10-28T08:23:00.860Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
@@ -16,9 +16,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.295,
-    "p50Ms": 0.286,
-    "p95Ms": 0.414,
+    "avgMs": 0.304,
+    "p50Ms": 0.291,
+    "p95Ms": 0.444,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -32,9 +32,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.295,
-    "p50Ms": 0.286,
-    "p95Ms": 0.414,
+    "avgMs": 0.304,
+    "p50Ms": 0.291,
+    "p95Ms": 0.444,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -48,9 +48,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.346,
-    "p50Ms": 0.301,
-    "p95Ms": 0.552,
+    "avgMs": 0.357,
+    "p50Ms": 0.314,
+    "p95Ms": 0.598,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -64,9 +64,9 @@
     "slotPrecision": 79.17,
     "slotRecall": 54.29,
     "clarifyRate": 37.08,
-    "avgMs": 0.165,
-    "p50Ms": 0.143,
-    "p95Ms": 0.303,
+    "avgMs": 0.167,
+    "p50Ms": 0.147,
+    "p95Ms": 0.307,
     "layers": {
       "brain": 151,
       "clarify": 89
@@ -82,9 +82,9 @@
       "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.294,
-      "p50Ms": 0.282,
-      "p95Ms": 0.402,
+      "avgMs": 0.301,
+      "p50Ms": 0.288,
+      "p95Ms": 0.421,
       "layers": {
         "rules": 78
       }
@@ -98,9 +98,9 @@
       "slotPrecision": 73.96,
       "slotRecall": 89.87,
       "clarifyRate": 0,
-      "avgMs": 0.302,
-      "p50Ms": 0.292,
-      "p95Ms": 0.472,
+      "avgMs": 0.306,
+      "p50Ms": 0.296,
+      "p95Ms": 0.401,
       "layers": {
         "rules": 88,
         "brain": 1
@@ -115,9 +115,9 @@
       "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.287,
-      "p50Ms": 0.281,
-      "p95Ms": 0.406,
+      "avgMs": 0.305,
+      "p50Ms": 0.288,
+      "p95Ms": 0.56,
       "layers": {
         "rules": 73
       }
@@ -156,7 +156,7 @@
     "referenceCases": 15,
     "exactMatches": 15,
     "accuracyPercent": 100,
-    "avgMs": 0.721,
+    "avgMs": 0.748,
     "mismatches": [],
     "safetyGuardsPassed": 5,
     "safetyGuardsTotal": 5,
@@ -264,9 +264,9 @@
   },
   "metrics": {
     "total": 480,
-    "avgMs": 0.29,
-    "p50Ms": 0.28,
-    "p95Ms": 0.4,
+    "avgMs": 0.3,
+    "p50Ms": 0.29,
+    "p95Ms": 0.42,
     "layers": {
       "math": 0,
       "rules": 478,

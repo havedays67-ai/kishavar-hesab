@@ -10,6 +10,7 @@ import {
 } from "../app-v2/src/lib/ai/math-engine";
 import { answerCache, resetAnswerCache, AnswerCache } from "../app-v2/src/lib/ai/answer-cache";
 import { routeFast } from "../app-v2/src/lib/nlu/router";
+import { numberToPersianWords } from "../app-v2/src/lib/ai/persian-words";
 
 const value = (text: string) => solveMath(text)?.value;
 
@@ -126,5 +127,16 @@ describe("پایداری موتور ریاضی (fuzz)", () => {
   it("ورودی‌های بسیار بلند و تکراری از سقف عبور نمی‌کنند", () => {
     expect(solveMath("۹".repeat(500))).toBeNull();
     expect(solveMath("(".repeat(200) + "۱" + ")".repeat(200))).toBeNull();
+  });
+});
+
+describe("عدد به حروف فارسی (بدون وابستگی خارجی)", () => {
+  it("اعداد کلیدی درست نوشته می‌شوند", () => {
+    expect(numberToPersianWords(0)).toBe("صفر");
+    expect(numberToPersianWords(7)).toBe("هفت");
+    expect(numberToPersianWords(18)).toBe("هجده");
+    expect(numberToPersianWords(2500000)).toBe("دو میلیون و پانصد هزار");
+    expect(numberToPersianWords(4500000)).toBe("چهار میلیون و پانصد هزار");
+    expect(numberToPersianWords(-1200)).toContain("منفی");
   });
 });
