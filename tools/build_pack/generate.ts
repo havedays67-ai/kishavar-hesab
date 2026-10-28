@@ -9,6 +9,7 @@
  * قاعده: هیچ کلید ماسک‌شدهٔ هارد‌ایوال نباید در پیکره باشد (assert انتها).
  */
 import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 import {
   CROPS, CATEGORIES, UNITS, PARTIES, DATA_DIR, ensureDir, pick, readDatasetRows, rng, summarize,
   uniqueByKey, validateRow, writeJsonl, type CorpusRow, type EvalRow,
@@ -227,7 +228,9 @@ function main(): void {
       overlapWithCorpus: overlap,
     },
   };
-  writeJsonl(join(DATA_DIR, "corpus-stats.jsonl"), [stats]);
+  // آمار ساخت در artifacts نگه داشته می‌شود (timestamp دارد و نباید در گیت باشد)
+  ensureDir(join(ROOT, "artifacts"));
+  writeFileSync(join(ROOT, "artifacts/corpus-stats.json"), JSON.stringify(stats, null, 2));
   console.log(JSON.stringify(stats, null, 2));
   if (overlap !== 0) throw new Error(`hard-eval overlaps corpus: ${overlap}`);
   if (hard.length < 200) throw new Error(`hard-eval too small: ${hard.length}`);

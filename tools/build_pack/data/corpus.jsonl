@@ -1,3 +1,19 @@
+{"text":"۲۵ میلیون تومان نشاء گوجه برای زمین جنوبی خریدم نقدی","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"زمین جنوبی","direction":"cash"},"source":"dataset","split":"test"}
+{"text":"امروز نیم میلیون تومان دستمزد کارگر برداشت برای زمین قدیمی خریدم با کارت","intent":"add_expense","slots":{"category":"دستمزد کارگر","topic":"زمین قدیمی","direction":"bank"},"source":"dataset","split":"test"}
+{"text":"گازوئیل برای زمین قدیمی خریدم","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"زمین قدیمی"},"source":"dataset","split":"test"}
+{"text":"۵٬۰۰۰٬۰۰۰ تومان گازوئیل برای زمین آبی خریدم با کارت","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"زمین آبی","direction":"bank"},"source":"dataset","split":"test"}
+{"text":"۲۵ میلیون تومان کرایه حمل محصول برای قطعه شمالی خریدم نقدی","intent":"add_expense","slots":{"category":"حمل و نقل","topic":"قطعه شمالی","direction":"cash"},"source":"dataset","split":"test"}
+{"text":"۵ میلیون تومان برای زمین شمالی پرداخت کردم","intent":"add_expense","slots":{"topic":"زمین شمالی"},"source":"dataset","split":"test"}
+{"text":"امروز ۲۵۰ هزار تومان بذر گندم چمران برای باغ انار خریدم نقدی","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"باغ انار","direction":"cash"},"source":"dataset","split":"test"}
+{"text":"۴۴ میلیون تومان بابت سم علف‌کش برای زمین جنوبی پرداخت کردم نقدی","intent":"add_expense","slots":{"category":"کود و سم","topic":"زمین جنوبی","direction":"cash"},"source":"dataset","split":"test"}
+{"text":"جو قطعه زعفران شرقی را فروختم","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه زعفران شرقی"},"source":"dataset","split":"test"}
+{"text":"جو قطعه شمالی را ۵٬۰۰۰٬۰۰۰ تومان دادم به خریدار، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه شمالی","direction":"credit"},"source":"dataset","split":"test"}
+{"text":"دو میلیون و پانصد هزار تومان زعفران چاله پنبه را فروختم با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"چاله پنبه","direction":"bank"},"source":"dataset","split":"test"}
+{"text":"زعفران باغ گردو کوهپایه را فروختم","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ گردو کوهپایه"},"source":"dataset","split":"test"}
+{"text":"از فروش جو زمین جنوبی ۲۵ میلیون تومان گیرم آمد نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین جنوبی","direction":"credit"},"source":"dataset","split":"test"}
+{"text":"۱۲ میلیون تومان زعفران قطعه شمالی را فروختم نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه شمالی","direction":"credit"},"source":"dataset","split":"test"}
+{"text":"از فروش گردو زمین باغ پدری ۱.۵ میلیارد تومان گیرم آمد با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین باغ پدری","direction":"bank"},"source":"dataset","split":"test"}
+{"text":"جو قطعه زعفران شرقی را نیم میلیون تومان دادم به خریدار، نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه زعفران شرقی","direction":"cash"},"source":"dataset","split":"test"}
 {"text":"30 کیلوگرم سولفات آمونیوم از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"کیلوگرم"},"source":"dataset","split":"test"}
 {"text":"50 کیلوگرم بذر گندم از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"کیلوگرم"},"source":"dataset","split":"test"}
 {"text":"سم حشره‌کش به مقدار 20 لیتر از انبار خارج شد برای زمین شمالی","intent":"inventory_out","slots":{"unit":"لیتر"},"source":"dataset","split":"test"}
@@ -5,18 +21,78 @@
 {"text":"علوفه خشک به مقدار 25 تن از انبار خارج شد برای زمین شمالی","intent":"inventory_out","slots":{"unit":"تن"},"source":"dataset","split":"test"}
 {"text":"8 لیتر سم حشره‌کش از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"لیتر"},"source":"dataset","split":"test"}
 {"text":"گازوئیل را از انبار کم کن","intent":"inventory_out","slots":{},"source":"dataset","split":"test"}
+{"text":"نشاء گوجه گرفتم برای باغ انار، ۱.۵ میلیارد تومان، نقدی","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"باغ انار","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۵٬۰۰۰٬۰۰۰ تومان کارتن بسته‌بندی برای قطعه زعفران شرقی خریدم با کارت","intent":"add_expense","slots":{"category":"بسته‌بندی","topic":"قطعه زعفران شرقی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"نشاء گوجه برای زمین جنوبی خریدم","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"زمین جنوبی"},"source":"dataset","split":"train"}
+{"text":"امروز ۲۵۰ هزار تومان تعمیر پمپ آب برای زمین شمالی خریدم نقدی","intent":"add_expense","slots":{"category":"تعمیر ماشین‌آلات","topic":"زمین شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"کود اوره گرفتم برای زمین جنوبی، ۱.۵ میلیارد تومان، نقدی","intent":"add_expense","slots":{"category":"کود و سم","topic":"زمین جنوبی","direction":"cash"},"source":"dataset","split":"train"}
 {"text":"امروز نیم میلیون تومان کرایه حمل محصول برای قطعه ۷ خریدم با کارت","intent":"add_expense","slots":{"category":"حمل و نقل","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"۵ میلیون تومان برای قطعه زعفران شرقی پرداخت کردم","intent":"add_expense","slots":{"topic":"قطعه زعفران شرقی"},"source":"dataset","split":"train"}
+{"text":"۴۴ میلیون تومان بابت بیمه محصولات برای زمین شمالی پرداخت کردم نقدی","intent":"add_expense","slots":{"category":"بیمه و عوارض","topic":"زمین شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۴۴ میلیون تومان بابت گازوئیل برای باغ انار پرداخت کردم نقدی","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"باغ انار","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۵ میلیون تومان برای زمین قدیمی پرداخت کردم","intent":"add_expense","slots":{"topic":"زمین قدیمی"},"source":"dataset","split":"train"}
+{"text":"۲۵ میلیون تومان کود اوره برای زمین شمالی خریدم نقدی","intent":"add_expense","slots":{"category":"کود و سم","topic":"زمین شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"کارتن بسته‌بندی گرفتم برای زمین قدیمی، ۸۰۰ هزار تومان، با کارت","intent":"add_expense","slots":{"category":"بسته‌بندی","topic":"زمین قدیمی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"کرایه حمل محصول گرفتم برای زمین شمالی، ۱.۵ میلیارد تومان، نقدی","intent":"add_expense","slots":{"category":"حمل و نقل","topic":"زمین شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"برای زمین آبی، نشاء گوجه به مبلغ یک میلیون و دویست هزار تومان خریدم، با کارت","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"زمین آبی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"سم علف‌کش گرفتم برای زمین آبی، ۸۰۰ هزار تومان، با کارت","intent":"add_expense","slots":{"category":"کود و سم","topic":"زمین آبی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"برای زمین شمالی، اجاره زمین به مبلغ دو میلیون و پانصد هزار تومان خریدم، نقدی","intent":"add_expense","slots":{"category":"اجاره زمین","topic":"زمین شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۳۵۰ میلیون تومان بابت بذر گندم چمران برای زمین آبی پرداخت کردم با کارت","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"زمین آبی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"امروز ۲۵۰ هزار تومان قبض برق پمپ برای قطعه شمالی خریدم نقدی","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"قطعه شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"امروز نیم میلیون تومان کود اوره برای زمین آبی خریدم با کارت","intent":"add_expense","slots":{"category":"کود و سم","topic":"زمین آبی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"برای قطعه زعفران شرقی، دستمزد کارگر برداشت به مبلغ یک میلیون و دویست هزار تومان خریدم، با کارت","intent":"add_expense","slots":{"category":"دستمزد کارگر","topic":"قطعه زعفران شرقی","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"کود اوره برای زمین شمالی خریدم","intent":"add_expense","slots":{"category":"کود و سم","topic":"زمین شمالی"},"source":"dataset","split":"train"}
+{"text":"برای قطعه شمالی، تعمیر پمپ آب به مبلغ دو میلیون و پانصد هزار تومان خریدم، نقدی","intent":"add_expense","slots":{"category":"تعمیر ماشین‌آلات","topic":"قطعه شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۴۴ میلیون تومان بابت کارتن بسته‌بندی برای قطعه شمالی پرداخت کردم نقدی","intent":"add_expense","slots":{"category":"بسته‌بندی","topic":"قطعه شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"برای باغ انار، قبض برق پمپ به مبلغ دو میلیون و پانصد هزار تومان خریدم، نقدی","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"باغ انار","direction":"cash"},"source":"dataset","split":"train"}
 {"text":"بیمه محصولات گرفتم برای قطعه ۷، ۸۰۰ هزار تومان، با کارت","intent":"add_expense","slots":{"category":"بیمه و عوارض","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"۳۵۰ میلیون تومان بابت قبض برق پمپ برای قطعه زعفران شرقی پرداخت کردم با کارت","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"قطعه زعفران شرقی","direction":"bank"},"source":"dataset","split":"train"}
 {"text":"برای قطعه ۷، کود اوره به مبلغ یک میلیون و دویست هزار تومان خریدم، با کارت","intent":"add_expense","slots":{"category":"کود و سم","direction":"bank"},"source":"dataset","split":"train"}
 {"text":"۵٬۰۰۰٬۰۰۰ تومان سم علف‌کش برای قطعه ۷ خریدم با کارت","intent":"add_expense","slots":{"category":"کود و سم","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"۲۵ میلیون تومان دستمزد کارگر برداشت برای باغ انار خریدم نقدی","intent":"add_expense","slots":{"category":"دستمزد کارگر","topic":"باغ انار","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"دستمزد کارگر برداشت گرفتم برای قطعه شمالی، ۱.۵ میلیارد تومان، نقدی","intent":"add_expense","slots":{"category":"دستمزد کارگر","topic":"قطعه شمالی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"برای زمین جنوبی، بذر گندم چمران به مبلغ دو میلیون و پانصد هزار تومان خریدم، نقدی","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"زمین جنوبی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"قبض برق پمپ برای چاله پنبه خریدم","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"چاله پنبه"},"source":"dataset","split":"train"}
+{"text":"امروز ۲۵۰ هزار تومان اجاره زمین برای زمین جنوبی خریدم نقدی","intent":"add_expense","slots":{"category":"اجاره زمین","topic":"زمین جنوبی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۵ میلیون تومان برای زمین جنوبی پرداخت کردم","intent":"add_expense","slots":{"topic":"زمین جنوبی"},"source":"dataset","split":"train"}
+{"text":"بذر گندم چمران برای باغ گردو کوهپایه خریدم","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"باغ گردو کوهپایه"},"source":"dataset","split":"train"}
 {"text":"۳۵۰ میلیون تومان بابت اجاره زمین برای قطعه ۷ پرداخت کردم با کارت","intent":"add_expense","slots":{"category":"اجاره زمین","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"محصول پنبه زمین جنوبی را یک میلیون و دویست هزار تومان فروختم، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین جنوبی","direction":"credit"},"source":"dataset","split":"train"}
 {"text":"از فروش انار چاله پنبه ۲ ۲۵۰ هزار تومان گیرم آمد با کارت","intent":"add_income","slots":{"category":"فروش محصول","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"گندم زمین شمالی را فروختم","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین شمالی"},"source":"dataset","split":"train"}
+{"text":"از فروش علوفه زمین آبی دو میلیون و پانصد هزار تومان گیرم آمد نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین آبی","direction":"cash"},"source":"dataset","split":"train"}
 {"text":"۱.۵ میلیارد تومان پنبه چاله پنبه ۲ را فروختم با کارت","intent":"add_income","slots":{"category":"فروش محصول","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"۲۵ میلیون تومان گوجه باغ انار را فروختم نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ انار","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"محصول گوجه زمین شمالی را ۵٬۰۰۰٬۰۰۰ تومان فروختم، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین شمالی","direction":"credit"},"source":"dataset","split":"train"}
 {"text":"۱.۵ میلیارد تومان زعفران قطعه ۷ را فروختم نقدی","intent":"add_income","slots":{"category":"فروش محصول","direction":"cash"},"source":"dataset","split":"train"}
 {"text":"محصول زعفران چاله پنبه ۲ را یک میلیون و دویست هزار تومان فروختم، با کارت","intent":"add_income","slots":{"category":"فروش محصول","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"۴۴ میلیون تومان گوجه زمین باغ پدری را فروختم با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین باغ پدری","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"از فروش انار قطعه شمالی ۴۴ میلیون تومان گیرم آمد نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه شمالی","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"۲۵۰ هزار تومان گوجه زمین آبی را فروختم نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین آبی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۴۴ میلیون تومان گندم زمین قدیمی را فروختم نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین قدیمی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"انار چاله پنبه را نیم میلیون تومان دادم به خریدار، با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"چاله پنبه","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"محصول گندم زمین باغ پدری را ۵٬۰۰۰٬۰۰۰ تومان فروختم، با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین باغ پدری","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"از فروش گردو باغ انار دو میلیون و پانصد هزار تومان گیرم آمد نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ انار","direction":"credit"},"source":"dataset","split":"train"}
 {"text":"محصول پنبه قطعه ۷ را ۷۵۰ میلیون تومان فروختم، نقدی","intent":"add_income","slots":{"category":"فروش محصول","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"گردو زمین جنوبی را فروختم","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین جنوبی"},"source":"dataset","split":"train"}
+{"text":"انار قطعه زعفران شرقی را ۵٬۰۰۰٬۰۰۰ تومان دادم به خریدار، نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه زعفران شرقی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۱۲ میلیون تومان پنبه قطعه زعفران شرقی را فروختم نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه زعفران شرقی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"۲۵ میلیون تومان گندم باغ گردو کوهپایه را فروختم با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ گردو کوهپایه","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"محصول گندم زمین شمالی را نیم میلیون تومان فروختم، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین شمالی","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"محصول پنبه چاله پنبه را ۸۰۰ هزار تومان فروختم، با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"چاله پنبه","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"محصول گندم زمین آبی را ۳۵۰ میلیون تومان فروختم، نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین آبی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"از فروش جو چاله پنبه ۴۴ میلیون تومان گیرم آمد با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"چاله پنبه","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"از فروش علوفه زمین شمالی ۱.۵ میلیارد تومان گیرم آمد نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین شمالی","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"۲۵۰ هزار تومان گندم باغ انار را فروختم نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ انار","direction":"credit"},"source":"dataset","split":"train"}
 {"text":"جو چاله پنبه ۲ را ۳۵۰ میلیون تومان دادم به خریدار، با کارت","intent":"add_income","slots":{"category":"فروش محصول","direction":"bank"},"source":"dataset","split":"train"}
+{"text":"محصول زعفران زمین جنوبی را ۷۵۰ میلیون تومان فروختم، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین جنوبی","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"محصول زعفران قطعه زعفران شرقی را ۸۰۰ هزار تومان فروختم، نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه زعفران شرقی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"علوفه زمین قدیمی را یک میلیون و دویست هزار تومان دادم به خریدار، نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین قدیمی","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"از فروش گردو زمین آبی ۱۲ میلیون تومان گیرم آمد نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین آبی","direction":"cash"},"source":"dataset","split":"train"}
 {"text":"از فروش جو قطعه ۷ ۲۵۰ هزار تومان گیرم آمد نقدی","intent":"add_income","slots":{"category":"فروش محصول","direction":"cash"},"source":"dataset","split":"train"}
+{"text":"انار زمین جنوبی را ۳۵۰ میلیون تومان دادم به خریدار، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین جنوبی","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"علوفه باغ انار را ۸۰۰ هزار تومان دادم به خریدار، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ انار","direction":"credit"},"source":"dataset","split":"train"}
+{"text":"از فروش علوفه باغ گردو کوهپایه ۱۲ میلیون تومان گیرم آمد با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ گردو کوهپایه","direction":"bank"},"source":"dataset","split":"train"}
 {"text":"نشاء گوجه به مقدار 30 بوته از انبار خارج شد برای زمین شمالی","intent":"inventory_out","slots":{"unit":"بوته"},"source":"dataset","split":"train"}
 {"text":"20 کیلوگرم کود اوره از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"کیلوگرم"},"source":"dataset","split":"train"}
 {"text":"20 عدد کارتن از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"عدد"},"source":"dataset","split":"train"}
@@ -32,7 +108,18 @@
 {"text":"100 لیتر گازوئیل از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"لیتر"},"source":"dataset","split":"train"}
 {"text":"20 لیتر سم قارچ‌کش از انبار برای کشت گندم کم کن","intent":"inventory_out","slots":{"unit":"لیتر"},"source":"dataset","split":"train"}
 {"text":"بذر گندم را از انبار کم کن","intent":"inventory_out","slots":{},"source":"dataset","split":"train"}
+{"text":"۳۵۰ میلیون تومان بابت تعمیر پمپ آب برای زمین قدیمی پرداخت کردم با کارت","intent":"add_expense","slots":{"category":"تعمیر ماشین‌آلات","topic":"زمین قدیمی","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"سم علف‌کش برای قطعه زعفران شرقی خریدم","intent":"add_expense","slots":{"category":"کود و سم","topic":"قطعه زعفران شرقی"},"source":"dataset","split":"val"}
+{"text":"امروز نیم میلیون تومان نشاء گوجه برای قطعه زعفران شرقی خریدم با کارت","intent":"add_expense","slots":{"category":"بذر و نهال","topic":"قطعه زعفران شرقی","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"گازوئیل گرفتم برای قطعه زعفران شرقی، ۸۰۰ هزار تومان، با کارت","intent":"add_expense","slots":{"category":"سوخت و انرژی","topic":"قطعه زعفران شرقی","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"برای زمین قدیمی، کرایه حمل محصول به مبلغ یک میلیون و دویست هزار تومان خریدم، با کارت","intent":"add_expense","slots":{"category":"حمل و نقل","topic":"زمین قدیمی","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"۵٬۰۰۰٬۰۰۰ تومان بیمه محصولات برای زمین قدیمی خریدم با کارت","intent":"add_expense","slots":{"category":"بیمه و عوارض","topic":"زمین قدیمی","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"گردو باغ گردو کوهپایه را ۸۰۰ هزار تومان دادم به خریدار، با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ گردو کوهپایه","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"گردو زمین شمالی را یک میلیون و دویست هزار تومان دادم به خریدار، نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین شمالی","direction":"credit"},"source":"dataset","split":"val"}
 {"text":"از فروش انار قطعه ۷ ۲۵ میلیون تومان گیرم آمد نقدی","intent":"add_income","slots":{"category":"فروش محصول","direction":"cash"},"source":"dataset","split":"val"}
+{"text":"محصول گوجه باغ گردو کوهپایه را ۳۵۰ میلیون تومان فروختم، با کارت","intent":"add_income","slots":{"category":"فروش محصول","topic":"باغ گردو کوهپایه","direction":"bank"},"source":"dataset","split":"val"}
+{"text":"دو میلیون و پانصد هزار تومان پنبه قطعه شمالی را فروختم نسیه","intent":"add_income","slots":{"category":"فروش محصول","topic":"قطعه شمالی","direction":"credit"},"source":"dataset","split":"val"}
+{"text":"محصول گوجه زمین قدیمی را نیم میلیون تومان فروختم، نقدی","intent":"add_income","slots":{"category":"فروش محصول","topic":"زمین قدیمی","direction":"cash"},"source":"dataset","split":"val"}
 {"text":"مانده کود در انبار","intent":"report_inventory","slots":{"category":"عوارض و مالیات"},"source":"synthetic","split":"test"}
 {"text":"چک‌های سررسید نزدیک کدامه","intent":"report_cheques","slots":{"docType":"cheque"},"source":"synthetic","split":"test"}
 {"text":"تعمیر و نگهداری گرفتم ۴۴۰ هزار تومان گندم","intent":"add_expense","slots":{"category":"کود","crop":"گردو"},"source":"synthetic","split":"train"}
@@ -81,6 +168,7 @@
 {"text":"عوارض و مالیات گرفتم برای کدو ۵ میلیون تومن","intent":"purchase_input","slots":{"category":"حمل و نقل","crop":"انار"},"source":"synthetic","split":"test"}
 {"text":"خروج حمل و نقل از انبار ۲۵۰ هزار کیسه","intent":"inventory_out","slots":{"category":"کود","crop":"خربزه"},"source":"synthetic","split":"test"}
 {"text":"اجاره زمین گرفتم ۴۴۰ هزار تومان پنبه","intent":"add_expense","slots":{"category":"تعمیر و نگهداری","crop":"گردو"},"source":"synthetic","split":"test"}
+{"text":"اقساط وام یک میلیارد تومن مانده","intent":"loan_installment","slots":{"topic":"وام"},"source":"synthetic","split":"train"}
 {"text":"چطور از برنامه بکاپ بگیرم","intent":"app_help","slots":{},"source":"synthetic","split":"train"}
 {"text":"جمع طلب‌ها را بگو","intent":"report_receivable","slots":{},"source":"synthetic","split":"test"}
 {"text":"حمل و نقل برای زعفران زدم ۵ میلیون کیلو","intent":"fertilizer_pesticide","slots":{"category":"سم","crop":"یونجه"},"source":"synthetic","split":"train"}
@@ -103,6 +191,7 @@
 {"text":"دو میلیون و پانصد هزار کیلو تعمیر و نگهداری از انبار برای پیاز کم کن","intent":"inventory_out","slots":{"category":"اجاره زمین","crop":"گندم"},"source":"synthetic","split":"train"}
 {"text":"چک شرکت دانه طلایی به مبلغ دو میلیون و پانصد هزار تومان دستم رسید","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"source":"synthetic","split":"test"}
 {"text":"چک ۲۵۰ هزار تومانی از شرکت دانه طلایی گرفتم سررسید آبان","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"source":"synthetic","split":"train"}
+{"text":"قسط وام را ۴۴۰ هزار تومن دادم","intent":"loan_installment","slots":{"topic":"وام"},"source":"synthetic","split":"train"}
 {"text":"برداشت پسته انجام شد دو میلیون و پانصد هزار کیلو","intent":"harvest_record","slots":{"crop":"خربزه","unit":"نفرروز"},"source":"synthetic","split":"train"}
 {"text":"حاج رضا یک میلیارد تومان واریز کرد بابت انگور","intent":"add_income","slots":{"crop":"زیتون"},"source":"synthetic","split":"train"}
 {"text":"چقدر طلب دارم از آقای صادقی","intent":"report_receivable","slots":{},"source":"synthetic","split":"train"}
@@ -133,6 +222,7 @@
 {"text":"کود سم به انار دادم یک میلیارد کیلوگرم","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"هندوانه"},"source":"synthetic","split":"train"}
 {"text":"قرارداد دستی باید ثبت رسمی بشه؟","intent":"legal_contract","slots":{"docType":"contract"},"source":"synthetic","split":"train"}
 {"text":"وقت بخیر","intent":"greeting","slots":{},"source":"synthetic","split":"train"}
+{"text":"پرداخت قسط دو میلیون و پانصد هزار تومان به بانک","intent":"loan_installment","slots":{"topic":"وام"},"source":"synthetic","split":"train"}
 {"text":"برای زعفران دور آب زدم","intent":"irrigation_log","slots":{"crop":"ذرت"},"source":"synthetic","split":"train"}
 {"text":"آقای صادقی ۱۲ میلیون تومان واریز کرد بابت جو","intent":"add_income","slots":{"crop":"پنبه"},"source":"synthetic","split":"train"}
 {"text":"آیا چک با امضا در برنامه قانونی است","intent":"legal_cheque","slots":{"docType":"cheque"},"source":"synthetic","split":"train"}
@@ -1518,34 +1608,3 @@
 {"text":"ماشین‌آلات از انبار برای گندم مصرف شد","intent":"inventory_out","slots":{"category":"بذر","crop":"پرتقال"},"source":"synthetic","split":"test"}
 {"text":"یک میلیون کیلوگرم خربزه را فروشگاه نهاده خرید یک میلیارد تومان","intent":"sale_crop","slots":{"crop":"بادام","unit":"خروار","role":"seller"},"source":"synthetic","split":"train"}
 {"text":"بذر برای پسته زدم یک میلیون کیلو","intent":"fertilizer_pesticide","slots":{"category":"سم","crop":"هندوانه"},"source":"synthetic","split":"train"}
-{"text":"فروش فلفل دو میلیون و پانصد هزار تومن گیرم اومد","intent":"add_income","slots":{"crop":"گردو"},"source":"synthetic","split":"train"}
-{"text":"خرید سم برای گردو ۴۴۰ هزار تومان نقدی","intent":"add_expense","slots":{"category":"تعمیر و نگهداری","crop":"پرتقال"},"source":"synthetic","split":"train"}
-{"text":"اجاره زمین برای خرما زدم دو میلیون و پانصد هزار کیلو","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"بادام"},"source":"synthetic","split":"train"}
-{"text":"۵ میلیون کیلو بذر از انبار برای خرما کم کن","intent":"inventory_out","slots":{"category":"سم","crop":"سیر"},"source":"synthetic","split":"train"}
-{"text":"۴۴۰ هزار کیلو سم از انبار برای یونجه کم کن","intent":"inventory_out","slots":{"category":"اجاره زمین","crop":"لیمو"},"source":"synthetic","split":"train"}
-{"text":"خرید حمل و نقل برای گندم یک میلیارد تومان نقدی","intent":"add_expense","slots":{"category":"بذر","crop":"یونجه"},"source":"synthetic","split":"train"}
-{"text":"۴۴۰ هزار کیسه حمل و نقل برای فلفل خریدم","intent":"purchase_input","slots":{"category":"کود","crop":"لیمو"},"source":"synthetic","split":"test"}
-{"text":"بذر گرفتم برای جو ۲۵۰ هزار تومن","intent":"purchase_input","slots":{"category":"تعمیر و نگهداری","crop":"بادمجان"},"source":"synthetic","split":"train"}
-{"text":"اجاره زمین برای خربزه زدم ۲۵۰ هزار کیلو","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"زعفران"},"source":"synthetic","split":"train"}
-{"text":"کود کود به گوجه دادم ۲۵۰ هزار کیلوگرم","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"انار"},"source":"synthetic","split":"train"}
-{"text":"۵ میلیون کیلو آب و برق از انبار برای بادام کم کن","intent":"inventory_out","slots":{"category":"کود","crop":"بادمجان"},"source":"synthetic","split":"train"}
-{"text":"تعمیر و نگهداری از انبار برای گوجه مصرف شد","intent":"inventory_out","slots":{"category":"کارگر","crop":"گوجه"},"source":"synthetic","split":"train"}
-{"text":"۱۲ میلیون کیلو کود از انبار برای کلزا کم کن","intent":"inventory_out","slots":{"category":"آب و برق","crop":"فلفل"},"source":"synthetic","split":"train"}
-{"text":"برا جو آب و برق خریدم ۴۴۰ هزار تومن","intent":"add_expense","slots":{"category":"حمل و نقل","crop":"خرما"},"source":"synthetic","split":"train"}
-{"text":"کارگاه کود یک میلیارد تومان واریز کرد بابت خرما","intent":"add_income","slots":{"crop":"پنبه"},"source":"synthetic","split":"test"}
-{"text":"سم گرفتم دو میلیون و پانصد هزار تومان ذرت","intent":"add_expense","slots":{"category":"حمل و نقل","crop":"برنج"},"source":"synthetic","split":"train"}
-{"text":"فروشگاه نهاده یک میلیون تومان واریز کرد بابت زیتون","intent":"add_income","slots":{"crop":"کلزا"},"source":"synthetic","split":"train"}
-{"text":"سمپاشی مرکبات با کود انجام شد","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"کلزا"},"source":"synthetic","split":"train"}
-{"text":"حمل و نقل گرفتم برای انگور یک میلیون تومن","intent":"purchase_input","slots":{"category":"عوارض و مالیات","crop":"سیب"},"source":"synthetic","split":"test"}
-{"text":"بار ذرت را به شرکت دانه طلایی فروختم ۵ میلیون تومان","intent":"sale_crop","slots":{"crop":"زعفران","unit":"تن","role":"seller"},"source":"synthetic","split":"train"}
-{"text":"بذر از انبار برای بادمجان مصرف شد","intent":"inventory_out","slots":{"category":"حمل و نقل","crop":"زعفران"},"source":"synthetic","split":"train"}
-{"text":"ماشین‌آلات گرفتم ۵ میلیون تومان زیتون","intent":"add_expense","slots":{"category":"اجاره زمین","crop":"لیمو"},"source":"synthetic","split":"train"}
-{"text":"جو را کیلویی ۲۵۰ هزار تومن به بانک کشاورزی فروختم","intent":"sale_crop","slots":{"crop":"سیب‌زمینی","unit":"نفرروز","role":"seller"},"source":"synthetic","split":"train"}
-{"text":"برا بادمجان ماشین‌آلات خریدم ۱۲ میلیون تومن","intent":"add_expense","slots":{"category":"تعمیر و نگهداری","crop":"فلفل"},"source":"synthetic","split":"train"}
-{"text":"یک میلیارد کیلوگرم سیر را آقای صادقی خرید ۱۲ میلیون تومان","intent":"sale_crop","slots":{"crop":"ذرت","unit":"حلب","role":"seller"},"source":"synthetic","split":"train"}
-{"text":"آبیاری بادمجان انجام شد نوبت 2","intent":"irrigation_log","slots":{"crop":"پسته"},"source":"synthetic","split":"test"}
-{"text":"کود گرفتم برای هندوانه ۵ میلیون تومن","intent":"purchase_input","slots":{"category":"آب و برق","crop":"خیار"},"source":"synthetic","split":"train"}
-{"text":"بار سیب‌زمینی را به تعاونی روستا فروختم ۴۴۰ هزار تومان","intent":"sale_crop","slots":{"crop":"جو","unit":"سبد","role":"seller"},"source":"synthetic","split":"train"}
-{"text":"برا ذرت کارگر خریدم ۴۴۰ هزار تومن","intent":"add_expense","slots":{"category":"تعمیر و نگهداری","crop":"بادمجان"},"source":"synthetic","split":"test"}
-{"text":"کود اجاره زمین به پیاز دادم دو میلیون و پانصد هزار کیلوگرم","intent":"fertilizer_pesticide","slots":{"category":"سم","crop":"چغندرقند"},"source":"synthetic","split":"train"}
-{"text":"۲۵۰ هزار کیلو اجاره زمین از انبار برای خرما کم کن","intent":"inventory_out","slots":{"category":"کود","crop":"مرکبات"},"source":"synthetic","split":"train"}
