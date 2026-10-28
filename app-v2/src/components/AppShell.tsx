@@ -32,7 +32,6 @@ import { type Page } from "../lib/data";
 import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import { Avatar, BrandMark } from "./ui";
-import { ReceiptQuickButton } from "./ReceiptUploader";
 
 const NAV_ITEMS: {
   id: Page;
@@ -268,8 +267,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1460px] px-4 pb-28 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10 lg:pt-8">{children}
-        <ReceiptQuickButton page={page} /></main>
+        <main className="mx-auto max-w-[1460px] px-4 pb-24 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10 lg:pt-8">{children}</main>
 
         <footer className="no-print mx-auto hidden max-w-[1460px] flex-wrap items-center justify-between gap-2 px-8 pb-6 text-[10px] text-[#607d70] lg:flex">
           <span>کسب‌وکار من ·  · موتور معامله {toPersianDigits("1.0.0")}</span>

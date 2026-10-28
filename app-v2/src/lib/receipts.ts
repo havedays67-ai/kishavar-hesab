@@ -14,6 +14,10 @@ import {
 export interface StoredReceipt {
   id: string;
   section: ReceiptSectionId;
+  /** نوع رکوردی که رسید به آن چسبیده است (بدهی، چک، معامله، قرارداد…). */
+  refType?: string;
+  /** شناسهٔ همان رکورد؛ رسیدها دقیقاً زیر همان رکورد برمی‌گردند. */
+  refId?: string;
   title: string;
   amount: number | null;
   date: JDate;
@@ -28,7 +32,7 @@ export interface StoredReceipt {
 
 const KEY = "kishavar.receipts.v1";
 /** سهمیهٔ امن حافظهٔ محلی؛ فایل بزرگ‌تر با پیام روشن رد می‌شود. */
-export const LOCAL_RECEIPT_BUDGET = 4.2 * 1024 * 1024;
+export const LOCAL_RECEIPT_BUDGET = 4.4 * 1024 * 1024;
 
 function storage(): Storage | null {
   try {
@@ -85,6 +89,26 @@ export function addReceipt(input: Omit<StoredReceipt, "id" | "createdAt">): { ok
 export function removeReceipt(id: string): { ok: boolean; error?: string } {
   return persist(loadReceipts().filter((row) => row.id !== id));
 }
+
+/** رسیدهای یک رکورد مشخص؛ یک رکورد می‌تواند هر تعداد رسید داشته باشد. */
+export function loadRecordReceipts(refType: string, refId: string): StoredReceipt[] {
+  return loadReceipts().filter((row) => row.refType === refType && row.refId === refId);
+}
+
+export function recordReceiptCount(refType: string, refId: string): number {
+  return loadRecordReceipts(refType, refId).length;
+}
+
+/** با حذف رکورد، رسیدهای همان رکورد هم پاک می‌شوند تا فایل بی‌صاحب نماند. */
+export function removeReceiptsForRecord(refType: string, refId: string): { ok: boolean; removed: number } {
+  const rows = loadReceipts();
+  const kept = rows.filter((row) => !(row.refType === refType && row.refId === refId));
+  if (kept.length === rows.length) return { ok: true, removed: 0 };
+  const result = persist(kept);
+  return { ok: result.ok, removed: rows.length - kept.length };
+}
+
+
 
 export function receiptsFor(section: ReceiptSectionId | "all"): StoredReceipt[] {
   const rows = loadReceipts();

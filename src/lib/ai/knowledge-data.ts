@@ -17,6 +17,7 @@
 
 import { EXTRA_KNOWLEDGE } from "./knowledge-extra";
 import { VERIFIED_KNOWLEDGE } from "./knowledge-verified";
+import { KNOWLEDGE_BOOST } from "./knowledge-boost";
 
 export interface KnowledgeSeed {
   slug: string;
@@ -645,6 +646,7 @@ const BASE_KNOWLEDGE: KnowledgeSeed[] = [
  * ترتیب اهمیت دارد: ردیف‌های تأییدشده برای پرسش‌های عددی در اولویت بازیابی‌اند.
  */
 export const KNOWLEDGE_SEEDS: KnowledgeSeed[] = [
+  ...KNOWLEDGE_BOOST,
   ...VERIFIED_KNOWLEDGE,
   ...BASE_KNOWLEDGE,
   ...EXTRA_KNOWLEDGE,
@@ -680,7 +682,10 @@ export const KNOWLEDGE_SYNONYMS: Record<string, string[]> = {
   کارنس: ["دوره کارنس", "PHI", "باقی مانده سم", "MRL"],
   صیاد: ["چک صیادی", "ثبت چک", "سامانه صیاد", "چک برگشتی"],
   "ثبت رسمی": ["سند رسمی", "دفتر اسناد رسمی", "قولنامه", "الزام ثبت رسمی"],
-  رسید: ["فیش", "فیش واریز", "قبض", "مدرک پرداخت", "رسید باسکول"],
+  رسید: ["فیش", "فیش واریز", "قبض", "مدرک پرداخت", "رسید باسکول", "عکس رسید", "آپلود رسید", "پیوست رسید"],
+  "سال آوری": ["سال آوری درخت", "پسته سال پُر"],
+  "بهای تمام‌شده": ["قیمت تمام شده", "هزینه هر کیلو", "cost per kg"],
+  "نقدینگی": ["جریان نقدی", "پول در دست", "cash flow"],
   سرمازدگی: ["یخبندان", "سرما زدگی", "frost", "سرمای بهاره"],
   گلخانه: ["خیار گلخانه", "گوجه گلخانه", "فرتیگیشن", "greenhouse"],
   یونجه: ["علوفه", "چین یونجه", "alfalfa"],

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
   Banknote,
   CalendarClock,
+  Camera,
   Check,
   CircleDollarSign,
   CreditCard,
@@ -17,6 +18,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
+import { RecordReceipts } from "../components/RecordReceipts";
 import { cn } from "../utils/cn";
 import { Fingerprint } from "lucide-react";
 import { chequeEntity, loanEntity } from "../lib/signable";
@@ -85,6 +87,7 @@ export function FinancePage({
   onPrintReport: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("entries");
+  const [receiptEntry, setReceiptEntry] = useState<string | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [chequeOpen, setChequeOpen] = useState(false);
@@ -164,7 +167,8 @@ export function FinancePage({
               <thead><tr className="bg-white/[0.025] text-[8px] text-[#7d9a8d]">{["تاریخ", "نوع", "دلیل", "دسته", "روش", "مبلغ", ""].map((head) => <th key={head} className="px-3 py-2.5 font-normal">{head}</th>)}</tr></thead>
               <tbody>
                 {filtered.map((entry) => (
-                  <tr key={entry.id} className="border-b border-white/[0.04] text-[9px] hover:bg-white/[0.02]">
+                  <Fragment key={entry.id}>
+                  <tr className="border-b border-white/[0.04] text-[9px] hover:bg-white/[0.02]">
                     <td className="px-3 py-2.5 text-[#a8bfb3]">{formatJalali(entry.date, "short")}</td>
                     <td className="px-3 py-2.5"><span className={cn("rounded px-1.5 py-0.5 text-[8px]", entry.kind === "income" ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}>{entry.kind === "income" ? "درآمد" : "هزینه"}</span></td>
                     <td className="px-3 py-2.5 text-[#d8e7df]">{entry.reason}{entry.note && <span className="block text-[7px] text-[#6f8c7f]">{entry.note}</span>}</td>
@@ -173,11 +177,20 @@ export function FinancePage({
                     <td className={cn("px-3 py-2.5 font-semibold", entry.kind === "income" ? "text-mint-300" : "text-sand-300")}>{entry.kind === "income" ? "+" : "−"} {money(entry.amount)}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => setReceiptEntry((current) => (current === entry.id ? null : entry.id))} className={cn("rounded p-0.5", receiptEntry === entry.id ? "bg-mint-300/10 text-mint-300" : "text-[#78968a] hover:text-mint-300")} aria-label={`رسیدهای ${entry.reason}`} title="رسید و فیش"><Camera className="h-3.5 w-3.5" /></button>
                         <button type="button" onClick={() => { setEditingEntry(entry); setEntryOpen(true); }} className="text-[#78968a] hover:text-mint-300" aria-label="ویرایش ردیف"><Check className="h-3 w-3" /></button>
                         <button type="button" onClick={() => { if (window.confirm("این ردیف مالی حذف شود؟")) onDeleteEntry(entry.id); }} className="text-[#78968a] hover:text-[#efad9f]" aria-label="حذف ردیف"><Trash2 className="h-3 w-3" /></button>
                       </div>
                     </td>
                   </tr>
+                  {receiptEntry === entry.id && (
+                    <tr className="border-b border-white/[0.04] bg-white/[0.014]">
+                      <td colSpan={7} className="px-3 py-2">
+                        <RecordReceipts refType="debt" refId={entry.id} section="finance" label={`رسیدهای «${entry.reason}»`} hint="عکس فیش، کارت‌به‌کارت یا رسید دریافت/پرداخت همین ردیف." compact />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -222,6 +235,9 @@ export function FinancePage({
                 )}
                 <button type="button" onClick={() => onDeleteCheque(cheque.id)} className="mr-auto flex items-center gap-1 text-[8px] text-[#78968a] hover:text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف</button>
               </div>
+              <div className="mt-2">
+                <RecordReceipts refType="cheque" refId={cheque.id} section="finance" label="تصویر چک و رسید وصول" hint="تصویر دو روی چک، رسید صیاد یا فیش وصول همین چک." compact />
+              </div>
             </article>
           ))}
           {ledger.cheques.length === 0 && <p className="rounded-2xl border border-dashed border-[#355344] px-4 py-10 text-center text-[10px] text-[#78968a]">چکی ثبت نشده است.</p>}
@@ -254,6 +270,9 @@ export function FinancePage({
                   <button type="button" onClick={() => setSignTarget({ kind: "loan", id: loan.id })} className="flex items-center gap-1 rounded-lg border border-[#9fd4ee]/25 bg-[#9fd4ee]/[0.07] px-2.5 py-1.5 text-[8px] text-[#bfe6f7]"><Fingerprint className="h-3 w-3" /> امضا وام ({toPersianDigits(audit(loanEntity(loan)).signed)}/{toPersianDigits(audit(loanEntity(loan)).required)})</button>
                   <button type="button" disabled={!next} onClick={() => onPayLoan(loan.id)} className="flex items-center gap-1 rounded-lg bg-mint-300/[0.08] px-2.5 py-1.5 text-[8px] text-mint-300 disabled:opacity-40"><CircleDollarSign className="h-3 w-3" /> پرداخت قسط بعدی</button>
                   <button type="button" onClick={() => onDeleteLoan(loan.id)} className="mr-auto flex items-center gap-1 text-[8px] text-[#78968a] hover:text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف</button>
+                </div>
+                <div className="mt-2">
+                  <RecordReceipts refType="loan" refId={loan.id} section="finance" label="رسید وام و اقساط" hint="تصویر قرارداد وام و فیش هر قسط را اینجا نگه دارید." compact />
                 </div>
                 <div className="mt-2 overflow-hidden rounded-lg border border-white/[0.06]">
                   <table className="w-full text-right"><thead><tr className="bg-white/[0.03] text-[7px] text-[#7d9a8d]"><th className="px-2 py-1.5 font-normal">قسط</th><th className="px-2 py-1.5 font-normal">سررسید</th><th className="px-2 py-1.5 font-normal">مبلغ</th><th className="px-2 py-1.5 font-normal">وضعیت</th></tr></thead>

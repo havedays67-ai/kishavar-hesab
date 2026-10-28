@@ -25,6 +25,7 @@ import {
   Wallet,
   Wheat,
 } from "lucide-react";
+import { RecordReceipts } from "../components/RecordReceipts";
 import { cn } from "../utils/cn";
 import {
   addJalaliMonths,
@@ -1125,6 +1126,9 @@ export function TradePage({
                       ثبت پرداخت
                     </button>
                     <button type="button" onClick={() => { if (window.confirm(`معامله ${trade.serial} حذف شود؟`)) onDeleteTrade(trade.id); }} className="grid h-7 w-7 place-items-center rounded-lg border border-white/[0.08] text-[#78968a] transition hover:text-[#efad9f]" aria-label="حذف معامله"><X className="h-3 w-3" /></button>
+                  </div>
+                  <div className="border-t border-white/[0.05] px-3 py-2.5">
+                    <RecordReceipts refType="trade" refId={trade.id} section="trade" label={`رسیدهای معامله ${trade.serial}`} hint="قبض باسکول، فیش تسویه و تصویر چک همین معامله." compact />
                   </div>
                 </article>
               );

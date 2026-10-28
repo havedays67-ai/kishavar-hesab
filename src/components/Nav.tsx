@@ -20,6 +20,7 @@ export const NAV_ITEMS = [
   { href: "/reports", label: "گزارش‌ها", icon: "chart" },
   { href: "/assistant", label: "دستیار هوشمند", icon: "sparkles" },
   { href: "/diagnostics", label: "تست و عیب‌یابی", icon: "alert" },
+  { href: "/field", label: "نسخهٔ میدانی (اپ)", icon: "sprout" },
   { href: "/settings", label: "تنظیمات", icon: "settings" },
 ];
 

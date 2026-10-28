@@ -66,7 +66,9 @@ jobs:
           cd ..
           echo "APK payload built from app-v2/dist/index.html"
           ls -lh capacitor-web/index.html
-          for term in "معامله محصول" "بدهکار و بستانکار" "اجاره و اقساط" "دانلود PDF" "دفتر مالی" "آپلود رسید" "اعتبار اسناد" "رسید و فیش"; do grep -q "$term" capacitor-web/index.html && echo "found: $term"; done
+          for term in "معامله محصول" "بدهکار و بستانکار" "اجاره و اقساط" "دانلود PDF" "دفتر مالی" "اعتبار اسناد" "رسید و فیش" "افزودن تصویر رسید" "رسیدهای این رکورد" "مشاهده"; do grep -q "$term" capacitor-web/index.html && echo "found: $term" || (echo "missing required term: $term" && exit 1); done
+          if grep -q "no-print fixed bottom-\[76px\] left-3" capacitor-web/index.html; then echo "floating receipt button is back"; exit 1; fi
+          echo "per-record receipt UI verified"
 
       - name: Android SDK packages (preinstalled runner SDK)
         run: |
@@ -249,9 +251,12 @@ jobs:
           console.log('این بسته از اپ میدانی پیشرفته در پوشه app-v2 ساخته شده است.');
           console.log('');
           console.log('تازه‌ها:');
-          console.log('- آپلود رسید در همهٔ بخش‌ها + مرکز رسیدها (آفلاین)');
+          console.log('- حذف دکمهٔ شناور «آپلود رسید»: رسید درست زیر همان رکورد ذخیره می‌شود');
+          console.log('- هر رکورد چند رسید می‌گیرد: بدهی، چک، وام، طرف‌حساب، معامله، قرارداد، زمین/کشت و انبار');
+          console.log('- برای هر رسید: مشاهده در پنجرهٔ داخلی، دانلود واقعی با نام و پسوند درست، و حذف');
+          console.log('- کشاورزیار با دانش تأییدشدهٔ ۳.۲.۰: آب و آبیاری، کود، آفت، شوری، دام، بیمه و بهای تمام‌شده');
+          console.log('- رفع خطای مسیردهی دستیار: پرسش کشاورزی دیگر با پاسخ «معامله‌ای ثبت نشده» جواب داده نمی‌شود');
           console.log('- تحلیل اعتبار حقوقی ۱۷ سند با نشان سطح ۱ تا ۴ و منابع قانونی');
-          console.log('- کشاورزیار: پاسخ قطعی اعتبار اسناد بدون حدس، با شرایط و مبنای حقوقی');
           console.log('- ماشین‌حساب فروش محصول: وزن باسکول، افت رطوبت، افت مفید/غیرمفید، درجه کیفی، نرخ، هزینه و مالیات');
           console.log('- قرارداد زمین با انتخاب دوطرفه طرف قرارداد و تاریخ شمسی');
           console.log('- مرکز اسناد: قرارداد فروش، قبض باسکول، صورتجلسه کیفیت، صورت‌حساب و تسویه');

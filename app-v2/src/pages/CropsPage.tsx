@@ -13,6 +13,7 @@ import {
   Wallet,
   Wheat,
 } from "lucide-react";
+import { RecordReceipts } from "../components/RecordReceipts";
 import { cn } from "../utils/cn";
 import { numberToPersianWords, toEnglishDigits, toPersianDigits } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
@@ -251,6 +252,9 @@ export function CropsPage({
                 <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.06]">
                   <div className="h-full rounded-full bg-gradient-to-l from-mint-400 to-[#c8e6a2]" style={{ width: `${Math.max(4, Math.min(100, (cost / maxCost) * 100))}%` }} />
                 </div>
+              </div>
+              <div className="px-4 pb-3">
+                <RecordReceipts refType="crop" refId={plot.id} section="crops" label="رسید هزینهٔ این کشت" hint="فیش آب، کارگر، سم و کود همین قطعه را ضمیمه کنید." compact />
               </div>
             </article>
           );

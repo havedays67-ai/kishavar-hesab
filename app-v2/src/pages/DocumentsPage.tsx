@@ -30,7 +30,6 @@ import { getProductProfile, type CropTrade } from "../lib/trade";
 import { type CropPlot, plotMetrics } from "../lib/samples";
 import { LegalReviewPanel } from "../components/LegalReviewPanel";
 import { DocumentValidityPanel, ValidityBadge } from "../components/DocumentValidityPanel";
-import { ReceiptUploader } from "../components/ReceiptUploader";
 
 const familyTone: Record<DocumentFamily, string> = {
   trade: "mint",
@@ -192,8 +191,17 @@ export function DocumentsPage({
 
       <LegalReviewPanel />
 
-      <div className="mb-4">
-        <ReceiptUploader section="documents" />
+      <div className="mb-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+        <div className="flex items-start gap-2.5">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mint-300/10 text-mint-300"><ShieldCheck className="h-4 w-4" /></span>
+          <div>
+            <p className="text-[10px] font-semibold text-[#e2f1e7]">آپلود رسید، داخل همان رکورد</p>
+            <p className="mt-1 text-[9px] font-light leading-5 text-[#9db8ab]">
+              رسید و اسکن سند به‌صورت جداگانه آپلود نمی‌شود؛ زیر هر رکورد واقعی (بدهی، چک، معامله، قرارداد، زمین، کشت، انبار و طرف‌حساب)
+              دکمهٔ «افزودن تصویر رسید» را بزنید. هر رکورد چند رسید می‌گیرد و کنار همان رکورد «مشاهده»، «دانلود» و «حذف» دارد.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="mb-4">

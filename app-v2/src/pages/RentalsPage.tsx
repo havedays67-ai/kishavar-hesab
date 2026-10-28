@@ -11,6 +11,7 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
+import { RecordReceipts } from "../components/RecordReceipts";
 import { cn } from "../utils/cn";
 import {
   CONTRACT_TYPES,
@@ -293,6 +294,9 @@ export function RentalsPage({
                 <button type="button" onClick={() => openDoc(contract, "lease-handover")} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b6ccc0]"><FileText className="h-3 w-3" /> تحویل زمین</button>
                 <button type="button" onClick={() => { if (window.confirm(`قرارداد ${contract.code} حذف شود؟`)) onDeleteContract(contract.id); }} className="mr-auto flex items-center gap-1 rounded-lg border border-[#a25649]/20 px-2.5 py-1.5 text-[8px] text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف قرارداد</button>
                 <span className="text-[8px] text-[#6f8c7f]">{toPersianDigits(scheduleRows.length)} قسط · {toPersianDigits(contractSignatures.length)} امضا</span>
+              </div>
+              <div className="px-3 pb-3">
+                <RecordReceipts refType="contract" refId={contract.id} section="rentals" label="رسید مال‌الاجاره و ودیعه" hint="فیش واریز اجاره، رسید ودیعه و تصویر قرارداد امضاشده." compact />
               </div>
             </article>
           );

@@ -1,7 +1,6 @@
 import { db } from "@/db";
 import { receipts } from "@/db/schema";
 import { Card, Icon, PageHeader } from "@/components/ui";
-import { ReceiptUploader } from "@/components/Receipts";
 import { RECEIPT_PRIVACY_NOTE, RECEIPT_SECTIONS, formatBytes } from "@/lib/receipt-sections";
 import { desc } from "drizzle-orm";
 
@@ -32,7 +31,7 @@ export default async function ReceiptsPage() {
     <div className="space-y-4">
       <PageHeader
         title="بایگانی همهٔ رسیدها"
-        subtitle="همهٔ رسیدهای پیوست‌شده به بدهی، چک، معامله، قرارداد، زمین، کشت، انبار و کارگر در یک جا — آپلود هر رسید داخل همان رکورد انجام می‌شود. هر رسید را به بخش خودش وصل کنید: معامله، اجاره، دفتر مالی، انبار یا اسناد. در همهٔ صفحه‌ها دکمهٔ «آپلود رسید» در پایین صفحه هست."
+        subtitle="همهٔ رسیدهای پیوست‌شده به بدهی، چک، معامله، قرارداد، زمین، کشت، انبار و کارگر در یک جا. آپلود جداگانه وجود ندارد: زیر همان رکوردی که اطلاعاتش را می‌نویسید، دکمهٔ «افزودن تصویر رسید» را بزنید؛ هر رکورد چند رسید می‌گیرد و کنار خودش مشاهده، دانلود و حذف دارد."
         icon="receipt"
       />
 
@@ -55,12 +54,16 @@ export default async function ReceiptsPage() {
         </Card>
       </div>
 
-      <ReceiptUploader
-        section="other"
-        showSection
-        heading="آپلود رسید تازه"
-        subtitle="عنوان، مبلغ، شمارهٔ پیگیری و بخش مربوط را بنویسید تا رسید در همان بخش پیدا شود."
-      />
+      <Card className="card-pad">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-farm-900">
+          <Icon name="receipt" className="h-4 w-4" /> رسید را همان‌جا که اطلاعات را می‌نویسید ضمیمه کنید
+        </h2>
+        <p className="mt-2 text-[11px] leading-6 text-[#5b6a5e]">
+          این صفحه فقط بایگانی و جست‌وجوی رسیدهاست. برای ثبت رسید جدید، به همان رکورد بروید: هر ردیف درآمد/هزینه، هر چک و وام
+          در «دفتر مالی»؛ هر طرف‌حساب (مثلاً «از مهدی طلب دارم») در «طرف‌حساب»؛ هر معامله، قرارداد، زمین، کشت و کالای انبار.
+          هر رکورد چند رسید می‌گیرد و هر رسید دکمهٔ مشاهده، دانلود و حذف دارد.
+        </p>
+      </Card>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Card className="card-pad">

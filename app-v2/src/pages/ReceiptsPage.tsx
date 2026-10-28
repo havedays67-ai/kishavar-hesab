@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { Camera, Database, Info, ShieldCheck } from "lucide-react";
 import { cn } from "../utils/cn";
-import { ReceiptUploader } from "../components/ReceiptUploader";
 import { loadReceipts, receiptsStats } from "../lib/receipts";
 import { RECEIPT_SECTIONS } from "../lib/receipt-sections";
 import { RECEIPT_NOTE, VALIDITY_DISCLAIMER } from "../lib/document-validity";
 import { formatJalali } from "../lib/format";
+
+const RECEIPT_REF_LABELS: Record<string, string> = {
+  debt: "درآمد/هزینه",
+  cheque: "چک",
+  loan: "وام",
+  party: "طرف‌حساب",
+  contract: "قرارداد و اجاره",
+  trade: "معامله محصول",
+  "inventory-item": "کالای انبار",
+  crop: "زمین و کشت",
+  document: "سند",
+};
 
 export function ReceiptsPage() {
   const [filter, setFilter] = useState<string>("all");
@@ -46,7 +57,18 @@ export function ReceiptsPage() {
         ))}
       </div>
 
-      <ReceiptUploader section="other" showSection />
+      <div className="rounded-2xl border border-mint-300/15 bg-mint-300/[0.04] p-3.5">
+        <div className="flex items-start gap-2.5">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mint-300/10 text-mint-300"><Info className="h-4 w-4" /></span>
+          <div>
+            <p className="text-[10px] font-semibold text-[#e2f1e7]">رسید را همان‌جا که اطلاعات را می‌نویسید ضمیمه کنید</p>
+            <p className="mt-1 text-[9px] font-light leading-5 text-[#9db8ab]">
+              در بخش‌های دفتر مالی (درآمد/هزینه، چک و وام)، طرف‌حساب، اجاره، معامله محصول، انبار و زمین و کشت، زیر هر رکورد
+              دکمهٔ «افزودن تصویر رسید» هست. این صفحه فقط بایگانی و جست‌وجوی همهٔ رسیدهاست؛ می‌توانید تصویر را ببینید، دانلود کنید یا حذف کنید.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5">
         <div className="flex items-center justify-between gap-2">
@@ -74,7 +96,8 @@ export function ReceiptsPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[10px] text-[#e4f1e9]">{row.title}</p>
                 <p className="truncate text-[8px] text-[#88a496]">
-                  {RECEIPT_SECTIONS.find((section) => section.id === row.section)?.label ?? "سایر"} · {formatJalali(row.date, "long")}
+                  {RECEIPT_SECTIONS.find((section) => section.id === row.section)?.label ?? "سایر"}
+                  {row.refType ? ` · پیوست رکورد (${RECEIPT_REF_LABELS[row.refType] ?? row.refType})` : ""} · {formatJalali(row.date, "long")}
                   {row.amount !== null ? ` · ${Math.round(row.amount).toLocaleString("fa-IR")} تومان` : ""}
                   {row.reference ? ` · پیگیری ${row.reference}` : ""}
                 </p>
@@ -83,7 +106,7 @@ export function ReceiptsPage() {
           ))}
         </ul>
         {rows.length === 0 && (
-          <p className="mt-1 flex items-start gap-1 rounded-lg bg-white/[0.03] p-2 text-[9px] leading-5 text-[#8faa9d]"><Info className="mt-0.5 h-3 w-3 shrink-0" /> هنوز رسیدی ذخیره نشده است. از کادر بالا یا دکمهٔ «آپلود رسید» در هر صفحه اضافه کنید.</p>
+          <p className="mt-1 flex items-start gap-1 rounded-lg bg-white/[0.03] p-2 text-[9px] leading-5 text-[#8faa9d]"><Info className="mt-0.5 h-3 w-3 shrink-0" /> هنوز رسیدی ذخیره نشده است. در هر بخش، زیر همان رکورد (بدهی، چک، معامله، قرارداد…) دکمهٔ «افزودن تصویر رسید» را بزنید.</p>
         )}
       </div>
 

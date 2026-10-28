@@ -159,6 +159,34 @@ function hasAny(text: string, values: string[]): boolean {
   return values.some((value) => text.includes(value));
 }
 
+/**
+ * پرسش کشاورزی/فنی است یا پرسش از دفتر خود کاربر؟
+ * این تفکیک جلوی خطای واقعی را می‌گیرد: «آبیاری گندم چند نوبت؟» نباید
+ * با پاسخ «معاملهٔ محصولی ثبت نشده» جواب داده شود.
+ */
+const AGRONOMY_TERMS = [
+  "آبیاری", "آب دادن", "آبدهی", "نیاز آبی", "کود", "اوره", "فسفر", "پتاس", "بذر", "سم", "سمپاشی", "آفت", "بیماری",
+  "علف", "برداشت", "رطوبت", "شوری", "خاک", "کشت", "داشت", "گندم", "جو", "ذرت", "کلزا", "زعفران", "پسته", "گوجه",
+  "سیب زمینی", "سیب‌زمینی", "یونجه", "چغندر", "دام", "گاو", "گوسفند", "بره", "مرغ", "جوجه", "باغ", "عملکرد",
+  "هکتار", "کارنس", "بیمه محصول", "بیمهٔ محصول", "گلخانه", "رقم", "پیاز", "کلاله", "علوفه", "جیره", "خوراک",
+];
+
+const OWN_LEDGER_TERMS = [
+  "دفتر من", "حساب من", "مزرعه من", "برای من", "به من", "از من", "من چقدر", "چقدر طلب", "چقدر بدهی",
+  "مانده", "باقی", "ثبت شده", "ثبت کردم", "فروختم", "خریدم", "پرداخت کردم", "دریافت کردم", "بدهکار", "بستانکار",
+  "معوق", "موجودی انبار", "چک‌های من", "چک های من", "چک من", "اقساط من", "وام من", "سود من", "درآمد من",
+  "هزینهٔ من", "هزینه من", "این فصل", "امسال", "تا امروز", "وضعیت مالی", "وضعیت انبار", "در دفتر", "در برنامه",
+];
+
+function isAgronomyQuestion(text: string): boolean {
+  return hasAny(text, AGRONOMY_TERMS);
+}
+
+function isOwnLedgerQuestion(text: string): boolean {
+  if (hasAny(text, OWN_LEDGER_TERMS)) return true;
+  return /(^|\s)من(\s|$|\؟|\?)/.test(text) || /(طلبم|بدهیم|بدهی‌ام|بدهی ام|حسابم|دفترم|مزرعه‌ام|مزرعه ام|فروشم|خریدم)/.test(text);
+}
+
 function isDataQuestion(text: string): boolean {
   return hasAny(text, [
     "چقدر", "چند", "مانده", "جمع", "وضعیت", "هشدار", "ریسک", "کدام", "دفتر من", "حساب من", "سود", "هزینه من", "درآمد من",
@@ -295,6 +323,12 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
   }
 
   if (hasAny(text, ["زمین", "سود", "هزینه", "سربه"])) {
+    if (!data.healthyPlots.length) {
+      return {
+        text: `سود دورهٔ ثبت‌شده در دفتر شما ${money(data.finance.profit)} است (درآمد ${money(data.finance.income)} − هزینه ${money(data.finance.expense)}).\nخالص فروش محصول ${money(data.sale)} و ماندهٔ وصول‌نشده ${money(data.saleRemaining)} است.\nبرای محاسبهٔ بهای تمام‌شده و سود هر کیلو، در صفحهٔ «زمین و کشت» زمین و کشت را با هزینه‌های واقعی ثبت کنید.`,
+        meta: signatureMeta(97, "دفتر مالی", source, ["کدام زمین زیان‌ده است؟", "بهای تمام‌شدهٔ هر کیلو", "جریان نقدی این ماه را تحلیل کن"], "data-profit", "data"),
+      };
+    }
     if (data.healthyPlots.length) {
       const top = data.healthyPlots[0];
       return {
@@ -344,11 +378,46 @@ const EDITORIAL_BOOSTS: { test: RegExp; ids: string[]; amount: number }[] = [
   { test: /(مالیات|فاکتور|صورت.?حساب|مودیان)/, ids: ["legal-invoice-tax"], amount: 0.2 },
   { test: /(پشتیبان|بکاپ|بازیابی|انتقال داده|گوشی جدید)/, ids: ["app-backup"], amount: 0.35 },
   { test: /(سلام|درود|کشاورزیار|خودت را معرفی|چه کاری می.?کنی)/, ids: ["app-features"], amount: 0.3 },
+  { test: /(رسید|فیش|آپلود|عکس.*(رسید|فیش|چک)|پیوست|مشاهده.*رسید|دانلود.*رسید|حذف.*رسید)/, ids: ["boost-receipt-where", "boost-receipt-evidence"], amount: 0.34 },
+  { test: /(آبیاری|آب دادن|نیاز آبی|دور آبیاری|قطره.?ای|راندمان آب)/, ids: ["boost-irrigation-plan", "boost-drip-efficiency", "boost-water-salinity"], amount: 0.22 },
+  { test: /(کود|اوره|فسفر|پتاس|آزمون خاک|شوری|EC)/i, ids: ["boost-fertilizer-plan", "boost-water-salinity"], amount: 0.24 },
+  { test: /(سن گندم|زنگ|علف هرز|آفت|سم|کارنس)/, ids: ["boost-wheat-pests"], amount: 0.24 },
+  { test: /(گندم|جوی|برداشت|رطوبت|انبار|باسکول|افت)/, ids: ["boost-harvest-moisture", "boost-irrigation-plan", "boost-fertilizer-plan"], amount: 0.2 },
+  { test: /(زعفران|پسته|گوجه|سیب.?زمینی|باغ)/, ids: ["boost-saffron", "boost-pistachio", "boost-tomato-potato"], amount: 0.22 },
+  { test: /(گاو|شیر|دام|گوسفند|بره|مرغ|طیور|جوجه|خوراک)/, ids: ["boost-dairy-cow", "boost-sheep-poultry"], amount: 0.26 },
+  { test: /(بیمه|خسارت|خشکسالی|تگرگ|سرما)/, ids: ["boost-crop-insurance"], amount: 0.28 },
+  { test: /(بهای تمام|تمام.?شده|هر کیلو|حاشیه سود|نقطه سربه)/, ids: ["boost-cost-per-kg"], amount: 0.3 },
+  { test: /(نقدینگی|جریان نقدی|پول لازم|سررسید|اقساط|طلب معوق)/, ids: ["boost-cash-flow"], amount: 0.24 },
+  { test: /(استهلاک|تراکتور|ماشین.?آلات|تعمیر)/, ids: ["boost-depreciation"], amount: 0.26 },
+  { test: /(کارگر|دستمزد|حقوق|فصلی|بیمه.*کارگر)/, ids: ["boost-labor-cost"], amount: 0.26 },
 ];
+
+/** گسترش پرسش با مترادف‌ها و اصطلاحات؛ «آب دادن» هم به «آبیاری» وصل می‌شود. */
+function expandQueryTokens(normalized: string, queryTokens: string[]): string[] {
+  const extra = new Set<string>();
+  for (const [canonical, synonyms] of Object.entries(PERSIAN_SYNONYMS)) {
+    const canonicalText = normalizePersian(canonical);
+    const hit =
+      normalized.includes(canonicalText) ||
+      synonyms.some((synonym) => {
+        const value = normalizePersian(synonym);
+        return value.length > 2 && normalized.includes(value);
+      });
+    if (!hit) continue;
+    [...tokenize(canonical), ...synonyms.flatMap((synonym) => tokenize(synonym))].forEach((token) => {
+      if (token.length > 2) extra.add(token);
+    });
+  }
+  for (const term of Object.keys(ASSISTANT_GLOSSARY)) {
+    const value = normalizePersian(term);
+    if (value.length > 2 && normalized.includes(value)) tokenize(term).forEach((token) => extra.add(token));
+  }
+  return Array.from(new Set([...queryTokens, ...extra])).slice(0, 40);
+}
 
 function retrieve(text: string) {
   const normalized = normalizePersian(text);
-  const queryTokens = tokenize(text);
+  const queryTokens = expandQueryTokens(normalized, tokenize(text));
   const scored = INDEX.map(({ entry, tokens, titleText }) => {
     let keywordHits = 0;
     for (const keyword of entry.keywords.map((word) => normalizePersian(word)).filter((word) => word.length > 2)) {
@@ -374,7 +443,7 @@ function retrieve(text: string) {
 
 function knowledgeAnswer(match: { entry: KnowledgeEntry; score: number }, secondScore = 0): AssistantReply {
   const { entry, score } = match;
-  const confidence = 45 + Math.min(0.52, score) * 82 + Math.min(0.16, Math.max(0, score - secondScore)) * 40;
+  const confidence = Math.min(99, Math.round(45 + Math.min(0.52, score) * 82 + Math.min(0.16, Math.max(0, score - secondScore)) * 40));
   const sources = [...entry.sources];
   if (entry.highStakes) sources.push({ label: "هشدار: راهنمای عمومی؛ برای پروندهٔ مشخص مشاورهٔ حقوقی بگیرید" });
   const disclaimer = entry.highStakes ? `\n\n${LEGAL_DISCLAIMER}` : "";
@@ -464,7 +533,8 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   // ۱) سؤال عددی/مالی: اول دفتر واقعی، مگر اینکه سؤال صریحاً حقوقی باشد.
   const fast = fastUnderstand(raw);
   const legalIntent = hasAny(text, ["قانون", "قانونی", "معتبر", "اعتبار", "دادگاه", "شکایت", "ماده", "امضای الکترونیکی", "سند عادی", "سند رسمی", "ثبت رسمی", "دفتر اسناد"]);
-  if (isDataQuestion(text) && !legalIntent) {
+  const agronomyOnly = isAgronomyQuestion(text) && !isOwnLedgerQuestion(text);
+  if (isDataQuestion(text) && !legalIntent && !agronomyOnly) {
     const direct = dataAnswer(text, context);
     if (direct) return withFast(direct, fast);
   }
@@ -474,8 +544,8 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   const [first, second] = scored;
   if (first && first.score >= 0.14) {
     const answer = knowledgeAnswer(first, second?.score ?? 0);
-    // اگر کاربر عدد خواسته و داده‌ای هست، خلاصهٔ دفتر را هم اضافه کن.
-    if (isDataQuestion(text)) {
+    // اگر کاربر عدد دفتر خودش را خواسته و داده‌ای هست، خلاصهٔ دفتر را هم اضافه کن.
+    if (isDataQuestion(text) && !agronomyOnly) {
       const direct = dataAnswer(text, context);
       if (direct) {
         answer.text = `${direct.text}\n\n— راهنمای تکمیلی —\n${answer.text}`;
@@ -487,8 +557,8 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
     return withFast(answer, fast);
   }
 
-  // ۳) پاسخ عددی برای جمله‌هایی که «چقدر» نداشته‌اند.
-  const direct = dataAnswer(text, context);
+  // ۳) پاسخ عددی برای جمله‌هایی که «چقدر» نداشته‌اند (به‌جز پرسش کشاورزی محض).
+  const direct = agronomyOnly ? null : dataAnswer(text, context);
   if (direct) return withFast(direct, fast);
 
   // ۴) بانک سؤال/جواب نشان‌دار: پاسخ قطعی برای پرسش‌های پرتکرار
@@ -505,6 +575,17 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
         kind: "knowledge",
       },
     };
+    return withFast(reply, fast);
+  }
+
+  // ۵) پاسخ نزدیک: اگر مدخل مرتبط هست ولی امتیازش به آستانهٔ قطعی نرسیده،
+  //    به‌جای «نمی‌دانم» همان پاسخ را با برچسب «راهنمای نزدیک» و صداقت کامل می‌دهد.
+  const near = scored.find((item) => item.score >= 0.075);
+  if (near) {
+    const reply = knowledgeAnswer(near, scored[1]?.score ?? 0);
+    reply.meta.confidence = Math.min(88, Math.max(55, reply.meta.confidence));
+    reply.meta.matchedId = `near-${near.entry.id}`;
+    reply.text = `${reply.text}\n\n— راهنمای نزدیک —\nاین پاسخ بر پایهٔ نزدیک‌ترین موضوع دانشنامه («${near.entry.title}») آماده شده است. اگر مزرعه، محصول یا مبلغ مشخصی دارید، همان را بنویسید تا دقیق‌تر بررسی کنیم.`;
     return withFast(reply, fast);
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Camera, CheckCircle2, Download, FileText, Info, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, Download, FileText, Info, Trash2, Upload } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatJalali, todayJalali } from "../lib/format";
 import { RECEIPT_NOTE } from "../lib/document-validity";
@@ -176,48 +176,5 @@ export function ReceiptUploader({
         {!showSection && <p className="mt-2 flex items-start gap-1 text-[8px] leading-4 text-[#7b978a]"><Info className="mt-0.5 h-2.5 w-2.5 shrink-0" /> این بخش فقط رسیدهای همین صفحه را نشان می‌دهد؛ همهٔ رسیدها در «مرکز رسیدها» است.</p>}
       </div>
     </div>
-  );
-}
-
-const pageSection: Record<string, ReceiptSectionId> = {
-  trade: "trade",
-  "quick-sale": "quick-sale",
-  contracts: "contracts",
-  rentals: "rentals",
-  finance: "finance",
-  parties: "parties",
-  inventory: "inventory",
-  crops: "crops",
-  documents: "documents",
-};
-
-export function ReceiptQuickButton({ page }: { page: string }) {
-  const [open, setOpen] = useState(false);
-  const section = pageSection[page] ?? "other";
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="no-print fixed bottom-[76px] left-3 z-40 flex items-center gap-1.5 rounded-full bg-mint-400 px-3 py-2 text-[10px] font-bold text-[#07110d] shadow-lg shadow-black/30 lg:bottom-5"
-        aria-label="آپلود رسید"
-      >
-        <Camera className="h-3.5 w-3.5" /> آپلود رسید
-      </button>
-      {open && (
-        <div className="no-print fixed inset-0 z-[65] flex items-end justify-center sm:items-center">
-          <button type="button" className="absolute inset-0 bg-[#020806]/80 backdrop-blur-sm" onClick={() => setOpen(false)} aria-label="بستن" />
-          <div className="relative max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-[#0a1712] p-3.5 shadow-2xl sm:max-w-2xl sm:rounded-2xl">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-[11px] font-semibold text-white">آپلود رسید برای «{receiptSection(section).label}»</h2>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-white/10 p-1.5 text-[#9fb6aa]" aria-label="بستن">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <ReceiptUploader section={section} compact />
-          </div>
-        </div>
-      )}
-    </>
   );
 }

@@ -19,6 +19,7 @@ import {
   UsersRound,
   Wallet,
 } from "lucide-react";
+import { RecordReceipts } from "../components/RecordReceipts";
 import { cn } from "../utils/cn";
 import { formatJalali, numberToPersianWords, toPersianDigits, todayJalali, type JDate } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
@@ -204,6 +205,9 @@ export function PartiesPage({
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                 <div className={cn("h-full rounded-full", isDebtor ? "bg-mint-400" : "bg-sand-300")} style={{ width: `${Math.max(2, totalsParty.ratio)}%` }} />
+              </div>
+              <div className="mt-3">
+                <RecordReceipts refType="party" refId={party.id} section="parties" label="رسید طلب / بدهی" hint={`رسید دریافت از ${party.name} یا فیش پرداخت به ایشان را ضمیمه کنید.`} compact />
               </div>
             </article>
           );

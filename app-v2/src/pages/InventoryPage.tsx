@@ -11,6 +11,7 @@ import {
   Truck,
   Warehouse,
 } from "lucide-react";
+import { RecordReceipts } from "../components/RecordReceipts";
 import { cn } from "../utils/cn";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
@@ -138,6 +139,9 @@ export function InventoryPage({
                   <span className="text-[8px] text-[#6f8c7f]">{toPersianDigits(moves.length)} گردش ثبت‌شده</span>
                 </div>
                 {moves.length > 0 && <div className="mt-2 space-y-1">{moves.slice(-3).map((move) => <div key={move.id} className="flex items-center justify-between gap-2 text-[8px] text-[#7f9b8e]"><span>{formatJalali(move.date, "short")} · {move.kind === "in" ? "ورود" : "خروج"} {fa(move.qty)}</span><span className="truncate">{move.note || "—"}</span><button type="button" onClick={() => onDeleteMove(move.id)} className="shrink-0 text-[#8a6b63] hover:text-[#efad9f]" aria-label="حذف گردش"><Trash2 className="h-3 w-3" /></button></div>)}</div>}
+                <div className="mt-3">
+                  <RecordReceipts refType="inventory-item" refId={item.id} section="inventory" label="فاکتور و رسید خرید" hint={`فاکتور خرید و رسیدهای ${item.name} را اینجا نگه دارید.`} compact />
+                </div>
               </article>
             );
           })}
