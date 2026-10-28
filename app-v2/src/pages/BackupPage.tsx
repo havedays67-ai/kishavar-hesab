@@ -42,6 +42,7 @@ import {
   saveAssistantMessages,
   type AssistantMessage,
 } from "../lib/ai/engine";
+import { askCloud } from "../lib/ai/cloud-chat";
 import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
 import { loadReceipts, replaceReceipts, type StoredReceipt } from "../lib/receipts";
 import { Toast } from "../components/ui";
@@ -119,17 +120,29 @@ export function BackupPage({
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages, thinking]);
 
-  const ask = (text: string) => {
+  const ask = async (text: string) => {
     const value = text.trim();
     if (!value || thinking) return;
+    const history = messages.slice(-8).map((message) => ({ role: (message.role === "bot" ? "assistant" : "user") as "user" | "assistant", content: message.text }));
     setMessages((current) => [...current, makeAssistantMessage("user", value)]);
     setQuestion("");
     setThinking(true);
-    window.setTimeout(() => {
-      const reply = askKeshavarYar(value, assistantContext);
-      setMessages((current) => [...current, makeAssistantMessage("bot", reply.text, reply.meta)]);
-      setThinking(false);
-    }, 360);
+
+    // پاسخ دفتری/عددی فقط از دفتر خودمان؛ هرگز به ابر نمی‌رود.
+    const local = askKeshavarYar(value, assistantContext);
+    const offlineFirst = local.meta?.kind === "data" || local.meta?.kind === "social";
+
+    if (!offlineFirst) {
+      const cloud = await askCloud(value, history);
+      if (cloud) {
+        setMessages((current) => [...current, makeAssistantMessage("bot", cloud.text, { ...local.meta, engine: "cloud", model: cloud.label, confidence: Math.max(local.meta?.confidence ?? 0, 86) })]);
+        setThinking(false);
+        return;
+      }
+    }
+
+    setMessages((current) => [...current, makeAssistantMessage("bot", local.text, { ...local.meta, engine: "local" })]);
+    setThinking(false);
   };
 
   const resetMemory = () => {
@@ -220,8 +233,8 @@ export function BackupPage({
             <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/15 bg-mint-300/10 text-mint-300"><BrainCircuit className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1">
-                <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند محلی</span></h2>
-                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">کشاورزیار آفلاین · مغز CPU روی دستگاه</p>
+                <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند</span></h2>
+                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">مدل زنده وقتی اینترنت هست · موتور محلی وقتی قطع است</p>
               </div>
               <button type="button" onClick={resetMemory} className="flex shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1.5 text-[8px] text-[#93ad9f] transition hover:text-white" aria-label="پاک کردن حافظهٔ گفتگو"><Eraser className="h-3 w-3" /> حافظه</button>
             </div>
@@ -233,6 +246,7 @@ export function BackupPage({
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[7px]">
                       <span className={cn("flex items-center gap-1 rounded px-1.5 py-0.5", message.meta.confidence >= 80 ? "bg-mint-300/[0.08] text-mint-300" : message.meta.confidence >= 55 ? "bg-sand-300/[0.08] text-sand-300" : "bg-white/[0.04] text-[#9fb6aa]")}><Percent className="h-2.5 w-2.5" />اطمینان {toPersianDigits(message.meta.confidence)}٪</span>
                       <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[#9fb6aa]">{message.meta.category}</span>
+                      <span className={cn("rounded px-1.5 py-0.5", message.meta.engine === "cloud" ? "bg-[#60a5fa]/[0.1] text-[#9cc4f5]" : "bg-white/[0.04] text-[#93ad9f]")}>{message.meta.engine === "cloud" ? `مدل زنده · ${message.meta.model ?? ""}` : "آفلاین · محلی"}</span>
                       {message.meta.highStakes && <span className="rounded bg-[#c5b97f]/[0.08] px-1.5 py-0.5 text-[#d8c896]">نیازمند احتیاط حقوقی</span>}
                       {message.meta.sources.length > 0 && (
                         <details className="w-full">
@@ -246,7 +260,7 @@ export function BackupPage({
                   )}
                 </div>
               ))}
-              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>کشاورزیار دفتر و دانشنامه را بررسی می‌کند…</div>}
+              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>کشاورزیار در حال بررسی است (مدل زنده یا موتور محلی)…</div>}
             </div>
             <div className="border-t border-white/[0.06] p-2.5">
               <div className="mb-2 flex flex-wrap gap-1.5">
