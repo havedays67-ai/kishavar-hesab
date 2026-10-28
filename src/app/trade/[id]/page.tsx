@@ -14,6 +14,7 @@ import {
 } from "@/lib/trade/engine";
 import { balanceOf, calcOf, getDocuments, getPayments, getTrade, paidOf, progressOf } from "@/lib/trade/service";
 
+import { RecordReceipts } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 const toman = (value: number) => `${formatNumber(value)} تومان`;
@@ -86,6 +87,16 @@ export default async function TradeDetailPage({
           <span className="mt-1 block text-[10px] text-[#84907f]">تاریخ قرارداد: {formatDate(trade.contractDate)}</span>
         </Card>
       </div>
+
+      <Card className="card-pad">
+        <RecordReceipts
+          refType="trade"
+          refId={trade.id}
+          section="trade"
+          label="رسیدها و تصاویر این معامله"
+          hint="قبض باسکول، فیش تسویه خریدار، عکس چک یا رسید تحویل محموله — چند فایل مجاز است."
+        />
+      </Card>
 
       <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-3">

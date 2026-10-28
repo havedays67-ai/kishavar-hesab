@@ -443,6 +443,10 @@ export const assistantInteractions = pgTable("assistant_interactions", {
 export const receipts = pgTable("receipts", {
   id: serial("id").primaryKey(),
   section: text("section").notNull().default("other"),
+  // پیوند رسید به رکورد واقعی (بدهی، چک، تراکنش، معامله، قرارداد، زمین، …)
+  // تا آپلود جدا از رکورد نباشد و هر رکورد چند رسید داشته باشد.
+  refType: text("ref_type").notNull().default(""),
+  refId: integer("ref_id"),
   title: text("title").notNull(),
   amount: doublePrecision("amount"),
   receiptDate: date("receipt_date"),
@@ -456,5 +460,6 @@ export const receipts = pgTable("receipts", {
 }, (t) => [
   index("receipts_section_idx").on(t.section),
   index("receipts_created_idx").on(t.createdAt),
+  index("receipts_ref_idx").on(t.refType, t.refId),
   check("receipts_size_positive", sql`${t.sizeBytes} >= 0`),
 ]);

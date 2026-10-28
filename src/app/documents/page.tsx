@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Card, Icon, PageHeader } from "@/components/ui";
 import { DocumentValidityGuide } from "@/components/DocumentValidity";
-import { ReceiptUploader } from "@/components/Receipts";
 import { authorityLevelCounts, noteOnlyEntries } from "@/lib/document-validity";
 
 const fa = (value: number): string => value.toLocaleString("fa-IR");
@@ -62,11 +61,6 @@ export default function DocumentsPage() {
 
       <DocumentValidityGuide />
 
-      <ReceiptUploader
-        section="documents"
-        heading="آپلود رسید و مدرک برای پروندهٔ اسناد"
-        subtitle="اسکن سند امضاشده، گواهی برابر اصل، قبض باسکول یا فیش پرداخت را در همین بخش نگه دارید تا همراه گزارش‌ها بایگانی شود."
-      />
 
       <Card className="card-pad">
         <h2 className="flex items-center gap-2 text-sm font-bold text-farm-900">

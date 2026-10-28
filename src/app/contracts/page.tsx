@@ -8,7 +8,7 @@ import { formatDate, formatMoney, formatMoneyWords, formatNumber, todayJalali, t
 import { getContractStats } from "@/lib/contracts/service";
 import { contractTypeLabel, perspectiveLabel } from "@/lib/contracts/model";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 export default async function ContractsPage({
@@ -150,7 +150,10 @@ export default async function ContractsPage({
             </button>
             <span className="mr-2 text-[10px] text-[#84907f]">پس از ثبت، سند رسمی قابل چاپ و پرداخت‌ها قابل ثبت است.</span>
           </div>
-        </form>
+          <div className="lg:col-span-3">
+              <ReceiptField label="آپلود تصویر قرارداد یا رسید (اختیاری)" hint="اسکن قرارداد امضاشده، رسید ودیعه یا فیش مال‌الاجاره — چند فایل مجاز است." />
+            </div>
+          </form>
       </Disclosure>
 
       <div className="space-y-3">
@@ -205,6 +208,14 @@ export default async function ContractsPage({
                   <span className="num block font-bold">{formatNumber(contract.depositToman)} / {contract.landownerSharePercent}٪</span>
                 </div>
               </div>
+
+              <RecordReceipts
+                refType="contract"
+                refId={contract.id}
+                section="contracts"
+                label="رسیدها و اسناد این قرارداد"
+                hint="اسکن قرارداد، رسید مال‌الاجاره، ودیعه و صورتجلسهٔ تحویل زمین را همین‌جا ضمیمه کنید."
+              />
 
               <div className="mt-2 flex flex-wrap gap-2">
                 <Disclosure title="ثبت پرداخت / دریافت اجاره">
@@ -307,11 +318,6 @@ export default async function ContractsPage({
           برای تنظیم سند رسمی، دفتر اسناد رسمی و مشاوره حقوقی لازم است.
         </p>
       </Card>
-      <ReceiptUploader
-        section="contracts"
-        heading="آپلود رسید قرارداد و اجاره"
-        subtitle="رسید مال‌الاجاره، ودیعه، اقساط یا صورتجلسهٔ تحویل زمین را اینجا نگه دارید."
-      />
 
     </div>
   );

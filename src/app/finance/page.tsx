@@ -4,7 +4,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { createCheque, createDebt, setChequeStatus, toggleDebtPaid } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 export default async function FinancePage() {
@@ -53,6 +53,10 @@ export default async function FinancePage() {
             <Field label="یادداشت">
               <input name="notes" className="input" />
             </Field>
+            <ReceiptField
+              label="آپلود تصویر رسید (اختیاری)"
+              hint="عکس رسید، فیش واریز، چک یا یادداشت دستی مهدی — چند فایل مجاز است و کنار همین بدهی/طلب ذخیره می‌شود."
+            />
             <div className="sm:col-span-2">
               <button type="submit" className="btn btn-primary w-full sm:w-auto">
                 <Icon name="plus" className="h-4 w-4" />
@@ -88,6 +92,10 @@ export default async function FinancePage() {
             <Field label="یادداشت" className="sm:col-span-2">
               <input name="notes" className="input" />
             </Field>
+            <ReceiptField
+              label="آپلود تصویر چک یا رسید (اختیاری)"
+              hint="تصویر دو روی چک، رسید ثبت در صیاد یا فیش پرداخت — چند فایل مجاز است."
+            />
             <div className="sm:col-span-2">
               <button type="submit" className="btn btn-primary w-full sm:w-auto">
                 <Icon name="plus" className="h-4 w-4" />
@@ -113,6 +121,7 @@ export default async function FinancePage() {
                 <th>مبلغ</th>
                 <th>سررسید</th>
                 <th>وضعیت</th>
+                <th>رسید</th>
                 <th />
               </tr>
             </thead>
@@ -138,6 +147,16 @@ export default async function FinancePage() {
                     </td>
                     <td>
                       <Badge tone={d.paid ? "green" : "amber"}>{d.paid ? "تسویه‌شده" : "باز"}</Badge>
+                    </td>
+                    <td className="min-w-[160px]">
+                      <RecordReceipts
+                        refType="debt"
+                        refId={d.id}
+                        section="finance"
+                        compact
+                        label="رسید"
+                        hint={`عکس رسید یا فیش مربوط به ${d.direction === "payable" ? "بدهی به" : "طلب از"} ${d.party}`}
+                      />
                     </td>
                     <td>
                       <div className="flex items-center gap-1">
@@ -214,6 +233,9 @@ export default async function FinancePage() {
                         </button>
                       </form>
                     </td>
+                    <td className="min-w-[160px]">
+                      <RecordReceipts refType="cheque" refId={c.id} section="finance" compact label="رسید" hint={`تصویر چک یا رسید صیاد برای ${c.party}`} />
+                    </td>
                     <td>
                       <RecordActions entity="cheques" id={c.id} label={`چک ${c.party}`} />
                     </td>
@@ -232,11 +254,6 @@ export default async function FinancePage() {
           برنامه‌ریزی کنید. چک برگشتی را حتماً با توضیح در «هزینه متفرقه» ثبت کنید تا هزینه واقعی مشخص بماند.
         </p>
       </Card>
-      <ReceiptUploader
-        section="finance"
-        heading="آپلود رسید پرداخت و چک"
-        subtitle="فیش واریز، کارت‌به‌کارت، رسید دریافت بدهی یا تصویر چک را با شمارهٔ پیگیری ثبت کنید."
-      />
 
     </div>
   );

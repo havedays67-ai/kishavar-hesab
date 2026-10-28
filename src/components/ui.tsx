@@ -28,6 +28,13 @@ const ICON_PATHS: Record<string, ReactNode> = {
   lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   bolt: <path d="M13 2 5 14h6l-1 8 8-12h-6z" />,
   chevron: <path d="m9 6 6 6-6 6" />,
+  "chevron-up": <path d="m6 15 6-6 6 6" />,
+  "chevron-down": <path d="m6 9 6 6 6-6" />,
+  upload: <><path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></>,
+  download: <><path d="M12 4v12" /><path d="m7 11 5 5 5-5" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></>,
+  image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m5 19 5-5 3 3 2-2 4 4" /></>,
+  file: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></>,
+
   close: <><path d="m6 6 12 12M18 6 6 18" /></>,
 };
 

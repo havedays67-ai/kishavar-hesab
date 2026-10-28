@@ -4,7 +4,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { createItem, createMove } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
@@ -121,7 +121,10 @@ export default async function InventoryPage() {
                   ثبت حرکت انبار
                 </button>
               </div>
-            </form>
+              <div className="sm:col-span-2">
+              <ReceiptField label="آپلود فاکتور/رسید این حرکت انبار (اختیاری)" hint="فاکتور خرید نهاده یا رسید تحویل — چند فایل مجاز است." />
+            </div>
+          </form>
           ) : (
             <EmptyState title="ابتدا کالایی به انبار اضافه کنید" />
           )}
@@ -182,6 +185,7 @@ export default async function InventoryPage() {
                 <th>نوع</th>
                 <th>مقدار</th>
                 <th>توضیح</th>
+                <th>رسید</th>
                 <th />
               </tr>
             </thead>
@@ -197,6 +201,9 @@ export default async function InventoryPage() {
                     {formatNumber(m.quantity, 1)} {m.unit}
                   </td>
                   <td className="max-w-[240px] truncate text-[11px] text-[#7c8a7f]">{m.note || "—"}</td>
+                  <td className="min-w-[150px]">
+                    <RecordReceipts refType="inventory-move" refId={m.id} section="inventory" compact label="رسید" hint="فاکتور یا رسید همین حرکت انبار" />
+                  </td>
                   <td><RecordActions entity="inventory_moves" id={m.id} label={`حرکت انبار ${m.itemName}`} /></td>
                 </tr>
               ))}
@@ -205,11 +212,6 @@ export default async function InventoryPage() {
         </div>
         {!moves.length ? <EmptyState title="حرکتی ثبت نشده" /> : null}
       </Card>
-      <ReceiptUploader
-        section="inventory"
-        heading="آپلود فاکتور و رسید انبار"
-        subtitle="فاکتور خرید کود، بذر و سم، یا رسید تحویل نهاده را ضمیمه کنید."
-      />
 
     </div>
   );

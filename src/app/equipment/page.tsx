@@ -4,7 +4,7 @@ import { Amount, Card, Disclosure, EmptyState, Field, Icon, PageHeader, StatCard
 import { createEquipment } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 function depreciation(eq: { purchaseDate: string | null; purchasePrice: number; salvageValue: number; usefulLifeYears: number }) {
@@ -82,6 +82,9 @@ export default async function EquipmentPage() {
               ثبت ماشین
             </button>
           </div>
+          <div className="lg:col-span-3">
+            <ReceiptField label="آپلود فاکتور خرید یا سند ماشین (اختیاری)" hint="فاکتور خرید، سند مالکیت یا رسید تعمیر — چند فایل مجاز است." />
+          </div>
         </form>
       </Disclosure>
 
@@ -140,6 +143,7 @@ export default async function EquipmentPage() {
               <div className="mt-3 flex items-center justify-between border-t border-[#f0ebdd] pt-2">
                 <span className="text-[10px] text-[#84907f]">ویرایش یا حذف ماشین</span>
                 <RecordActions entity="equipment" id={eq.id} label={`ماشین ${eq.name}`} />
+                <RecordReceipts refType="equipment" refId={eq.id} section="inventory" label="رسید و فاکتور ماشین" hint="فاکتور خرید، تعمیر و سوخت این ماشین" />
               </div>
             </Card>
           );
@@ -154,11 +158,6 @@ export default async function EquipmentPage() {
           روغن و تعمیرات را جداگانه در دفتر عملیات ثبت کنید.
         </p>
       </Card>
-      <ReceiptUploader
-        section="other"
-        heading="آپلود رسید تعمیر و سوخت ماشین"
-        subtitle="فاکتور تعمیرگاه، فیلتر و سوخت را به همین ماشین متصل کنید."
-      />
 
     </div>
   );

@@ -19,6 +19,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { toEnDigits } from "@/lib/format";
 import { isEntityKey } from "@/lib/records";
+import { attachReceiptsFromForm, detachReceipts, type ReceiptRefType } from "@/lib/receipts-server";
 
 const cleanNumber = (raw: string) =>
   toEnDigits(raw)
@@ -43,6 +44,19 @@ const id = (fd: FormData, key = "id") => {
   return Number.isFinite(value) && value > 0 ? value : null;
 };
 
+/**
+ * رسیدهای ضمیمه‌شده در همان فرم ثبت را به رکورد تازه پیوند می‌زند.
+ * اگر کاربر عکسی انتخاب نکرده باشد، هیچ کاری انجام نمی‌شود.
+ */
+async function attach(formData: FormData, refType: ReceiptRefType, refId: number | undefined, title?: string) {
+  if (!refId) return;
+  try {
+    await attachReceiptsFromForm(formData, refType, refId, { title });
+  } catch (error) {
+    console.error("attach receipts failed", error);
+  }
+}
+
 function refresh() {
   const paths = [
     "/",
@@ -66,24 +80,29 @@ export async function createTransaction(formData: FormData) {
   const amount = n(formData, "amount");
   if (amount <= 0) return;
   const today = new Date().toISOString().slice(0, 10);
-  await db.insert(transactions).values({
-    kind,
-    categoryId: id(formData, "categoryId"),
-    landId: id(formData, "landId"),
-    cropId: id(formData, "cropId"),
-    amount,
-    date: date(formData, "date") ?? today,
-    description: s(formData, "description"),
-    party: s(formData, "party"),
-    method: ["cash", "bank", "credit"].includes(s(formData, "method")) ? s(formData, "method") : "cash",
-    source: "manual",
-  });
+  const [row] = await db
+    .insert(transactions)
+    .values({
+      kind,
+      categoryId: id(formData, "categoryId"),
+      landId: id(formData, "landId"),
+      cropId: id(formData, "cropId"),
+      amount,
+      date: date(formData, "date") ?? today,
+      description: s(formData, "description"),
+      party: s(formData, "party"),
+      method: ["cash", "bank", "credit"].includes(s(formData, "method")) ? s(formData, "method") : "cash",
+      source: "manual",
+    })
+    .returning({ id: transactions.id });
+  await attach(formData, "transaction", row?.id, s(formData, "description") || s(formData, "party"));
   refresh();
 }
 
 export async function deleteTransaction(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("transaction", recordId);
   await db.delete(transactions).where(eq(transactions.id, recordId));
   refresh();
 }
@@ -93,22 +112,27 @@ export async function deleteTransaction(formData: FormData) {
 export async function createLand(formData: FormData) {
   const name = s(formData, "name");
   if (!name) return;
-  await db.insert(lands).values({
-    name,
-    areaHa: Math.max(0, f(formData, "areaHa")),
-    region: s(formData, "region"),
-    soilType: s(formData, "soilType"),
-    irrigation: s(formData, "irrigation"),
-    ownership: ["owned", "shared", "leased"].includes(s(formData, "ownership")) ? s(formData, "ownership") : "owned",
-    sharePercent: Math.min(100, Math.max(0, f(formData, "sharePercent") || 100)),
-    notes: s(formData, "notes"),
-  });
+  const [row] = await db
+    .insert(lands)
+    .values({
+      name,
+      areaHa: Math.max(0, f(formData, "areaHa")),
+      region: s(formData, "region"),
+      soilType: s(formData, "soilType"),
+      irrigation: s(formData, "irrigation"),
+      ownership: ["owned", "shared", "leased"].includes(s(formData, "ownership")) ? s(formData, "ownership") : "owned",
+      sharePercent: Math.min(100, Math.max(0, f(formData, "sharePercent") || 100)),
+      notes: s(formData, "notes"),
+    })
+    .returning({ id: lands.id });
+  await attach(formData, "land", row?.id, name);
   refresh();
 }
 
 export async function deleteLand(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("land", recordId);
   await db.delete(lands).where(eq(lands.id, recordId));
   refresh();
 }
@@ -119,18 +143,22 @@ export async function createCrop(formData: FormData) {
   const name = s(formData, "name");
   const landId = id(formData, "landId");
   if (!name || !landId) return;
-  await db.insert(crops).values({
-    landId,
-    name,
-    variety: s(formData, "variety"),
-    season: s(formData, "season") || "بهار",
-    plantingDate: date(formData, "plantingDate"),
-    harvestDate: date(formData, "harvestDate"),
-    expectedYieldKg: Math.max(0, f(formData, "expectedYieldKg")),
-    actualYieldKg: Math.max(0, f(formData, "actualYieldKg")),
-    status: ["planned", "in_progress", "harvested"].includes(s(formData, "status")) ? s(formData, "status") : "in_progress",
-    notes: s(formData, "notes"),
-  });
+  const [row] = await db
+    .insert(crops)
+    .values({
+      landId,
+      name,
+      variety: s(formData, "variety"),
+      season: s(formData, "season") || "بهار",
+      plantingDate: date(formData, "plantingDate"),
+      harvestDate: date(formData, "harvestDate"),
+      expectedYieldKg: Math.max(0, f(formData, "expectedYieldKg")),
+      actualYieldKg: Math.max(0, f(formData, "actualYieldKg")),
+      status: ["planned", "in_progress", "harvested"].includes(s(formData, "status")) ? s(formData, "status") : "in_progress",
+      notes: s(formData, "notes"),
+    })
+    .returning({ id: crops.id });
+  await attach(formData, "crop", row?.id, name);
   refresh();
 }
 
@@ -151,6 +179,7 @@ export async function updateCrop(formData: FormData) {
 export async function deleteCrop(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("crop", recordId);
   await db.delete(crops).where(eq(crops.id, recordId));
   refresh();
 }
@@ -160,15 +189,19 @@ export async function deleteCrop(formData: FormData) {
 export async function createItem(formData: FormData) {
   const name = s(formData, "name");
   if (!name) return;
-  await db.insert(inventoryItems).values({
-    name,
-    unit: s(formData, "unit") || "کیلوگرم",
-    category: s(formData, "category") || "نهاده",
-    quantity: Math.max(0, f(formData, "quantity")),
-    reorderLevel: Math.max(0, f(formData, "reorderLevel")),
-    unitCost: Math.max(0, n(formData, "unitCost")),
-    warehouse: s(formData, "warehouse") || "انبار مرکزی",
-  });
+  const [row] = await db
+    .insert(inventoryItems)
+    .values({
+      name,
+      unit: s(formData, "unit") || "کیلوگرم",
+      category: s(formData, "category") || "نهاده",
+      quantity: Math.max(0, f(formData, "quantity")),
+      reorderLevel: Math.max(0, f(formData, "reorderLevel")),
+      unitCost: Math.max(0, n(formData, "unitCost")),
+      warehouse: s(formData, "warehouse") || "انبار مرکزی",
+    })
+    .returning({ id: inventoryItems.id });
+  await attach(formData, "inventory-item", row?.id, name);
   refresh();
 }
 
@@ -181,15 +214,19 @@ export async function createMove(formData: FormData) {
   const item = rows[0];
   if (!item) return;
   if (kind === "out" && quantity > item.quantity) return;
-  await db.insert(inventoryMoves).values({
-    itemId,
-    kind,
-    quantity,
-    unitCost: n(formData, "unitCost") || item.unitCost,
-    date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
-    note: s(formData, "note"),
-    cropId: id(formData, "cropId"),
-  });
+  const [move] = await db
+    .insert(inventoryMoves)
+    .values({
+      itemId,
+      kind,
+      quantity,
+      unitCost: n(formData, "unitCost") || item.unitCost,
+      date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
+      note: s(formData, "note"),
+      cropId: id(formData, "cropId"),
+    })
+    .returning({ id: inventoryMoves.id });
+  await attach(formData, "inventory-move", move?.id, item.name);
   await db
     .update(inventoryItems)
     .set({ quantity: kind === "in" ? item.quantity + quantity : item.quantity - quantity })
@@ -200,6 +237,7 @@ export async function createMove(formData: FormData) {
 export async function deleteItem(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("inventory-item", recordId);
   await db.delete(inventoryItems).where(eq(inventoryItems.id, recordId));
   refresh();
 }
@@ -209,12 +247,16 @@ export async function deleteItem(formData: FormData) {
 export async function createWorker(formData: FormData) {
   const name = s(formData, "name");
   if (!name) return;
-  await db.insert(workers).values({
-    name,
-    role: s(formData, "role") || "کارگر عمومی",
-    phone: s(formData, "phone"),
-    dailyWage: Math.max(0, n(formData, "dailyWage")),
-  });
+  const [row] = await db
+    .insert(workers)
+    .values({
+      name,
+      role: s(formData, "role") || "کارگر عمومی",
+      phone: s(formData, "phone"),
+      dailyWage: Math.max(0, n(formData, "dailyWage")),
+    })
+    .returning({ id: workers.id });
+  await attach(formData, "worker", row?.id, name);
   refresh();
 }
 
@@ -230,18 +272,22 @@ export async function createLabor(formData: FormData) {
     const rows = await db.select().from(workers).where(eq(workers.id, workerId));
     name = rows[0]?.name ?? workerName;
   }
-  await db.insert(laborLogs).values({
-    workerId,
-    workerName: name,
-    landId: id(formData, "landId"),
-    cropId: id(formData, "cropId"),
-    date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
-    days,
-    dailyWage,
-    amount: Math.round(days * dailyWage),
-    task: s(formData, "task") || "کار مزرعه",
-    paid: s(formData, "paid") === "on",
-  });
+  const [row] = await db
+    .insert(laborLogs)
+    .values({
+      workerId,
+      workerName: name,
+      landId: id(formData, "landId"),
+      cropId: id(formData, "cropId"),
+      date: date(formData, "date") ?? new Date().toISOString().slice(0, 10),
+      days,
+      dailyWage,
+      amount: Math.round(days * dailyWage),
+      task: s(formData, "task") || "کار مزرعه",
+      paid: s(formData, "paid") === "on",
+    })
+    .returning({ id: laborLogs.id });
+  await attach(formData, "labor", row?.id, `${name} — ${s(formData, "task") || "کار مزرعه"}`);
   refresh();
 }
 
@@ -258,6 +304,7 @@ export async function toggleLaborPaid(formData: FormData) {
 export async function deleteLabor(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("labor", recordId);
   await db.delete(laborLogs).where(eq(laborLogs.id, recordId));
   refresh();
 }
@@ -267,22 +314,27 @@ export async function deleteLabor(formData: FormData) {
 export async function createEquipment(formData: FormData) {
   const name = s(formData, "name");
   if (!name) return;
-  await db.insert(equipment).values({
-    name,
-    type: s(formData, "type") || "ماشین",
-    purchaseDate: date(formData, "purchaseDate"),
-    purchasePrice: Math.max(0, n(formData, "purchasePrice")),
-    salvageValue: Math.max(0, n(formData, "salvageValue")),
-    usefulLifeYears: Math.max(1, f(formData, "usefulLifeYears") || 10),
-    hoursUsed: Math.max(0, f(formData, "hoursUsed")),
-    notes: s(formData, "notes"),
-  });
+  const [row] = await db
+    .insert(equipment)
+    .values({
+      name,
+      type: s(formData, "type") || "ماشین",
+      purchaseDate: date(formData, "purchaseDate"),
+      purchasePrice: Math.max(0, n(formData, "purchasePrice")),
+      salvageValue: Math.max(0, n(formData, "salvageValue")),
+      usefulLifeYears: Math.max(1, f(formData, "usefulLifeYears") || 10),
+      hoursUsed: Math.max(0, f(formData, "hoursUsed")),
+      notes: s(formData, "notes"),
+    })
+    .returning({ id: equipment.id });
+  await attach(formData, "equipment", row?.id, name);
   refresh();
 }
 
 export async function deleteEquipment(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("equipment", recordId);
   await db.delete(equipment).where(eq(equipment.id, recordId));
   refresh();
 }
@@ -293,14 +345,18 @@ export async function createDebt(formData: FormData) {
   const party = s(formData, "party");
   const amount = n(formData, "amount");
   if (!party || amount <= 0) return;
-  await db.insert(debts).values({
-    party,
-    direction: s(formData, "direction") === "receivable" ? "receivable" : "payable",
-    title: s(formData, "title"),
-    amount,
-    dueDate: date(formData, "dueDate"),
-    notes: s(formData, "notes"),
-  });
+  const [row] = await db
+    .insert(debts)
+    .values({
+      party,
+      direction: s(formData, "direction") === "receivable" ? "receivable" : "payable",
+      title: s(formData, "title"),
+      amount,
+      dueDate: date(formData, "dueDate"),
+      notes: s(formData, "notes"),
+    })
+    .returning({ id: debts.id });
+  await attach(formData, "debt", row?.id, `${s(formData, "title") || (s(formData, "direction") === "receivable" ? "طلب از" : "بدهی به")} ${party}`);
   refresh();
 }
 
@@ -317,6 +373,7 @@ export async function toggleDebtPaid(formData: FormData) {
 export async function deleteDebt(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("debt", recordId);
   await db.delete(debts).where(eq(debts.id, recordId));
   refresh();
 }
@@ -325,16 +382,20 @@ export async function createCheque(formData: FormData) {
   const party = s(formData, "party");
   const amount = n(formData, "amount");
   if (!party || amount <= 0) return;
-  await db.insert(cheques).values({
-    party,
-    direction: s(formData, "direction") === "received" ? "received" : "issued",
-    amount,
-    dueDate: date(formData, "dueDate"),
-    bank: s(formData, "bank"),
-    serial: s(formData, "serial"),
-    notes: s(formData, "notes"),
-    status: "pending",
-  });
+  const [row] = await db
+    .insert(cheques)
+    .values({
+      party,
+      direction: s(formData, "direction") === "received" ? "received" : "issued",
+      amount,
+      dueDate: date(formData, "dueDate"),
+      bank: s(formData, "bank"),
+      serial: s(formData, "serial"),
+      notes: s(formData, "notes"),
+      status: "pending",
+    })
+    .returning({ id: cheques.id });
+  await attach(formData, "cheque", row?.id, `چک ${party}`);
   refresh();
 }
 
@@ -349,6 +410,7 @@ export async function setChequeStatus(formData: FormData) {
 export async function deleteCheque(formData: FormData) {
   const recordId = id(formData);
   if (!recordId) return;
+  await detachReceipts("cheque", recordId);
   await db.delete(cheques).where(eq(cheques.id, recordId));
   refresh();
 }
@@ -358,13 +420,17 @@ export async function deleteCheque(formData: FormData) {
 export async function createTask(formData: FormData) {
   const title = s(formData, "title");
   if (!title) return;
-  await db.insert(tasks).values({
-    title,
-    dueDate: date(formData, "dueDate"),
-    priority: ["low", "normal", "high"].includes(s(formData, "priority")) ? s(formData, "priority") : "normal",
-    landId: id(formData, "landId"),
-    source: "manual",
-  });
+  const [taskRow] = await db
+    .insert(tasks)
+    .values({
+      title,
+      dueDate: date(formData, "dueDate"),
+      priority: ["low", "normal", "high"].includes(s(formData, "priority")) ? s(formData, "priority") : "normal",
+      landId: id(formData, "landId"),
+      source: "manual",
+    })
+    .returning({ id: tasks.id });
+  await attach(formData, "task", taskRow?.id, title);
   refresh();
 }
 

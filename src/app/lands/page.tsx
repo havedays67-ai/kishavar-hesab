@@ -5,7 +5,7 @@ import { Amount, Card, Disclosure, EmptyState, Field, Icon, PageHeader, Badge, P
 import { createLand } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 export default async function LandsPage() {
@@ -83,7 +83,10 @@ export default async function LandsPage() {
               ثبت زمین
             </button>
           </div>
-        </form>
+          <div className="lg:col-span-3">
+              <ReceiptField label="آپلود تصویر سند یا رسید زمین (اختیاری)" hint="سند مالکیت، نسق زراعی، قرارداد اجاره یا فیش آب — چند فایل مجاز است." />
+            </div>
+          </form>
       </Disclosure>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -142,6 +145,7 @@ export default async function LandsPage() {
               </Link>
               <RecordActions entity="lands" id={land.id} label={`زمین ${land.name}`} />
             </div>
+            <RecordReceipts refType="land" refId={land.id} section="crops" label="اسناد و رسیدهای این زمین" hint="سند، قرارداد اجاره، فیش آب و رسید هزینه‌های همین قطعه" />
           </Card>
         ))}
       </div>
@@ -157,11 +161,6 @@ export default async function LandsPage() {
           توافق تقسیم می‌شود.
         </p>
       </Card>
-      <ReceiptUploader
-        section="crops"
-        heading="آپلود رسید هزینه‌های زمین و کشت"
-        subtitle="فیش آب و برق چاه، رسید کارگر و فاکتور کود هر زمین را همان‌جا بایگانی کنید."
-      />
 
     </div>
   );

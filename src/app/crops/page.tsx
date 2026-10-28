@@ -5,7 +5,7 @@ import { Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, StatCard 
 import { createCrop, updateCrop } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 export default async function CropsPage() {
@@ -80,6 +80,9 @@ export default async function CropsPage() {
                 <Icon name="plus" className="h-4 w-4" />
                 ثبت کشت
               </button>
+            </div>
+            <div className="lg:col-span-3">
+              <ReceiptField label="آپلود تصویر رسید کشت (اختیاری)" hint="فاکتور بذر و کود، رسید کارگر یا قبض آب — چند فایل مجاز است." />
             </div>
           </form>
         ) : (
@@ -168,6 +171,7 @@ export default async function CropsPage() {
                   برای ویرایش کامل مشخصات یا حذف کشت از دکمه‌های کنار وضعیت در بالای کارت استفاده کنید.
                 </div>
               </details>
+              <RecordReceipts refType="crop" refId={crop.id} section="crops" label="رسیدهای این کشت" hint="فاکتور نهاده، رسید کارگر و قبض آب همین کشت را ضمیمه کنید تا بهای تمام‌شده مستند شود." />
             </Card>
           );
         })}
@@ -181,11 +185,6 @@ export default async function CropsPage() {
           محصولات چندساله مثل زعفران، هزینه سال‌های قبل را هم در تحلیل لحاظ کنید.
         </p>
       </Card>
-      <ReceiptUploader
-        section="crops"
-        heading="آپلود رسید و مدرک کشت"
-        subtitle="رسید هزینهٔ داشت و برداشت را به همین کشت وصل کنید تا بهای تمام‌شده دقیق شود."
-      />
 
     </div>
   );

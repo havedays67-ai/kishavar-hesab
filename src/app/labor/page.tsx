@@ -4,7 +4,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { createLabor, createWorker, toggleLaborPaid } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
-import { ReceiptUploader } from "@/components/Receipts";
+import { RecordReceipts, ReceiptField } from "@/components/RecordReceipts";
 export const dynamic = "force-dynamic";
 
 export default async function LaborPage() {
@@ -109,6 +109,9 @@ export default async function LaborPage() {
                 ثبت دستمزد
               </button>
             </div>
+            <div className="sm:col-span-2">
+              <ReceiptField label="آپلود رسید دستمزد (اختیاری)" hint="رسید دریافت دستمزد یا فیش انتقال — چند فایل مجاز است." />
+            </div>
           </form>
         </Disclosure>
       </div>
@@ -149,6 +152,7 @@ export default async function LaborPage() {
                 <th>دستمزد روز</th>
                 <th>جمع</th>
                 <th>وضعیت</th>
+                <th>رسید</th>
                 <th />
               </tr>
             </thead>
@@ -166,6 +170,9 @@ export default async function LaborPage() {
                   <td><Amount value={l.amount} /></td>
                   <td>
                     <Badge tone={l.paid ? "green" : "red"}>{l.paid ? "پرداخت‌شده" : "پرداخت‌نشده"}</Badge>
+                  </td>
+                  <td className="min-w-[150px]">
+                    <RecordReceipts refType="labor" refId={l.id} section="other" compact label="رسید" hint={`رسید دستمزد ${l.workerName}`} />
                   </td>
                   <td>
                     <div className="flex items-center gap-1">
@@ -185,11 +192,6 @@ export default async function LaborPage() {
         </div>
         {!logs.length ? <div className="p-4"><EmptyState title="دستمزدی ثبت نشده" /></div> : null}
       </Card>
-      <ReceiptUploader
-        section="other"
-        heading="آپلود رسید دستمزد کارگر"
-        subtitle="رسید دریافت دستمزد یا فیش انتقال کارگر را برای جلوگیری از اختلاف نگه دارید."
-      />
 
     </div>
   );
