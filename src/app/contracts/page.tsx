@@ -8,6 +8,7 @@ import { formatDate, formatMoney, formatMoneyWords, formatNumber, todayJalali, t
 import { getContractStats } from "@/lib/contracts/service";
 import { contractTypeLabel, perspectiveLabel } from "@/lib/contracts/model";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 export default async function ContractsPage({
@@ -306,6 +307,12 @@ export default async function ContractsPage({
           برای تنظیم سند رسمی، دفتر اسناد رسمی و مشاوره حقوقی لازم است.
         </p>
       </Card>
+      <ReceiptUploader
+        section="contracts"
+        heading="آپلود رسید قرارداد و اجاره"
+        subtitle="رسید مال‌الاجاره، ودیعه، اقساط یا صورتجلسهٔ تحویل زمین را اینجا نگه دارید."
+      />
+
     </div>
   );
 }

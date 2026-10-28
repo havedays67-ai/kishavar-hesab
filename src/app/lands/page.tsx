@@ -5,6 +5,7 @@ import { Amount, Card, Disclosure, EmptyState, Field, Icon, PageHeader, Badge, P
 import { createLand } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 export default async function LandsPage() {
@@ -156,6 +157,12 @@ export default async function LandsPage() {
           توافق تقسیم می‌شود.
         </p>
       </Card>
+      <ReceiptUploader
+        section="crops"
+        heading="آپلود رسید هزینه‌های زمین و کشت"
+        subtitle="فیش آب و برق چاه، رسید کارگر و فاکتور کود هر زمین را همان‌جا بایگانی کنید."
+      />
+
     </div>
   );
 }

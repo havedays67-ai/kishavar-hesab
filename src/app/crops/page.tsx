@@ -5,6 +5,7 @@ import { Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, StatCard 
 import { createCrop, updateCrop } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 export default async function CropsPage() {
@@ -180,6 +181,12 @@ export default async function CropsPage() {
           محصولات چندساله مثل زعفران، هزینه سال‌های قبل را هم در تحلیل لحاظ کنید.
         </p>
       </Card>
+      <ReceiptUploader
+        section="crops"
+        heading="آپلود رسید و مدرک کشت"
+        subtitle="رسید هزینهٔ داشت و برداشت را به همین کشت وصل کنید تا بهای تمام‌شده دقیق شود."
+      />
+
     </div>
   );
 }

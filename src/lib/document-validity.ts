@@ -68,9 +68,18 @@ const VANDALAW = {
   label: "تفاوت اعتبار سند رسمی و عادی (مواد ۱۲۹۰ و ۱۲۹۱)",
   url: "https://vandalawfirm.com/comparison-of-official-and-ordinary-document-validity/",
 };
-const CHEQUE_LAW = { label: "قانون صدور چک (اصلاحی ۱۳۹۷) و سامانهٔ صیاد" };
-const TAX_LAW = { label: "قانون پایانه‌های فروشگاهی و سامانهٔ مؤدیان (۱۳۹۸) و ماده ۱۶۹ ق.م.م" };
-const WHEAT_STANDARD = { label: "استاندارد ملی ایران ۱۰۴۳ (گندم) و دستورالعمل کیفیت مراکز خرید" };
+const CHEQUE_LAW = {
+  label: "قانون صدور چک (اصلاحی ۱۳۹۷) و سامانهٔ صیاد",
+  url: "https://www.cbi.ir",
+};
+const TAX_LAW = {
+  label: "قانون پایانه‌های فروشگاهی و سامانهٔ مؤدیان (۱۳۹۸) و ماده ۱۶۹ ق.م.م",
+  url: "https://tax.gov.ir",
+};
+const WHEAT_STANDARD = {
+  label: "استاندارد ملی ایران ۱۰۴۳ (گندم) و دستورالعمل کیفیت مراکز خرید",
+  url: "https://www.isiri.gov.ir",
+};
 const REGISTRATION_LAW = {
   label: "قانون الزام به ثبت رسمی معاملات اموال غیرمنقول (۱۴۰۳) — اجارهٔ بیش از دو سال",
   url: "https://www.mizanonline.ir/fa/news/4863219/",
@@ -521,6 +530,63 @@ export function authoritySummary() {
   });
 }
 
+/**
+ * اسنادی که نباید به‌عنوان «سند اثبات حق» به کاربر نشان داده شوند.
+ * این‌ها حذف نمی‌شوند؛ فقط به‌عنوان «یادداشت» در برنامه بایگانی می‌شوند
+ * و در همهٔ گزارش‌ها باید با همین هشدار همراه باشند.
+ */
+export function noteOnlyEntries() {
+  return AUTHORITY_ORDER.map((kind) => AUTHORITY[kind])
+    .filter((entry) => entry.level >= 3)
+    .map((entry) => ({
+      kind: entry.kind,
+      title: entry.title,
+      level: entry.level,
+      levelLabel: entry.levelLabel,
+      status: entry.status,
+      short: entry.short,
+      why: entry.doesNotProve,
+      toBeValid: entry.needsToBeStronger,
+      legalBasis: entry.legalBasis,
+    }));
+}
+
+/** اسنادی که اعتبار حقوقی بالاتری دارند (سطح ۱ و ۲). */
+export function credibleEntries() {
+  return AUTHORITY_ORDER.map((kind) => AUTHORITY[kind])
+    .filter((entry) => entry.level <= 2)
+    .map((entry) => ({
+      kind: entry.kind,
+      title: entry.title,
+      level: entry.level,
+      levelLabel: entry.levelLabel,
+      status: entry.status,
+      short: entry.short,
+      legalBasis: entry.legalBasis,
+    }));
+}
+
+/** شمارش اسناد به تفکیک سطح اعتبار؛ منبع واحد برای صفحه و کامپوننت. */
+export function authorityLevelCounts(): Record<AuthorityLevel, number> {
+  const counts: Record<AuthorityLevel, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  AUTHORITY_ORDER.forEach((kind) => {
+    const entry = AUTHORITY[kind];
+    counts[entry.level] += 1;
+  });
+  return counts;
+}
+
+/** پیام یکسان برای هر سند سطح ۳ و ۴: چرا یادداشت است و چطور معتبر می‌شود. */
+export function noteOnlyMessage(kind: string): string {
+  const entry = authorityFor(kind);
+  if (entry.level < 3) return "";
+  return (
+    `این سند در سطح ${entry.level} است و در برنامه فقط به‌عنوان «یادداشت» ذخیره می‌شود؛ ` +
+    `برای اثبات حق کافی نیست. ${entry.againstThird} ` +
+    `برای معتبرتر شدن: ${entry.needsToBeStronger.slice(0, 3).join("، ")}.`
+  );
+}
+
 export const VALIDITY_METHOD = [
   {
     title: "۱) چه کسی امضا کرده؟",
@@ -589,8 +655,11 @@ export function matchAuthorityQuestion(raw: string): {
     { kind: "id-document", patterns: /(سند مالکیت|نسق|مدارک هویتی|کارت ملی|شناسنامه|برابر اصل)/ },
   ];
 
+  const wantsNotes = /(بی اعتبار|بی‌اعتبار|کم اعتبار|کم‌اعتبار|اعتبار ندارند|اعتبار نداره|بدون اعتبار|یادداشت|یاد داشت)/.test(
+    text,
+  );
   const matched = keys.find((item) => item.patterns.test(text));
-  const kind = matched?.kind ?? (wantsGeneral ? "summary" : null);
+  const kind = matched?.kind ?? (wantsNotes ? "notes" : wantsGeneral ? "summary" : null);
   if (!kind) return null;
 
   const followUps = [
@@ -599,6 +668,33 @@ export function matchAuthorityQuestion(raw: string): {
     "رسید پرداخت چه چیزی را ثابت می‌کند؟",
     "چک صیادی چه شرایطی دارد؟",
   ];
+
+  if (kind === "notes") {
+    const notes = noteOnlyEntries();
+    const lines = notes.map(
+      (item) =>
+        `• ${item.title} — سطح ${item.level} (${item.levelLabel})\n  ثابت نمی‌کند: ${item.why.slice(0, 3).join("، ")}\n  برای اعتبار بیشتر: ${item.toBeValid.slice(0, 3).join("، ")}`,
+    );
+    return {
+      kind: "notes",
+      confidence: 95,
+      text:
+        `این اسناد در برنامه ساخته و ذخیره می‌شوند، اما سند اثبات حق نیستند؛ فقط «یادداشت» هستند:\n${lines.join("\n")}\n\n` +
+        "این موارد از برنامه حذف نمی‌شوند و برای مدیریت و بایگانی شما می‌مانند؛ اما برای دادگاه/اداره باید سند رسمی، ثبت صیاد، فاکتور رسمی مؤدیان، سند رسمی اجاره یا گزارش کارشناس ضمیمه شود.\n\n" +
+        VALIDITY_DISCLAIMER,
+      followUps: [
+        "تفاوت سند عادی و رسمی چیست؟",
+        "چک صیادی چه شرایطی دارد و چه زمانی قابل پیگیری است؟",
+        "آیا فیش واریز سند است؟",
+        "کدام اسناد قابل استناد بین طرفین است؟",
+      ],
+      sources: [
+        { label: "جدول اعتبار ۱۷ سند کشاورزحساب", note: "بر پایهٔ قانون مدنی، قانون صیاد، سامانهٔ مؤدیان و قانون ثبت معاملات" },
+        CIVIL_CODE,
+        REGISTRATION_LAW,
+      ],
+    };
+  }
 
   if (kind === "summary") {
     const lines = AUTHORITY_ORDER.filter((key) =>
@@ -611,7 +707,9 @@ export function matchAuthorityQuestion(raw: string): {
       kind: "summary",
       confidence: 94,
       text:
-        `${lines.join("\n")}\n\nجمع‌بندی: قوی‌ترین حالت زمانی است که سند عادی امضاشده داشته باشید و همان موضوع را در سامانه/دفتر رسمی ثبت کنید. ` +
+        `${lines.join("\n")}\n\n` +
+        `— اسناد سطح ۳ و ۴ (فقط یادداشت): ${noteOnlyEntries().map((item) => item.title).join("، ")}.\n` +
+        `این‌ها در برنامه می‌مانند اما حق قانونی اثبات نمی‌کنند.\n\nجمع‌بندی: قوی‌ترین حالت زمانی است که سند عادی امضاشده داشته باشید و همان موضوع را در سامانه/دفتر رسمی ثبت کنید. ` +
         `گزارش‌های داخلی برنامه (دفتر مالی، انبار، بهای تمام‌شده، معاملات) یادداشت مدیریتی‌اند و جای سند رسمی را نمی‌گیرند.\n\n${VALIDITY_DISCLAIMER}`,
       followUps,
       sources: [

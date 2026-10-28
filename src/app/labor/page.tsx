@@ -4,6 +4,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { createLabor, createWorker, toggleLaborPaid } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 export default async function LaborPage() {
@@ -184,6 +185,12 @@ export default async function LaborPage() {
         </div>
         {!logs.length ? <div className="p-4"><EmptyState title="دستمزدی ثبت نشده" /></div> : null}
       </Card>
+      <ReceiptUploader
+        section="other"
+        heading="آپلود رسید دستمزد کارگر"
+        subtitle="رسید دریافت دستمزد یا فیش انتقال کارگر را برای جلوگیری از اختلاف نگه دارید."
+      />
+
     </div>
   );
 }

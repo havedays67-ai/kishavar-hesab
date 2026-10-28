@@ -4,6 +4,7 @@ import { formatDate, formatMoneyWords, formatNumber } from "@/lib/format";
 import { TRADE_MODE_META, TRADE_STATUS_META, calcHeadline, type TradeCalc, type TradeStatus } from "@/lib/trade/engine";
 import { balanceOf, getTradeStats, listTrades, progressOf } from "@/lib/trade/service";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 const STATUS_TONE: Record<TradeStatus, string> = {
@@ -199,6 +200,12 @@ export default async function TradePage({ searchParams }: { searchParams: Promis
           </Disclosure>
         </Card>
       </div>
+      <ReceiptUploader
+        section="trade"
+        heading="آپلود رسید معامله محصول"
+        subtitle="قبض باسکول، فیش تسویه خریدار، عکس چک یا رسید تحویل محموله را به همین معامله پیوند دهید."
+      />
+
     </div>
   );
 }

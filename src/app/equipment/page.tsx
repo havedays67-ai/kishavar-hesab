@@ -4,6 +4,7 @@ import { Amount, Card, Disclosure, EmptyState, Field, Icon, PageHeader, StatCard
 import { createEquipment } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 function depreciation(eq: { purchaseDate: string | null; purchasePrice: number; salvageValue: number; usefulLifeYears: number }) {
@@ -153,6 +154,12 @@ export default async function EquipmentPage() {
           روغن و تعمیرات را جداگانه در دفتر عملیات ثبت کنید.
         </p>
       </Card>
+      <ReceiptUploader
+        section="other"
+        heading="آپلود رسید تعمیر و سوخت ماشین"
+        subtitle="فاکتور تعمیرگاه، فیلتر و سوخت را به همین ماشین متصل کنید."
+      />
+
     </div>
   );
 }

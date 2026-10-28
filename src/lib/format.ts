@@ -109,7 +109,8 @@ export function formatCompactMoney(value: number): string {
 }
 
 export function formatMoneyUnit(value: number): string {
-  return `${formatMoney(value)} تومان`;
+  // یکا یک‌بار و فقط از formatMoney می‌آید (ریال)؛ دوباره «تومان» اضافه نشود.
+  return formatMoney(value);
 }
 
 export const JALALI_MONTHS = [

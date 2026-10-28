@@ -10,6 +10,9 @@ import {
   VALIDITY_DISCLAIMER,
   VALIDITY_METHOD,
   authorityFor,
+  authorityLevelCounts,
+  noteOnlyEntries,
+  noteOnlyMessage,
   type AuthorityLevel,
 } from "@/lib/document-validity";
 
@@ -85,15 +88,30 @@ export function DocumentValidityGuide({ highlight = "receipt" }: { highlight?: s
           })}
         </div>
 
+        <p className="mt-2 text-[10px] leading-5 text-[#4a5a4c]">
+          {(() => {
+            const counts = authorityLevelCounts();
+            return `از ${AUTHORITY_ORDER.length} سند برنامه: ${counts[1]} سند سطح ۱ (قابل استناد بین طرفین)، ${counts[2]} سند سطح ۲ (حمایتی)، ${counts[3] + counts[4]} مورد یادداشت/بدون اعتبار حقوقی.`;
+          })()}
+        </p>
+
         <div className="mt-3 rounded-xl border border-[#eecac0] bg-[#fdf1ee] p-3 text-[#7d2f1b]">
           <p className="flex items-center gap-1.5 text-[11px] font-bold">
-            <Icon name="alert" className="h-3.5 w-3.5" /> این اسناد فقط «یادداشت» هستند و به همین دلیل در برنامه می‌مانند
+            <Icon name="alert" className="h-3.5 w-3.5" /> اسناد کم‌اعتبار — علامت‌گذاری‌شده و فقط «یادداشت»
           </p>
           <p className="mt-1 text-[10px] leading-5">
-            گزارش دفتر مالی، گزارش معاملات، بهای تمام‌شده و گزارش انبار سند اثبات حق نیستند؛ فرم اطلاعات چک هم چک بانکی
-            محسوب نمی‌شود. این‌ها حذف نمی‌شوند: برای مدیریت و بایگانی شما می‌مانند، ولی برای دادگاه/اداره باید سند رسمی،
-            ثبت صیاد، فاکتور مؤدیان یا سند رسمی اجاره ضمیمه شود.
+            این اسناد حذف نمی‌شوند و در برنامه به‌عنوان یادداشت بایگانی می‌مانند؛ اما حق قانونی اثبات نمی‌کنند. برای
+            دادگاه/اداره باید سند رسمی، ثبت صیاد، فاکتور مؤدیان یا سند رسمی اجاره ضمیمه شود.
           </p>
+          <ul className="mt-2 space-y-1">
+            {noteOnlyEntries().map((entry) => (
+              <li key={entry.kind} className="rounded-lg bg-white/70 px-2 py-1 text-[10px] leading-5">
+                <span className="chip border-[#eecac0] bg-[#fdf1ee] py-0 text-[10px] text-[#a33a1e]">فقط یادداشت</span>{" "}
+                <strong>{entry.title}</strong> — سطح {entry.level}: {entry.short}{" "}
+                <span className="opacity-80">ثابت نمی‌کند: {entry.why.slice(0, 2).join("، ")}.</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -146,9 +164,21 @@ export function DocumentValidityGuide({ highlight = "receipt" }: { highlight?: s
                   <h3 className="truncate text-xs font-bold text-[#26382c]">{entry.title}</h3>
                   <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">{entry.short}</p>
                 </div>
-                <ValidityBadge kind={entry.kind} small />
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <ValidityBadge kind={entry.kind} small />
+                  {entry.level >= 3 ? (
+                    <span className="chip border-[#eecac0] bg-[#fdf1ee] py-0 text-[10px] text-[#a33a1e]">فقط یادداشت</span>
+                  ) : (
+                    <span className="chip border-farm-200 bg-farm-50 py-0 text-[10px] text-farm-800">قابل استناد نسبی</span>
+                  )}
+                </div>
               </summary>
               <div className="mt-2 space-y-2 border-t border-[#f1ecdf] pt-2 text-[10px] leading-5 text-[#4a5a4c]">
+                {entry.level >= 3 ? (
+                  <p className="rounded-lg border border-[#eecac0] bg-[#fdf1ee] px-2 py-1 text-[#7d2f1b]">
+                    <strong>علامت‌گذاری: یادداشت</strong> — {noteOnlyMessage(entry.kind)}
+                  </p>
+                ) : null}
                 <p>
                   <strong className="text-farm-800">در برابر طرفین:</strong> {entry.betweenParties}
                 </p>

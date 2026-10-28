@@ -4,6 +4,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { createItem, createMove } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
@@ -204,6 +205,12 @@ export default async function InventoryPage() {
         </div>
         {!moves.length ? <EmptyState title="حرکتی ثبت نشده" /> : null}
       </Card>
+      <ReceiptUploader
+        section="inventory"
+        heading="آپلود فاکتور و رسید انبار"
+        subtitle="فاکتور خرید کود، بذر و سم، یا رسید تحویل نهاده را ضمیمه کنید."
+      />
+
     </div>
   );
 }

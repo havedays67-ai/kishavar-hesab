@@ -62,7 +62,9 @@ const MODE_LABEL: Record<ChatMode, string> = { support: "پشتیبان", assist
 /* ------------------------------ helpers ------------------------------ */
 
 function money(v: number): string {
-  return `${formatMoney(v)} تومان`;
+  // formatMoney خودش یکای «ریال» را می‌آورد؛ افزودن «تومان» باعث می‌شد
+  // پاسخ دستیار «۴,۳۵۷,۰۰۰,۰۰۰ ریال تومان» چاپ شود (باگ نمایشی).
+  return formatMoney(v);
 }
 
 function extractParty(text: string, known: string[]): string | null {

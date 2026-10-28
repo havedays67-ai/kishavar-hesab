@@ -4,6 +4,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { createCheque, createDebt, setChequeStatus, toggleDebtPaid } from "@/app/actions";
 import { RecordActions } from "@/components/RecordActions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 export default async function FinancePage() {
@@ -231,6 +232,12 @@ export default async function FinancePage() {
           برنامه‌ریزی کنید. چک برگشتی را حتماً با توضیح در «هزینه متفرقه» ثبت کنید تا هزینه واقعی مشخص بماند.
         </p>
       </Card>
+      <ReceiptUploader
+        section="finance"
+        heading="آپلود رسید پرداخت و چک"
+        subtitle="فیش واریز، کارت‌به‌کارت، رسید دریافت بدهی یا تصویر چک را با شمارهٔ پیگیری ثبت کنید."
+      />
+
     </div>
   );
 }

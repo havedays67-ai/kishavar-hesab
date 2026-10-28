@@ -74,8 +74,13 @@ export function expandTokens(tokens: string[]): { token: string; weight: number 
     for (const [key, synonyms] of Object.entries(KNOWLEDGE_SYNONYMS)) {
       const keyNorm = normalizeFa(key);
       const group = [keyNorm, ...synonyms.map((item) => normalizeFa(item))];
-      if (group.some((item) => token === item || token.includes(item) || item.includes(token))) {
-        group.forEach((item) => add(item, 0.85));
+      // واژه‌های کوتاه (مثل «آبی») فقط با تطبیق کامل گسترده می‌شوند؛ وگرنه
+      // «آبی» با «آبیاری» یکی گرفته می‌شد و پاسخ آبیاری جای پاسخ عملکرد
+      // گندم آبی می‌نشست (باگ واقعی بازیابی).
+      const exact = group.some((item) => token === item);
+      const fuzzy = token.length >= 4 && group.some((item) => item.includes(token) || token.includes(item));
+      if (exact || fuzzy) {
+        group.forEach((item) => add(item, exact ? 0.9 : 0.6));
       }
     }
   });
@@ -85,29 +90,65 @@ export function expandTokens(tokens: string[]): { token: string; weight: number 
     .slice(0, 40);
 }
 
-function scoreRow(row: KnowledgeRow, query: string, tokens: { token: string; weight: number }[]): number {
+function scoreRow(
+  row: KnowledgeRow,
+  query: string,
+  tokens: { token: string; weight: number }[],
+  coreTokens: string[],
+): number {
   const question = normalizeQuery(row.question);
+  const keywordsText = normalizeFa(row.keywords);
   const body = normalizeFa(`${row.question} ${row.keywords} ${row.answer}`);
-  let score = 0;
-  if (query.length >= 3 && (question.includes(query) || normalizeFa(row.keywords).includes(query))) score += 6;
-  for (const { token, weight } of tokens) {
-    let hit = 0;
-    if (question.includes(token)) hit = 3;
-    else if (normalizeFa(row.keywords).includes(token)) hit = 2.6;
-    else if (body.includes(token)) hit = 1.4;
-    score += hit * weight;
+
+  // ۱) سیگنال اصلی: واژه‌های واقعی پرسش کاربر. تطبیق در «عنوان/کلیدواژه» بسیار
+  // ارزشمندتر از تکرار همان واژه در متن طولانی پاسخ است؛ همین موضوع باعث می‌شد
+  // پرسش «راندمان آبیاری» یا «عملکرد گندم آبی» به پاسخ نیاز آبی برسد.
+  let core = 0;
+  for (const token of coreTokens) {
+    if (question.includes(token)) core += 5;
+    else if (keywordsText.includes(token)) core += 4;
+    else if (body.includes(token)) core += 1;
   }
-  return score * (row.weight || 1);
+
+  // ۲) سیگنال کمکی: مترادف‌ها؛ سقف‌دار تا یک گروه مترادف بزرگ کل رتبه را نبرد.
+  const coreSet = new Set(coreTokens);
+  let synonym = 0;
+  for (const { token, weight } of tokens) {
+    if (coreSet.has(token)) continue;
+    if (question.includes(token)) synonym += 2 * weight;
+    else if (keywordsText.includes(token)) synonym += 1.6 * weight;
+    else if (body.includes(token)) synonym += 0.35 * weight;
+  }
+  synonym = Math.min(8, synonym);
+
+  // ۳) پاداش عبارت کامل موضوع (مثل «عملکرد گندم» یا «رطوبت مجاز»).
+  const phrases = [...keywordsText.split(/[،,]/), ...question.split(" ")]
+    .map((phrase) => phrase.trim())
+    .filter((phrase) => phrase.length >= 8);
+  let phraseBonus = 0;
+  for (const phrase of phrases) {
+    if (query.includes(phrase)) phraseBonus += 4;
+  }
+  if (phrases.some((phrase) => phrase === query)) phraseBonus += 6;
+  const phraseScore = Math.min(14, phraseBonus);
+
+  // ۴) وزن مدخل فقط تعدیل ملایم است، نه ضریب غالب.
+  const weightFactor = 1 + Math.max(0, (row.weight || 1) - 1) * 0.12;
+
+  let score = 0;
+  if (query.length >= 3 && (question.includes(query) || keywordsText.includes(query))) score += 6;
+  return (core + synonym + score) * weightFactor + phraseScore;
 }
 
 export function rankRows(rows: KnowledgeRow[], message: string, limit = 4): KnowledgeMatch[] {
   const query = normalizeQuery(message);
-  const tokens = expandTokens(tokenize(message));
+  const coreTokens = tokenize(message);
+  const tokens = expandTokens(coreTokens);
   if (!query || tokens.length === 0) return [];
-  const maxPossible = tokens.reduce((sum, item) => sum + 3 * item.weight, 0) * 1.15;
+  const maxPossible = Math.max(10, coreTokens.reduce((sum, token) => sum + 5, 0) * 1.2);
   return rows
     .map((row) => {
-      const score = scoreRow(row, query, tokens);
+      const score = scoreRow(row, query, tokens, coreTokens);
       return { ...row, score, confidence: Math.max(0, Math.min(1, score / Math.max(6, maxPossible))) };
     })
     .filter((row) => row.score > 2.4)

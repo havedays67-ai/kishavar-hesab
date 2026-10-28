@@ -9,6 +9,8 @@
  * نکته: مطالب حقوقی راهنمای عمومی است و جای مشاوره وکیل/دفتر اسناد رسمی را نمی‌گیرد.
  */
 
+import { VERIFIED_KNOWLEDGE } from "./knowledge-verified";
+
 export type KnowledgeCategory = "حقوقی" | "چک و بانک" | "مالی و حسابداری" | "کشاورزی" | "برنامه";
 
 export interface KnowledgeSource {
@@ -31,7 +33,7 @@ export interface KnowledgeEntry {
 export const LEGAL_DISCLAIMER =
   "این پاسخ راهنمای عمومی و مبتنی بر قوانین ایران است، نه مشاوره حقوقی پروندهٔ مشخص. برای مبالغ بالا، زمین و اختلاف واقعی، وکیل یا دفتر اسناد رسمی را دخیل کنید.";
 
-export const KNOWLEDGE_VERSION = "۳.۰.۰";
+export const KNOWLEDGE_VERSION = "۳.۱.۰";
 
 export const KNOWLEDGE: KnowledgeEntry[] = [
   {
@@ -412,6 +414,8 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     sources: [{ label: "دانشنامهٔ داخلی کشاورزیار، نسخهٔ ۳" }],
     followUps: ["چک چاپی معتبر است؟", "سود این فصل چقدر است؟", "چطور سند را چاپ کنم؟"],
   },
+  // دانش تأییدشدهٔ عددی با منبع (نیاز آبی، عملکرد، کود، کارنس، صیاد، ثبت رسمی، رسید)
+  ...VERIFIED_KNOWLEDGE,
 ];
 
 /** اصطلاحات کوتاه برای شناسایی بهتر پرسش‌ها و نمایش در آمار دانشنامه. */

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Card, Icon, PageHeader } from "@/components/ui";
 import { DocumentValidityGuide } from "@/components/DocumentValidity";
 import { ReceiptUploader } from "@/components/Receipts";
+import { authorityLevelCounts, noteOnlyEntries } from "@/lib/document-validity";
+
+const fa = (value: number): string => value.toLocaleString("fa-IR");
 
 export const dynamic = "force-dynamic";
 
@@ -21,21 +24,41 @@ export default function DocumentsPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="card-pad">
-          <p className="text-[11px] text-[#6a7a6d]">سند عادی قابل استناد</p>
-          <p className="mt-1 text-lg font-bold text-farm-900">۴ سند</p>
-          <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">قرارداد فروش، تسویه، صورت‌حساب طرف‌حساب و رسید اجاره — فقط در برابر امضاکنندگان.</p>
+          <p className="text-[11px] text-[#6a7a6d]">سند عادی قابل استناد (سطح ۱)</p>
+          <p className="mt-1 text-lg font-bold text-farm-900">{fa(authorityLevelCounts()[1])} سند</p>
+          <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">قرارداد فروش، تسویه، صورت‌حساب طرف‌حساب و رسید اجاره — فقط در برابر امضاکنندگان، نه اشخاص ثالث.</p>
         </Card>
         <Card className="card-pad">
-          <p className="text-[11px] text-[#6a7a6d]">مدرک حمایتی / فنی</p>
-          <p className="mt-1 text-lg font-bold text-[#7a6533]">۷ سند</p>
-          <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">قبض باسکول، کیفیت، صورت‌حساب فروش، فیش پرداخت، اجاره‌نامه بلندمدت، تحویل زمین و مدارک ثبتی.</p>
+          <p className="text-[11px] text-[#6a7a6d]">مدرک حمایتی / فنی (سطح ۲)</p>
+          <p className="mt-1 text-lg font-bold text-[#7a6533]">{fa(authorityLevelCounts()[2])} سند</p>
+          <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">قبض باسکول، کیفیت، صورت‌حساب فروش، فیش پرداخت، اجاره‌نامه بلندمدت، تحویل زمین و مدارک ثبتی — به‌تنهایی کافی نیست.</p>
         </Card>
         <Card className="card-pad">
-          <p className="text-[11px] text-[#6a7a6d]">یادداشت / بدون اعتبار حقوقی</p>
-          <p className="mt-1 text-lg font-bold text-[#a33a1e]">۵ مورد</p>
-          <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">گزارش مالی، معاملات، بهای تمام‌شده، انبار و فرم چک. این‌ها حذف نمی‌شوند؛ فقط یادداشت‌اند.</p>
+          <p className="text-[11px] text-[#6a7a6d]">یادداشت / بدون اعتبار حقوقی (سطح ۳ و ۴)</p>
+          <p className="mt-1 text-lg font-bold text-[#a33a1e]">{fa(authorityLevelCounts()[3] + authorityLevelCounts()[4])} مورد</p>
+          <p className="mt-1 text-[10px] leading-5 text-[#6a7a6d]">همه با برچسب «فقط یادداشت» علامت خورده‌اند؛ حذف نمی‌شوند و برای مدیریت و بایگانی می‌مانند.</p>
         </Card>
       </div>
+
+      <Card className="card-pad border-[#eecac0] bg-[#fdf7f4]">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-[#7d2f1b]">
+          <Icon name="alert" className="h-4 w-4" /> فهرست اسناد کم‌اعتبار که فقط به‌عنوان یادداشت ذخیره می‌شوند
+        </h2>
+        <p className="mt-1 text-[10.5px] leading-6 text-[#7d4b3a]">
+          این مدارک در برنامه ساخته می‌شوند و بایگانی‌شان مفید است، اما در دادگاه یا اداره «سند اثبات حق» نیستند.
+          کنار هر مورد نوشته‌ایم چه چیزی را ثابت نمی‌کند و برای معتبر شدن چه چیزی لازم دارد.
+        </p>
+        <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {noteOnlyEntries().map((entry) => (
+            <li key={entry.kind} className="rounded-xl border border-[#eecac0] bg-white p-2 text-[10px] leading-5 text-[#5b4a43]">
+              <span className="chip border-[#eecac0] bg-[#fdf1ee] py-0 text-[10px] text-[#a33a1e]">فقط یادداشت</span>{" "}
+              <strong className="text-[#7d2f1b]">{entry.title}</strong> (سطح {entry.level})
+              <p className="mt-1">ثابت نمی‌کند: {entry.why.slice(0, 3).join("، ")}.</p>
+              <p className="mt-1 text-[#6a7a6d]">برای اعتبار بیشتر: {entry.toBeValid.slice(0, 3).join("، ")}.</p>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
       <DocumentValidityGuide />
 

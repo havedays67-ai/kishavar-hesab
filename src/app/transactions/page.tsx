@@ -5,6 +5,7 @@ import { Amount, Badge, Card, Disclosure, EmptyState, Field, Icon, PageHeader, S
 import { RecordActions } from "@/components/RecordActions";
 import { createTransaction } from "@/app/actions";
 
+import { ReceiptUploader } from "@/components/Receipts";
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ kind?: string; landId?: string; categoryId?: string; from?: string; to?: string; q?: string; cropId?: string }>;
@@ -228,6 +229,12 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         نکته: خرید نسیه را با روش «اعتباری» ثبت کنید تا در بدهی‌ها لحاظ شود. هزینه شخصی خانوار را با مزرعه مخلوط نکنید. برای گزارش بهای تمام‌شده، حتماً زمین و کشت
         را انتخاب کنید.
       </p>
+      <ReceiptUploader
+        section="finance"
+        heading="آپلود رسید عملیات مالی"
+        subtitle="برای هر درآمد یا هزینه، فیش بانکی یا فاکتور را با شمارهٔ پیگیری پیوست کنید."
+      />
+
     </div>
   );
 }
