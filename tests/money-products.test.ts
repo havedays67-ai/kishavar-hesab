@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { digitsOnly, formatAmount, formatAmountInput, formatQuantity, formatTomanAmount, toLatinDigits } from "../app-v2/src/lib/money-format";
 import { PRODUCTS, findProductName, normalizeProductQuery, productsByCategory, searchProducts } from "../app-v2/src/lib/products";
 import { computeQuickSale } from "../app-v2/src/lib/quick-sale";
+import { calculateTrade, getProductProfile, getTradeProductOptions, makeTradeSerial, productSerialCode } from "../app-v2/src/lib/trade";
 import { parseNumericInput } from "../app-v2/src/lib/units";
 
 describe("قالب مبلغ: 100,000,000 در همه‌جا", () => {
@@ -73,5 +74,60 @@ describe("فهرست محصولات: کامل، مرتب، جستجوپذیر و
     expect(searchProducts("چیزی که وجود ندارد")).toHaveLength(0);
     expect(findProductName("برنج")).toBe("برنج");
     expect(normalizeProductQuery("آفتابگردان")).toBe("افتابگردان");
+  });
+});
+
+describe("معامله محصول: همهٔ محصولات + جستجو + محصول دلخواه", () => {
+  const base = {
+    quality: { grossKg: 12_000, tareKg: 2_000, moisture: 14, usefulLossPercent: 3, nonUsefulLossPercent: 1, impurity: 1, sprouted: 0, broken: 1, hectoliter: 78, protein: 13 },
+    unitPrice: 49_500,
+    costs: { transport: 0, loading: 0, commissionRate: 0, insurance: 0, delayPenalty: 0, other: 0 },
+    taxExempt: true,
+    taxRate: 0,
+  };
+
+  it("فهرست معامله شامل ۴ محصول مرجع + کل کاتالوگ است", () => {
+    const options = getTradeProductOptions();
+    expect(options.length).toBeGreaterThanOrEqual(80);
+    const reference = options.filter((item) => item.hasReferenceStandard).map((item) => item.name);
+    expect(reference).toEqual(expect.arrayContaining(["گندم", "جو", "کلزا", "ذرت دانه‌ای"]));
+    expect(reference).toHaveLength(4);
+  });
+
+  it("هر محصول کاتالوگ و هر نام دلخواه، پروفایل معتبر می‌گیرد", () => {
+    for (const name of ["تخم آفتابگردان", "زعفران", "پسته", "کنجد", "محصول دلخواه من"]) {
+      const profile = getProductProfile(name);
+      expect(profile.name).toBe(name);
+      expect(profile.hasReferenceStandard).toBe(false);
+      expect(profile.basePrice).toBe(0);
+      expect(Number.isFinite(profile.baseMoisture)).toBe(true);
+    }
+    expect(getProductProfile("wheat").hasReferenceStandard).toBe(true);
+    expect(getProductProfile(null).name).toBe("محصول");
+  });
+
+  it("محاسبه برای محصول دلخواه عدد قطعی می‌دهد و هشدار صریح می‌دهد", () => {
+    const known = calculateTrade({ ...base, productId: "wheat" });
+    const custom = calculateTrade({ ...base, productId: "تخم آفتابگردان" });
+    expect(custom.payableKg).toBe(known.payableKg);
+    expect(Number.isFinite(custom.netReceipt)).toBe(true);
+    expect(custom.netReceipt).toBeGreaterThan(0);
+    expect(custom.warnings.some((warning) => warning.code === "custom-product")).toBe(true);
+    expect(known.warnings.some((warning) => warning.code === "custom-product")).toBe(false);
+  });
+
+  it("محصول دلخواه بدون نرخ، مبلغ صفر و هشدار می‌دهد نه NaN", () => {
+    const zero = calculateTrade({ ...base, productId: "زعفران", unitPrice: 0 });
+    expect(zero.netReceipt).toBe(0);
+    expect(zero.warnings.some((warning) => warning.code === "no-price")).toBe(true);
+  });
+
+  it("سریال سند برای هر محصول پایدار و یکتاست", () => {
+    const date = { jy: 1404, jm: 8, jd: 7 };
+    expect(makeTradeSerial(date, "wheat", 1)).toBe("KSH-WHT-14040807-001");
+    const custom = makeTradeSerial(date, "تخم آفتابگردان", 1);
+    expect(custom).toMatch(/^KSH-X[A-Z]{2}-14040807-001$/);
+    expect(makeTradeSerial(date, "تخم آفتابگردان", 1)).toBe(custom);
+    expect(productSerialCode("زعفران")).not.toBe(productSerialCode("تخم آفتابگردان"));
   });
 });

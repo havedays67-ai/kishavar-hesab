@@ -26,7 +26,7 @@ import {
   type DocumentSpec,
 } from "../lib/documents";
 import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
-import { PRODUCT_PROFILES, type CropTrade } from "../lib/trade";
+import { getProductProfile, type CropTrade } from "../lib/trade";
 import { type CropPlot, plotMetrics } from "../lib/samples";
 import { LegalReviewPanel } from "../components/LegalReviewPanel";
 
@@ -68,7 +68,7 @@ export function DocumentsPage({
       for (const kind of ["sale-contract", "weigh-ticket", "quality-minutes", "sale-invoice", "settlement"] as DocumentKind[]) {
         rows.push({
           spec: makeDocument(kind, { trade }),
-          sourceLabel: `${PRODUCT_PROFILES[trade.productId].name} — ${trade.buyerName}`,
+          sourceLabel: `${getProductProfile(trade.productId).name} — ${trade.buyerName}`,
           sourceMeta: `${trade.serial} · ${formatJalali(trade.date, "long")}`,
           status: trade.status === "draft" ? "پیش‌نویس" : "تأییدشده",
           family: "trade",

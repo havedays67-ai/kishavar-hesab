@@ -1,4 +1,67 @@
 import type { JDate } from "./format";
+import { PRODUCTS } from "./products";
+
+
+/**
+ * پروفایل هر محصول: برای چهار محصول مرجع، پروفایل کامل؛ برای بقیهٔ محصولات
+ * کاتالوگ یا نام دلخواه کاربر، پروفایل «بدون استاندارد اختصاصی».
+ *
+ * قاعدهٔ صداقت: هیچ نرخ یا افت مرجعی برای محصولی که استانداردش را نداریم
+ * اختراع نمی‌شود. رطوبت پایه ۱۴٪ فقط برای شروع محاسبه است و در هشدارها
+ * صریحاً گفته می‌شود که باید با قرارداد خریدار تطبیق داده شود، نرخ پیش‌فرض
+ * صفر است و کاربر باید نرخ توافقی را وارد کند.
+ */
+export function getProductProfile(productId: string | null | undefined): ProductProfile {
+  const id = (productId ?? "").trim();
+  const known = PRODUCT_PROFILES[id];
+  if (known) return known;
+  const catalog = PRODUCTS.find((item) => item.name === id);
+  // باگ: رشتهٔ خالی از ?? رد نمی‌شد و نام محصول خالی می‌ماند (پیش از انتخاب کاربر)
+  const name = catalog?.name || id || "محصول";
+  return {
+    id,
+    name,
+    short: name.length > 10 ? `${name.slice(0, 10)}…` : name,
+    hasReferenceStandard: false,
+    baseMoisture: 14,
+    maxMoisture: 20,
+    baseUsefulLoss: 3,
+    baseNonUsefulLoss: 1,
+    maxNonUsefulLoss: 7,
+    basePrice: 0,
+    priceYear: "نرخ توافقی شما",
+    grading: "defect",
+    priceIsReference: false,
+    vatExempt: true,
+    note: "برای این محصول استاندارد اختصاصی در برنامه ثبت نشده است؛ رطوبت پایه، سقف افت و نرخ توافقی را با قرارداد خریدار تطبیق دهید.",
+    source: "ورودی کاربر / کاتالوگ محصولات — بدون استاندارد مرجع داخلی",
+  };
+}
+
+export interface TradeProductOption {
+  id: string;
+  name: string;
+  hasReferenceStandard: boolean;
+  baseMoisture: number;
+}
+
+/** فهرست محصولات قابل انتخاب در معامله: چهار مرجع + بقیهٔ کاتالوگ. */
+export function getTradeProductOptions(): TradeProductOption[] {
+  const reference = Object.values(PRODUCT_PROFILES).map((profile) => ({
+    id: profile.id,
+    name: profile.name,
+    hasReferenceStandard: true,
+    baseMoisture: profile.baseMoisture,
+  }));
+  const referenceNames = new Set(reference.map((item) => item.name));
+  const catalog = PRODUCTS.filter((item) => !referenceNames.has(item.name)).map((item) => ({
+    id: item.name,
+    name: item.name,
+    hasReferenceStandard: false,
+    baseMoisture: 14,
+  }));
+  return [...reference, ...catalog];
+}
 
 /* ---------------------------------------------------------------------------
  * موتور قطعی معامله محصول کشاورزی (Crop Trade Engine v1.0)
@@ -8,13 +71,21 @@ import type { JDate } from "./format";
  *   ← ارزش محصول ← هزینه‌های فروشنده ← مالیات ← خالص دریافتی
  * ------------------------------------------------------------------------- */
 
-export type ProductId = "wheat" | "barley" | "canola" | "corn";
+/**
+ * شناسهٔ محصول.
+ * چهار محصول «گندم/جو/کلزا/ذرت» پروفایل کامل و مرجع دارند؛ بقیهٔ محصولات کاتالوگ
+ * یا نام دلخواه کاربر با `getProductProfile` پروفایل محافظه‌کارانه می‌گیرند تا
+ * هیچ استانداردی از خودمان ساخته نشود.
+ */
+export type ProductId = string;
 export type GradeId = 0 | 1 | 2 | 3;
 export type TradeStatus = "draft" | "confirmed" | "settled";
 export type PaymentMethod = "cash" | "bank" | "cheque" | "offset";
 
 export interface ProductProfile {
   id: ProductId;
+  /** آیا استاندارد/نرخ مرجع اختصاصی برای این محصول ثبت شده است؟ */
+  hasReferenceStandard: boolean;
   name: string;
   short: string;
   baseMoisture: number;
@@ -31,9 +102,10 @@ export interface ProductProfile {
   source: string;
 }
 
-export const PRODUCT_PROFILES: Record<ProductId, ProductProfile> = {
+export const PRODUCT_PROFILES: Record<string, ProductProfile> = {
   wheat: {
     id: "wheat",
+    hasReferenceStandard: true,
     name: "گندم",
     short: "گندم",
     baseMoisture: 14,
@@ -51,6 +123,7 @@ export const PRODUCT_PROFILES: Record<ProductId, ProductProfile> = {
   },
   barley: {
     id: "barley",
+    hasReferenceStandard: true,
     name: "جو",
     short: "جو",
     baseMoisture: 12.5,
@@ -68,6 +141,7 @@ export const PRODUCT_PROFILES: Record<ProductId, ProductProfile> = {
   },
   canola: {
     id: "canola",
+    hasReferenceStandard: true,
     name: "کلزا",
     short: "کلزا",
     baseMoisture: 8,
@@ -85,6 +159,7 @@ export const PRODUCT_PROFILES: Record<ProductId, ProductProfile> = {
   },
   corn: {
     id: "corn",
+    hasReferenceStandard: true,
     name: "ذرت دانه‌ای",
     short: "ذرت",
     baseMoisture: 14,
@@ -245,7 +320,7 @@ function metricStatus(pass1: boolean, pass2: boolean, pass3: boolean): "good" | 
  * سایر محصولات: ناخالصی، سن‌زدگی و دانه شکسته.
  */
 export function assessQuality(productId: ProductId, q: QualityInput): QualityAssessment {
-  const product = PRODUCT_PROFILES[productId];
+  const product = getProductProfile(productId);
   const metrics: QualityMetric[] = [];
   let grade: GradeId = 1;
   let limitingFactor = "هیچ شاخصی از حدود درجه یک فراتر نرفته است.";
@@ -307,7 +382,7 @@ export function assessQuality(productId: ProductId, q: QualityInput): QualityAss
 }
 
 export function calculateTrade(input: TradeCalculationInput): TradeResult {
-  const product = PRODUCT_PROFILES[input.productId];
+  const product = getProductProfile(input.productId);
   const q = input.quality;
   const warnings: TradeWarning[] = [];
 
@@ -323,6 +398,7 @@ export function calculateTrade(input: TradeCalculationInput): TradeResult {
   if (q.sprouted > 3) warnings.push({ code: "sprouted", severity: "warning", title: "سن‌زدگی بالا", detail: "محموله در معرض کسر قیمت یا رد شدن قرار دارد." });
   if (q.broken > 8) warnings.push({ code: "broken", severity: "warning", title: "دانه شکسته زیاد", detail: "افت مفید و درجه کیفی را با کارشناس خریدار تطبیق دهید." });
   if (input.unitPrice <= 0) warnings.push({ code: "no-price", severity: "danger", title: "قیمت هر کیلو تعیین نشده", detail: "قیمت توافقی یا نرخ روز مرکز خرید را وارد کنید." });
+  if (!product.hasReferenceStandard) warnings.push({ code: "custom-product", severity: "info", title: "محصول بدون استاندارد مرجع", detail: "برای این محصول، رطوبت پایه ۱۴٪ و افت‌های پیش‌فرض فقط نقطهٔ شروع است؛ مقادیر قرارداد خریدار را وارد کنید." });
   if (product.priceIsReference) warnings.push({ code: "reference-price", severity: "info", title: "نرخ مرجع، جایگزین قرارداد نیست", detail: `نرخ پیش‌فرض (${product.priceYear}) فقط مرجع است؛ نرخ ابلاغی روز و شرایط خریدار را بررسی کنید.` });
 
   const moistureExcess = Math.max(0, q.moisture - product.baseMoisture);
@@ -521,8 +597,29 @@ export function tradeBalance(trade: CropTrade): { paid: number; remaining: numbe
   };
 }
 
+const PRODUCT_SERIAL_CODES: Record<string, string> = {
+  wheat: "WHT", barley: "BRY", canola: "CNL", corn: "CRN",
+  "گندم": "WHT", "جو": "BRY", "کلزا": "CNL", "ذرت دانه‌ای": "CRN", "ذرت": "CRN",
+};
+
+/** کد سه‌حرفی پایدار برای هر محصول (شامل محصولات دلخواه فارسی). */
+export function productSerialCode(productId: string): string {
+  const direct = PRODUCT_SERIAL_CODES[productId];
+  if (direct) return direct;
+  const ascii = productId.replace(/[^a-zA-Z]/g, "").toUpperCase();
+  if (ascii.length >= 3) return ascii.slice(0, 3);
+  // محصول فارسی/دلخواه: کد پایدار از هش FNV-1a (بدون تصادف بین رفرش‌ها)
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < productId.length; index += 1) {
+    hash ^= productId.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  return `X${alphabet[hash % 24]}${alphabet[Math.floor(hash / 24) % 24]}`;
+}
+
 export function makeTradeSerial(date: JDate, productId: ProductId, sequence: number): string {
-  const code = { wheat: "WHT", barley: "BRY", canola: "CNL", corn: "CRN" }[productId];
+  const code = productSerialCode(productId || "wheat");
   const stamp = `${date.jy}${String(date.jm).padStart(2, "0")}${String(date.jd).padStart(2, "0")}`;
   return `KSH-${code}-${stamp}-${String(sequence).padStart(3, "0")}`;
 }

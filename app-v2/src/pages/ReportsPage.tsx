@@ -22,7 +22,7 @@ import type { SavedContract } from "../lib/data";
 import { CONTRACT_TYPES } from "../lib/data";
 import { formatJalali,  toPersianDigits, todayJalali } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
-import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
+import { getProductProfile, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotCost, plotMetrics, type CropPlot } from "../lib/samples";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
 import type { HealthReport } from "../lib/insights";
@@ -85,12 +85,13 @@ export function ReportsPage({
     };
   });
 
-  const productBreakdown = (Object.keys(PRODUCT_PROFILES) as (keyof typeof PRODUCT_PROFILES)[])
+  const tradeProductIds = Array.from(new Set(trades.map((trade) => trade.productId)));
+  const productBreakdown = tradeProductIds
     .map((id) => {
       const productTrades = trades.filter((trade) => trade.productId === id);
       return {
         id,
-        label: PRODUCT_PROFILES[id].name,
+        label: getProductProfile(id).name,
         count: productTrades.length,
         kg: productTrades.reduce((sum, trade) => sum + trade.result.payableKg, 0),
         value: productTrades.reduce((sum, trade) => sum + trade.result.netReceipt, 0),
@@ -101,7 +102,7 @@ export function ReportsPage({
 
   const alerts = [
     remaining > 0 ? { title: `${fa(remaining)} تومان مانده دریافتنی`, text: "پیگیری تسویه با خریداران در مرکز اسناد و بخش معاملات انجام می‌شود.", tone: "sand" as const } : null,
-    trades.some((trade) => trade.quality.moisture > PRODUCT_PROFILES[trade.productId].maxMoisture)
+    trades.some((trade) => trade.quality.moisture > getProductProfile(trade.productId).maxMoisture)
       ? { title: "رطوبت یک محموله بالاتر از حد پذیرش است", text: "پیش از تحویل بعدی، خشک‌کردن یا تطبیق با خریدار را بررسی کنید.", tone: "bad" as const }
       : null,
     plots.some((plot) => plotMetrics(plot).profit < 0)
@@ -335,7 +336,7 @@ export function ReportsPage({
                     <tr key={trade.id} className="border-b border-white/[0.04] text-[9px] hover:bg-white/[0.02]">
                       <td className="px-3 py-2.5 font-mono text-[8px] text-[#b6ccc0]">{trade.serial}</td>
                       <td className="px-3 py-2.5 text-[#a8bfb3]">{formatJalali(trade.date, "short")}</td>
-                      <td className="px-3 py-2.5"><div className="text-[#d8e7df]">{PRODUCT_PROFILES[trade.productId].name}</div><div className="mt-0.5 text-[8px] text-[#6f8c7f]">{trade.buyerName}</div></td>
+                      <td className="px-3 py-2.5"><div className="text-[#d8e7df]">{getProductProfile(trade.productId).name}</div><div className="mt-0.5 text-[8px] text-[#6f8c7f]">{trade.buyerName}</div></td>
                       <td className="px-3 py-2.5 text-[#a8bfb3]">{fa(trade.result.netKg)}</td>
                       <td className="px-3 py-2.5 font-medium text-mint-300">{fa(trade.result.payableKg)}</td>
                       <td className="px-3 py-2.5 text-[#d9c48f]">{trade.result.quality.label}</td>

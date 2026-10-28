@@ -1,6 +1,6 @@
 import { makeDocument, type DocumentSpec } from "./documents";
 import type { SavedContract } from "./data";
-import { PRODUCT_PROFILES, type CropTrade } from "./trade";
+import { type CropTrade, getProductProfile } from "./trade";
 import { plotMetrics, type CropPlot } from "./samples";
 import type { LedgerState } from "./ledger";
 
@@ -30,5 +30,5 @@ export function buildDocumentRegistry(trades: CropTrade[], contracts: SavedContr
 }
 
 export function tradeProductName(trade: CropTrade): string {
-  return PRODUCT_PROFILES[trade.productId].name;
+  return getProductProfile(trade.productId).name;
 }

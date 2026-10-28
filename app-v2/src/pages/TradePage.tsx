@@ -14,7 +14,6 @@ import {
   FileText,
   Gauge,
   Info,
-  Package,
   Plus,
   Printer,
   Receipt,
@@ -38,22 +37,10 @@ import {
   type JDate,
 } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
-import {
-  PAYMENT_METHOD_LABELS,
-  PRODUCT_PROFILES,
-  calculateTrade,
-  makeTradeSerial,
-  tradeBalance,
-  type CropTrade,
-  type CostInput,
-  type PaymentMethod,
-  type ProductId,
-  type QualityInput,
-  type TradeResult,
-  type TradeWarning,
-} from "../lib/trade";
+import { PAYMENT_METHOD_LABELS, calculateTrade, makeTradeSerial, tradeBalance, type CropTrade, type CostInput, type PaymentMethod, type ProductId, type QualityInput, type TradeResult, type TradeWarning, getProductProfile, getTradeProductOptions, type TradeProductOption } from "../lib/trade";
 import { makeDocument, type DocumentKind, type DocumentSpec } from "../lib/documents";
 import { AmountField, SegmentedOptions, SelectField, TextField } from "../components/FormControls";
+import { ProductPicker } from "../components/ProductPicker";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Modal, Toast } from "../components/ui";
 import { useProfile } from "../lib/profile";
@@ -381,7 +368,14 @@ export function TradePage({
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  const profile = form.productId ? PRODUCT_PROFILES[form.productId] : PRODUCT_PROFILES.wheat;
+  const profile = getProductProfile(form.productId ?? "wheat");
+  const tradeProducts = useMemo(() => getTradeProductOptions(), []);
+  const referenceProducts = useMemo(() => tradeProducts.filter((item: TradeProductOption) => item.hasReferenceStandard), [tradeProducts]);
+  /** نام انتخابی از کاتالوگ → شناسهٔ استاندارد اگر وجود داشت، وگرنه خودِ نام */
+  const resolveProductId = (name: string): string => {
+    const match = tradeProducts.find((item: TradeProductOption) => item.name === name || item.id === name);
+    return match ? match.id : name.trim().slice(0, 40);
+  };
 
   const openTradeDoc = (kind: DocumentKind, trade: CropTrade) => onOpenDocument(makeDocument(kind, { trade }));
 
@@ -433,22 +427,25 @@ export function TradePage({
   };
 
   const changeProduct = (productId: ProductId) => {
-    const nextProfile = PRODUCT_PROFILES[productId];
+    const nextProfile = getProductProfile(productId);
+    const isWheat = nextProfile.id === "wheat" || nextProfile.name === "گندم";
     setForm((current) => ({
       ...current,
       productId,
-      unitPrice: nextProfile.basePrice,
+      // نرخ فقط وقتی استاندارد مرجع داریم پیشنهاد می‌شود؛ وگرنه خالی می‌ماند تا کاربر توافقی وارد کند
+      unitPrice: nextProfile.basePrice > 0 ? nextProfile.basePrice : 0,
       usefulLossPercent: nextProfile.baseUsefulLoss,
       nonUsefulLossPercent: nextProfile.baseNonUsefulLoss,
-      hectoliter: productId === "wheat" ? current.hectoliter || 77 : 0,
-      protein: productId === "wheat" ? current.protein || 12 : 0,
+      moisture: nextProfile.baseMoisture,
+      hectoliter: isWheat ? current.hectoliter || 77 : 0,
+      protein: isWheat ? current.protein || 12 : 0,
     }));
     setErrors({});
   };
 
   const stepOneValid = () => {
     const next: Record<string, string> = {};
-    if (!form.productId) next.productId = "محصول را انتخاب کنید.";
+    if (!form.productId) next.productId = "محصول را انتخاب کنید یا نام آن را بنویسید.";
     if (form.buyerName.trim().length < 3) next.buyerName = "نام خریدار یا کارخانه را وارد کنید.";
     if (!form.farmTitle.trim()) next.farmTitle = "عنوان زمین / منشأ محموله را وارد کنید.";
     setErrors(next);
@@ -570,7 +567,7 @@ export function TradePage({
   };
 
   const filteredTrades = trades.filter((trade) => {
-    const haystack = `${trade.serial} ${trade.buyerName} ${PRODUCT_PROFILES[trade.productId].name} ${trade.farmTitle}`;
+    const haystack = `${trade.serial} ${trade.buyerName} ${getProductProfile(trade.productId).name} ${trade.farmTitle}`;
     return haystack.includes(search.trim());
   });
 
@@ -668,29 +665,46 @@ export function TradePage({
               {step === 1 && (
                 <>
                   <CardSection icon={<Wheat className="h-4 w-4" />} title="محصول و خریدار" description="محصول را انتخاب کنید تا استاندارد رطوبت، افت و نرخ مرجع همان محصول بارگذاری شود." badge="گام ۱">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {(Object.keys(PRODUCT_PROFILES) as ProductId[]).map((id) => {
-                        const item = PRODUCT_PROFILES[id];
-                        const active = form.productId === id;
-                        return (
+                    <div className="space-y-2.5">
+                      <ProductPicker
+                        value={form.productId ? getProductProfile(form.productId).name : ""}
+                        onChange={(name) => changeProduct(resolveProductId(name))}
+                        label="محصول (جستجو، انتخاب از فهرست کامل یا نوشتن نام دلخواه)"
+                        required
+                        error={errors.productId}
+                      />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[8px] text-[#7d9b8d]">دسترسی سریع به استانداردهای کامل:</span>
+                        {referenceProducts.map((item: TradeProductOption) => (
                           <button
-                            key={id}
+                            key={item.id}
                             type="button"
-                            onClick={() => changeProduct(id)}
+                            onClick={() => changeProduct(item.id)}
                             className={cn(
-                              "relative rounded-xl border p-2.5 text-right transition",
-                              active ? "border-mint-300/40 bg-mint-300/[0.08]" : "border-[#2b483a] bg-[#081711]/35 hover:border-[#456755]"
+                              "rounded-lg border px-2 py-1 text-[8px] transition",
+                              form.productId === item.id ? "border-mint-300/40 bg-mint-300/[0.08] text-mint-300" : "border-[#2b483a] text-[#a9c1b5] hover:border-[#456755]",
                             )}
                           >
-                            <span className={cn("mb-1.5 grid h-7 w-7 place-items-center rounded-lg", active ? "bg-mint-300/15 text-mint-300" : "bg-white/[0.04] text-[#8ba598]")}>
-                              <Package className="h-3.5 w-3.5" />
-                            </span>
-                            <span className={cn("block text-[10px] font-medium", active ? "text-mint-300" : "text-[#c7d9cf]")}>{item.name}</span>
-                            <span className="mt-0.5 block text-[8px] font-light text-[#6f8c7f]">رطوبت پایه {toPersianDigits(item.baseMoisture)}٪</span>
-                            {active && <Check className="absolute left-2 top-2 h-3 w-3 text-mint-300" />}
+                            {item.name}
                           </button>
-                        );
-                      })}
+                        ))}
+                      </div>
+                      {form.productId && (
+                        <div className={cn("rounded-xl border px-2.5 py-2 text-[8px] leading-5", profile.hasReferenceStandard ? "border-mint-300/20 bg-mint-300/[0.04] text-[#b9d3c6]" : "border-sand-300/20 bg-sand-300/[0.05] text-[#d9cda6]")}>
+                          {profile.hasReferenceStandard ? (
+                            <>
+                              <span className="font-medium text-mint-200">{profile.name}: استاندارد کامل ثبت شده است.</span>{" "}
+                              رطوبت پایه {toPersianDigits(profile.baseMoisture)}٪ · سقف {toPersianDigits(profile.maxMoisture)}٪ · افت مفید {toPersianDigits(profile.baseUsefulLoss)}٪ · غیرمفید {toPersianDigits(profile.baseNonUsefulLoss)}٪
+                              {profile.basePrice > 0 ? ` · نرخ مرجع ${fa(profile.basePrice)} تومان (${profile.priceYear})` : " · نرخ: توافقی (در گام ۳ وارد کنید)"}
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-medium text-sand-300">{profile.name}: استاندارد اختصاصی در برنامه ثبت نشده است.</span>{" "}
+                              رطوبت پایه ۱۴٪ و افت‌های پیش‌فرض فقط نقطهٔ شروع‌اند؛ مقدار قرارداد خریدار و نرخ توافقی را خودتان وارد کنید.
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {errors.productId && <p className="mt-2 text-[10px] text-[#ef9c8f]">{errors.productId}</p>}
                     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[8px] text-[#8aa79a]">
@@ -1038,7 +1052,7 @@ export function TradePage({
           ) : (
             filteredTrades.map((trade) => {
               const balance = tradeBalance(trade);
-              const product = PRODUCT_PROFILES[trade.productId];
+              const product = getProductProfile(trade.productId);
               return (
                 <article key={trade.id} className="glass overflow-hidden rounded-2xl">
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.05] px-4 py-3">

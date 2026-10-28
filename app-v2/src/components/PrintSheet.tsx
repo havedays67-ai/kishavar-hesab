@@ -29,11 +29,7 @@ import {
   numberToPersianWords,
   toPersianDigits,
 } from "../lib/format";
-import {
-  PAYMENT_METHOD_LABELS,
-  PRODUCT_PROFILES,
-  tradeBalance,
-} from "../lib/trade";
+import { PAYMENT_METHOD_LABELS, tradeBalance, getProductProfile } from "../lib/trade";
 
 // استایل چاپ در lib/pdf.ts و lib/exportFile.ts متمرکز شده است.
 
@@ -382,7 +378,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
   const isDraft = trade?.status === "draft";
   const result = trade?.result;
   const balance = trade ? tradeBalance(trade) : null;
-  const product = trade ? PRODUCT_PROFILES[trade.productId] : null;
+  const product = trade ? getProductProfile(trade.productId) : null;
 
   const totalReceipt = result?.netReceipt ?? 0;
   const paid = balance?.paid ?? 0;
@@ -516,7 +512,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 <div className="rounded border border-[#ddd8ca] p-2.5">
                   <Row label="فروشنده" value={trade.sellerName} />
                   <Row label="خریدار / انبار" value={trade.buyerName} />
-                  <Row label="محصول و منشأ" value={`${PRODUCT_PROFILES[trade.productId].name} — ${trade.farmTitle}`} />
+                  <Row label="محصول و منشأ" value={`${getProductProfile(trade.productId).name} — ${trade.farmTitle}`} />
                   <Row label="شماره باسکول" value={trade.weighbridgeNo} />
                 </div>
                 <div className="rounded border border-[#ddd8ca] p-2.5">
@@ -969,7 +965,7 @@ function TradesReportBody({ spec }: { spec: DocumentSpec }) {
               <tr key={trade.id}>
                 <td className={`${tdClass} font-mono text-[8px]`}>{trade.serial}</td>
                 <td className={tdClass}>{formatJalali(trade.date, "short")}</td>
-                <td className={tdClass}>{PRODUCT_PROFILES[trade.productId].name}</td>
+                <td className={tdClass}>{getProductProfile(trade.productId).name}</td>
                 <td className={tdClass}>{trade.buyerName}</td>
                 <td className={tdClass}>{num(trade.result.netKg)}</td>
                 <td className={tdClass}>{num(trade.result.payableKg)}</td>

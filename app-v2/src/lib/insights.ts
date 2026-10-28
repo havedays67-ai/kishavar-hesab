@@ -2,7 +2,7 @@ import type { SavedContract } from "./data";
 import type { CropPlot } from "./samples";
 import { plotMetrics } from "./samples";
 import { financeTotals, inventoryValue, ledgerTotals, loanSchedule, partyTotals, type LedgerState } from "./ledger";
-import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "./trade";
+import { tradeBalance, type CropTrade, getProductProfile } from "./trade";
 import type { SignableEntity } from "./signatures";
 import { jalaliToDate, todayJalali } from "./format";
 
@@ -85,7 +85,7 @@ export function buildInsights(input: {
       page: "trade",
     });
   }
-  const moistureRisks = trades.filter((trade) => trade.quality.moisture > PRODUCT_PROFILES[trade.productId].maxMoisture);
+  const moistureRisks = trades.filter((trade) => trade.quality.moisture > getProductProfile(trade.productId).maxMoisture);
   if (moistureRisks.length > 0) {
     insights.push({
       code: "moisture",

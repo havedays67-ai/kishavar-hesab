@@ -29,7 +29,7 @@ import { useProfile } from "../lib/profile";
 import type { HealthReport } from "../lib/insights";
 import { formatJalali,  toPersianDigits, todayJalali } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
-import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
+import { getProductProfile, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotMetrics, type CropPlot } from "../lib/samples";
 import { Avatar } from "../components/ui";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
@@ -192,7 +192,7 @@ export function DashboardPage({
                     <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-[#a6c2b4]"><Wheat className="h-4 w-4" /></span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-[11px] font-medium text-[#e8f3ec]">{PRODUCT_PROFILES[trade.productId].name} — {trade.buyerName}</span>
+                        <span className="truncate text-[11px] font-medium text-[#e8f3ec]">{getProductProfile(trade.productId).name} — {trade.buyerName}</span>
                         <span className={cn("rounded px-1.5 py-0.5 text-[8px]", trade.status === "settled" ? "bg-mint-300/10 text-mint-300" : trade.status === "draft" ? "bg-white/[0.05] text-[#9fb6aa]" : "bg-sand-300/10 text-sand-300")}>
                           {trade.status === "settled" ? "تسویه" : trade.status === "draft" ? "پیش‌نویس" : "تأییدشده"}
                         </span>

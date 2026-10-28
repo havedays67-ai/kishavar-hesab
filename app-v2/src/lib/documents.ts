@@ -1,11 +1,6 @@
 import type { SavedContract } from "./data";
 import { formatJalali, todayJalali, type JDate } from "./format";
-import {
-  PAYMENT_METHOD_LABELS,
-  PRODUCT_PROFILES,
-  tradeBalance,
-  type CropTrade,
-} from "./trade";
+import { PAYMENT_METHOD_LABELS, tradeBalance, type CropTrade, getProductProfile } from "./trade";
 
 export type DocumentKind =
   | "sale-contract"
@@ -339,7 +334,7 @@ export function tradeDocumentsAvailable(trade: CropTrade): number {
 }
 
 export function productDisplayName(trade: CropTrade): string {
-  return PRODUCT_PROFILES[trade.productId].name;
+  return getProductProfile(trade.productId).name;
 }
 
 export function paymentDisplayName(trade: CropTrade): string {

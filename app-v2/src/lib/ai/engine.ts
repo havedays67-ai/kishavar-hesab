@@ -17,7 +17,7 @@ import {
   type LedgerState,
 } from "../ledger";
 import { plotMetrics, type CropPlot } from "../samples";
-import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../trade";
+import { tradeBalance, type CropTrade, getProductProfile } from "../trade";
 import type { SavedContract } from "../data";
 import { formatJalali, toPersianDigits, todayJalali } from "../format";
 import { LearnedCache } from "../nlu/learned-cache";
@@ -266,7 +266,7 @@ function dataAnswer(text: string, context: AssistantContext): AssistantReply | n
 
   if (hasAny(text, ["فروش", "محصول", "محموله", "گندم", "جو", "ذرت", "کلزا"]) && hasAny(text, ["چقدر", "چند", "مانده", "درآمد", "سود", "آخرین", "قیمت"])) {
     const latest = context.trades[0];
-    const product = latest ? PRODUCT_PROFILES[latest.productId] : null;
+    const product = latest ? getProductProfile(latest.productId) : null;
     return {
       text: context.trades.length
         ? `در ${toPersianDigits(context.trades.length)} معاملهٔ ثبت‌شده، خالص فروش ${money(data.sale)} است و ${money(data.saleRemaining)} هنوز وصول نشده است.${latest && product ? `\nآخرین محموله: ${product.name} به ${latest.buyerName} با وزن قابل پرداخت ${fa(latest.result.payableKg)} کیلوگرم و نرخ مؤثر ${money(latest.result.effectivePricePerKg)}.` : ""}\n\nقیمت داخل برنامه مرجع مذاکره است، نه نرخ روز؛ نرخ روز بازار/مصوبه و افت خریدار را قبل از امضا کنترل کنید.`
