@@ -223,13 +223,18 @@ export default function App() {
   const updatePartyAccount = (party: DebtParty) => updateLedger({ parties: ledger.parties.map((row) => (row.id === party.id ? party : row)) });
   const deletePartyAccount = (id: string) => {
     removeReceiptsForRecord("party", id);
+    // رسیدهای هر پرداخت هم باید با حذف طرف‌حساب پاک شوند، وگرنه فایل بی‌صاحب می‌ماند.
+    ledger.payments.filter((payment) => payment.partyId === id).forEach((payment) => removeReceiptsForRecord("party-payment", payment.id));
     updateLedger({
       parties: ledger.parties.filter((party) => party.id !== id),
       payments: ledger.payments.filter((payment) => payment.partyId !== id),
     });
   };
   const addPartyPayment = (payment: PartyPayment) => updateLedger({ payments: [payment, ...ledger.payments] });
-  const deletePartyPayment = (id: string) => updateLedger({ payments: ledger.payments.filter((payment) => payment.id !== id) });
+  const deletePartyPayment = (id: string) => {
+    removeReceiptsForRecord("party-payment", id);
+    updateLedger({ payments: ledger.payments.filter((payment) => payment.id !== id) });
+  };
 
   const addEntry = (entry: FinanceEntry) => updateLedger({ entries: [entry, ...ledger.entries] });
   const updateEntry = (entry: FinanceEntry) => updateLedger({ entries: ledger.entries.map((row) => (row.id === entry.id ? entry : row)) });

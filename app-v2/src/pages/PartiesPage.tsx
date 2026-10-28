@@ -87,7 +87,7 @@ export function PartiesPage({
   const [editParty, setEditParty] = useState<DebtParty | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [settleId, setSettleId] = useState<string | null>(null);
-  const [receiptPrompt, setReceiptPrompt] = useState<string | null>(null);
+  const [receiptPrompt, setReceiptPrompt] = useState<{ partyId: string; paymentId: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [signParty, setSignParty] = useState<DebtParty | null>(null);
   const { audit } = useSignatures();
@@ -241,7 +241,7 @@ export function PartiesPage({
         دلیل و تاریخ هر ثبت در دفتر معین و صورتحساب قابل کپی نمایش داده می‌شود.
       </div>
 
-      <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} nameSuggestions={[profile.fullName, ...ledger.parties.map((party) => party.name)]} phoneSuggestions={[profile.phone, ...ledger.parties.map((party) => party.phone)]} onCreate={(party, wantsReceipt) => { onAddParty(party); setAddOpen(false); setToast("طرف‌حساب ثبت شد"); if (wantsReceipt) setReceiptPrompt(party.id); }} />
+      <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} nameSuggestions={[profile.fullName, ...ledger.parties.map((party) => party.name)]} phoneSuggestions={[profile.phone, ...ledger.parties.map((party) => party.phone)]} onCreate={(party, wantsReceipt) => { onAddParty(party); setAddOpen(false); if (wantsReceipt) { setDetailId(party.id); setToast("طرف‌حساب ثبت شد؛ رسید اصل بدهی را از همین دفتر معین ضمیمه کنید"); } else { setToast("طرف‌حساب ثبت شد"); } }} />
       <AddPartyModal
         open={Boolean(editParty)}
         initial={editParty}
@@ -257,11 +257,6 @@ export function PartiesPage({
 
       <Modal open={Boolean(details)} onClose={() => setDetailId(null)} title={details ? `دفتر معین — ${details.name}` : ""} description="گردش کامل بدهی/طلب، دلیل ثبت و پرداخت‌ها" size="lg">
         {details && <PartyLedger party={details} payments={ledger.payments} onCopy={() => copyStatement(details)} copied={copied} onDeletePayment={onDeletePayment} onSettle={() => setSettleId(details.id)} onDelete={() => { onDeleteParty(details.id); setDetailId(null); setToast("طرف‌حساب حذف شد"); }} onPrint={() => { onPrintParty(details); setDetailId(null); }} />}
-        {details && (
-          <div className="border-t border-white/[0.06] px-5 pb-5 pt-3">
-            <RecordReceipts refType="party" refId={details.id} section="parties" label="رسید این حساب" hint="رسید هر پرداخت را از همین‌جا اضافه کنید؛ عنوان و مبلغ دوباره پرسیده نمی‌شود." />
-          </div>
-        )}
       </Modal>
 
       <SettleModal
@@ -271,15 +266,15 @@ export function PartiesPage({
         onSubmit={(payment) => {
           onAddPayment(payment);
           setSettleId(null);
-          setReceiptPrompt(payment.partyId);
+          setReceiptPrompt({ partyId: payment.partyId, paymentId: payment.id });
           setToast("پرداخت ثبت شد؛ اگر رسید دارید همین‌جا ضمیمه کنید");
         }}
       />
 
       {receiptPrompt ? (
         (() => {
-          const promptParty = ledger.parties.find((party) => party.id === receiptPrompt) ?? null;
-          return promptParty ? <ReceiptPromptModal party={promptParty} onClose={() => setReceiptPrompt(null)} /> : null;
+          const promptParty = ledger.parties.find((party) => party.id === receiptPrompt.partyId) ?? null;
+          return promptParty ? <ReceiptPromptModal party={promptParty} paymentId={receiptPrompt.paymentId} onClose={() => setReceiptPrompt(null)} /> : null;
         })()
       ) : null}
 
@@ -460,33 +455,59 @@ function PartyLedger({ party, payments, onCopy, copied, onDeletePayment, onSettl
           <span className="flex items-center gap-1"><Phone className="h-2.5 w-2.5" /> {party.phone}</span>
         </div>
       </div>
-      <h3 className="mb-2 mt-4 text-[10px] font-semibold text-[#e3f0e8]">گردش پرداخت‌ها</h3>
+      {/* رسید اصل بدهی/طلب — جدا از رسید پرداخت‌ها. برای «قرض نقدی» این همان
+          مدرک پرداخت پول به طرف‌حساب است و برای «خرید نسیه» مدرک فاکتور. */}
+      <div className="mt-3">
+        <RecordReceipts
+          compact
+          refType="party"
+          refId={party.id}
+          section="parties"
+          label={party.kind === "debtor" ? "رسید اصل طلب (پول قرض‌داده‌شده / فاکتور)" : "رسید اصل بدهی (دریافتی / فاکتور)"}
+          hint="این رسید به اصل بدهی یا طلب می‌چسبد و با رسید هر پرداخت قاطی نمی‌شود."
+        />
+      </div>
+
+      <div className="mb-2 mt-4 flex flex-wrap items-center justify-between gap-1.5">
+        <h3 className="text-[10px] font-semibold text-[#e3f0e8]">گردش پرداخت‌ها</h3>
+        <span className={cn("rounded-full px-2 py-0.5 text-[8px]", party.kind === "debtor" ? "bg-mint-300/10 text-mint-300" : "bg-sand-300/10 text-sand-300")}>
+          {party.kind === "debtor" ? "بازپرداخت بدهکار به شما" : "پرداخت شما به بستانکار"}
+        </span>
+      </div>
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-[#355344] px-3 py-6 text-center text-[9px] text-[#78968a]">هنوز پرداختی ثبت نشده است.</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-          <table className="w-full text-right">
-            <thead><tr className="bg-white/[0.03] text-[8px] text-[#7d9a8d]"><th className="px-2 py-2 font-normal">تاریخ</th><th className="px-2 py-2 font-normal">مبلغ</th><th className="px-2 py-2 font-normal">روش</th><th className="px-2 py-2 font-normal">توضیح</th><th className="px-2 py-2 font-normal" /></tr></thead>
-            <tbody>
-              {rows.map((payment) => (
-                <tr key={payment.id} className="border-t border-white/[0.04] text-[8px]">
-                  <td className="px-2 py-2 text-[#b7cdc1]">{formatJalali(payment.date, "short")}</td>
-                  <td className="px-2 py-2 font-medium text-[#dcebe2]">{money(payment.amount)}</td>
-                  <td className="px-2 py-2 text-[#9fbfae]">{PAYMENT_METHODS[payment.method]}</td>
-                  <td className="px-2 py-2 text-[#7f9b8e]">{payment.note || "—"}</td>
-                  <td className="px-2 py-2"><button type="button" onClick={() => onDeletePayment(payment.id)} className="text-[#78968a] transition hover:text-[#efad9f]" aria-label="حذف پرداخت"><Trash2 className="h-3 w-3" /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="space-y-2">
+          {rows.map((payment) => (
+            <li key={payment.id} className="rounded-xl border border-white/[0.06] bg-[#071510]/40 p-2.5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[8px]">
+                <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[#b7cdc1]">{formatJalali(payment.date, "short")}</span>
+                <span className="text-[10px] font-semibold text-[#dcebe2]">{money(payment.amount)}</span>
+                <span className="text-[#9fbfae]">{PAYMENT_METHODS[payment.method]}</span>
+                {payment.note && <span className="text-[#7f9b8e]">— {payment.note}</span>}
+                <button type="button" onClick={() => onDeletePayment(payment.id)} className="mr-auto text-[#78968a] transition hover:text-[#efad9f]" aria-label="حذف پرداخت"><Trash2 className="h-3 w-3" /></button>
+              </div>
+              {/* هر رسید دقیقاً به همین پرداخت وصل است؛ با حذف پرداخت، رسیدهایش هم پاک می‌شوند. */}
+              <div className="mt-1.5">
+                <RecordReceipts
+                  compact
+                  refType="party-payment"
+                  refId={payment.id}
+                  section="parties"
+                  label="رسید این پرداخت"
+                  hint="فقط برای همین پرداخت؛ تصویر یا PDF رسید را اینجا ضمیمه کنید."
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
       <button type="button" onClick={onDelete} className="mt-3 flex items-center gap-1 text-[8px] text-[#8a6b63] transition hover:text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف کل طرف‌حساب</button>
     </div>
   );
 }
 
-function ReceiptPromptModal({ party, onClose }: { party: DebtParty; onClose: () => void }) {
+function ReceiptPromptModal({ party, paymentId, onClose }: { party: DebtParty; paymentId: string; onClose: () => void }) {
   const [showBox, setShowBox] = useState(true);
   return (
     <Modal open onClose={onClose} title={`رسید پرداخت — ${party.name}`} description="پرداخت ثبت شد. اگر رسید همراهتان نیست ببندید و بعداً از دفتر معین همین حساب اضافه کنید." size="sm">
@@ -509,7 +530,7 @@ function ReceiptPromptModal({ party, onClose }: { party: DebtParty; onClose: () 
           </button>
         </div>
         <div className={showBox ? "" : "hidden"}>
-          <RecordReceipts refType="party" refId={party.id} section="parties" label="رسید پرداخت" hint="فقط تصویر یا PDF رسید؛ عنوان و مبلغ دوباره پرسیده نمی‌شود." />
+          <RecordReceipts compact refType="party-payment" refId={paymentId} section="parties" label="رسید این پرداخت" hint="فقط تصویر یا PDF رسید؛ عنوان و مبلغ دوباره پرسیده نمی‌شود." />
         </div>
         <button type="button" onClick={onClose} className="w-full rounded-xl border border-white/[0.09] py-2.5 text-[10px] text-[#a9c1b5]">بعداً؛ بستن</button>
       </div>
