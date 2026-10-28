@@ -48,6 +48,7 @@ import { useSignatures } from "./lib/signatureContext";
 import { buildSignableEntities } from "./lib/signable";
 import { buildInsights } from "./lib/insights";
 import { useMemo } from "react";
+import { ReceiptsPage } from "./pages/ReceiptsPage";
 import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./pages/RentalsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
@@ -64,6 +65,7 @@ const AVAILABLE_PAGES: Page[] = [
   "parties",
   "inventory",
   "documents",
+  "receipts",
   "reports",
   "backup",
   "signatures",
@@ -106,6 +108,7 @@ const PAGE_TITLES: Record<Page, string> = {
   parties: "بدهکار و بستانکار",
   inventory: "انبار، دارایی و بودجه",
   documents: "اسناد و چاپ",
+  receipts: "رسید و فیش",
   reports: "گزارش‌های مدیریتی",
   backup: "دستیار و پشتیبان",
   signatures: "امضا و اعتبار",
@@ -374,6 +377,7 @@ export default function App() {
         {page === "documents" && (
           <DocumentsPage trades={trades} contracts={contracts} plots={plots} onOpenDocument={setActiveDocument} />
         )}
+        {page === "receipts" && <ReceiptsPage />}
         {page === "reports" && (
           <ReportsPage trades={trades} plots={plots} contracts={contracts} health={health} onOpenDocument={setActiveDocument} onNavigateTrade={() => navigate("trade")} ledger={ledger} />
         )}

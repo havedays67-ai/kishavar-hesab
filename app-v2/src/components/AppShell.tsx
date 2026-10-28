@@ -14,6 +14,7 @@ import {
   Leaf,
   Menu,
   Package,
+  Camera,
   Scale,
   ShieldCheck,
   BellRing,
@@ -31,6 +32,7 @@ import { type Page } from "../lib/data";
 import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import { Avatar, BrandMark } from "./ui";
+import { ReceiptQuickButton } from "./ReceiptUploader";
 
 const NAV_ITEMS: {
   id: Page;
@@ -50,6 +52,7 @@ const NAV_ITEMS: {
   { id: "parties", label: "بدهکار و بستانکار", short: "طرف‌حساب", icon: UsersRound, group: "ledger" },
   { id: "inventory", label: "انبار، دارایی، بودجه", short: "انبار", icon: Package, group: "ledger" },
   { id: "documents", label: "اسناد و چاپ", short: "اسناد", icon: Files, badge: "A4", group: "ledger" },
+  { id: "receipts", label: "رسید و فیش", short: "رسیدها", icon: Camera, badge: "آپلود", group: "ledger" },
   { id: "signatures", label: "امضا و اعتبار", short: "امضا", icon: Fingerprint, badge: "جدید", group: "ledger" },
   { id: "reports", label: "گزارش‌های مدیریتی", short: "گزارش", icon: BarChart3, group: "ledger" },
   { id: "reminders", label: "یادآوری و هشدار", short: "یادآوری", icon: BellRing, group: "ledger" },
@@ -69,6 +72,7 @@ const PAGE_LABELS: Record<Page, string> = {
   parties: "بدهکار و بستانکار",
   inventory: "انبار، دارایی و بودجه",
   documents: "اسناد و چاپ",
+  receipts: "رسید و فیش",
   signatures: "امضا و اعتبار",
   reminders: "یادآوری و هشدار",
   reports: "گزارش‌ها",
@@ -264,7 +268,8 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1460px] px-4 pb-28 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10 lg:pt-8">{children}</main>
+        <main className="mx-auto max-w-[1460px] px-4 pb-28 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10 lg:pt-8">{children}
+        <ReceiptQuickButton page={page} /></main>
 
         <footer className="no-print mx-auto hidden max-w-[1460px] flex-wrap items-center justify-between gap-2 px-8 pb-6 text-[10px] text-[#607d70] lg:flex">
           <span>کسب‌وکار من ·  · موتور معامله {toPersianDigits("1.0.0")}</span>

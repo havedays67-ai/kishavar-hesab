@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { assistantNotes, chatMessages, chatThreads } from "@/db/schema";
 import { respond, type ChatMode, type EngineReply } from "@/lib/ai/engine";
 import { logInteraction, looksLikeQuestion, needsLiveData, searchKnowledge } from "@/lib/ai/knowledge-engine";
+import { matchAuthorityQuestion } from "@/lib/document-validity";
 import { ensureSeeded } from "@/lib/seed";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -95,6 +96,19 @@ export async function POST(request: Request) {
   let confidence = 0;
   let usedKnowledgeId: number | null = null;
   try {
+    // ۰) اعتبار اسناد: پاسخ قطعی از جدول تحلیل‌شده (قانون مدنی، صیاد، مؤدیان،
+    // ثبت رسمی معاملات). این دسته هرگز به دانش تخمینی یا پاسخ عمومی سپرده نمی‌شود.
+    const authority = matchAuthorityQuestion(message);
+    if (authority && !needsLiveData(message)) {
+      reply = {
+        text: authority.text,
+        actions: [{ label: "راهنمای اعتبار اسناد", href: "/documents", kind: "knowledge" }],
+        suggestions: authority.followUps.slice(0, 3),
+        kind: "answer",
+      };
+      nextState = thread.state ?? {};
+      confidence = authority.confidence / 100;
+    } else {
     // مغز دانش: اول پایگاه دائمی، بعد موتور قطعی. پرسش‌های مالی دربارهٔ
     // همین مزرعه هرگز با پاسخ عمومی جایگزین نمی‌شوند.
     const matches = await searchKnowledge(message, 3).catch(() => []);
@@ -125,6 +139,7 @@ export async function POST(request: Request) {
       const result = await respond({ mode, message, state: thread.state ?? {} });
       reply = result.reply;
       nextState = result.state;
+    }
     }
   } catch (error) {
     console.error("assistant error", error);

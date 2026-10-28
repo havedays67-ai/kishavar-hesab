@@ -11,6 +11,7 @@ export type Page =
   | "parties"
   | "inventory"
   | "documents"
+  | "receipts"
   | "reports"
   | "backup"
   | "signatures"

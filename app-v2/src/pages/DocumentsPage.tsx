@@ -29,6 +29,8 @@ import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib
 import { getProductProfile, type CropTrade } from "../lib/trade";
 import { type CropPlot, plotMetrics } from "../lib/samples";
 import { LegalReviewPanel } from "../components/LegalReviewPanel";
+import { DocumentValidityPanel, ValidityBadge } from "../components/DocumentValidityPanel";
+import { ReceiptUploader } from "../components/ReceiptUploader";
 
 const familyTone: Record<DocumentFamily, string> = {
   trade: "mint",
@@ -190,6 +192,14 @@ export function DocumentsPage({
 
       <LegalReviewPanel />
 
+      <div className="mb-4">
+        <ReceiptUploader section="documents" />
+      </div>
+
+      <div className="mb-4">
+        <DocumentValidityPanel />
+      </div>
+
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6c897b]" />
@@ -256,6 +266,7 @@ export function DocumentsPage({
                         <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[8px]", row.status === "تأییدشده" || row.status === "جاری" ? "bg-mint-300/10 text-mint-300" : "bg-white/[0.05] text-[#9fb6aa]")}>
                           {row.status}
                         </span>
+                        <ValidityBadge kind={row.spec.kind} />
                       </div>
                       <p className="mt-2 line-clamp-2 min-h-[30px] text-[8px] font-light leading-4 text-[#819d90]">{row.spec.meta.description}</p>
                       <div className="mt-2 flex items-center gap-1 text-[8px] text-[#6f8c7f]">

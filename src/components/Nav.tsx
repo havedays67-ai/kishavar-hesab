@@ -15,6 +15,8 @@ export const NAV_ITEMS = [
   { href: "/labor", label: "کارگر و دستمزد", icon: "users" },
   { href: "/equipment", label: "ماشین‌آلات", icon: "tractor" },
   { href: "/finance", label: "بدهی و چک", icon: "wallet" },
+  { href: "/documents", label: "اعتبار اسناد", icon: "lock" },
+  { href: "/receipts", label: "رسیدها و فیش‌ها", icon: "receipt" },
   { href: "/reports", label: "گزارش‌ها", icon: "chart" },
   { href: "/assistant", label: "دستیار هوشمند", icon: "sparkles" },
   { href: "/diagnostics", label: "تست و عیب‌یابی", icon: "alert" },

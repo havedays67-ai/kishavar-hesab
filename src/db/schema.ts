@@ -435,3 +435,26 @@ export const assistantInteractions = pgTable("assistant_interactions", {
   helpful: boolean("helpful"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("assistant_interactions_created_idx").on(t.createdAt)]);
+
+/* ------------------------------------------------------------------ */
+/* Receipts (رسید و فیش آپلودی — مدرک حمایتی)                          */
+/* ------------------------------------------------------------------ */
+
+export const receipts = pgTable("receipts", {
+  id: serial("id").primaryKey(),
+  section: text("section").notNull().default("other"),
+  title: text("title").notNull(),
+  amount: doublePrecision("amount"),
+  receiptDate: date("receipt_date"),
+  reference: text("reference").notNull().default(""),
+  note: text("note").notNull().default(""),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("receipts_section_idx").on(t.section),
+  index("receipts_created_idx").on(t.createdAt),
+  check("receipts_size_positive", sql`${t.sizeBytes} >= 0`),
+]);

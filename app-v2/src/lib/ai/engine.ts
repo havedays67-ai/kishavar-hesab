@@ -35,6 +35,7 @@ import {
   type KnowledgeEntry,
   type KnowledgeSource,
 } from "./knowledge";
+import { matchAuthorityQuestion } from "../document-validity";
 
 export interface AssistantContext {
   ledger: LedgerState;
@@ -437,6 +438,27 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
       },
     };
     return withFast(reply, fastUnderstand(raw));
+  }
+
+  // ۰.۵) اعتبار اسناد: پاسخ قطعی از جدول تحلیل‌شدهٔ حقوقی (قانون مدنی، صیاد،
+  // مؤدیان، ثبت رسمی معاملات). هیچ حدسی در این دسته تولید نمی‌شود.
+  if (!isDataQuestion(text)) {
+    const authority = matchAuthorityQuestion(raw);
+    if (authority) {
+      const authorityReply: AssistantReply = {
+        text: authority.text,
+        meta: {
+          confidence: authority.confidence,
+          category: "حقوقی",
+          sources: authority.sources.map((source) => ({ label: source.label, note: source.note })),
+          followUps: authority.followUps,
+          matchedId: `authority-${authority.kind}`,
+          kind: "knowledge",
+          highStakes: true,
+        },
+      };
+      return withFast(authorityReply, fastUnderstand(raw));
+    }
   }
 
   // ۱) سؤال عددی/مالی: اول دفتر واقعی، مگر اینکه سؤال صریحاً حقوقی باشد.

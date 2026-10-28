@@ -11,6 +11,39 @@
 
 ---
 
+## 📥 دانلود APK — نسخه ۱ (آخرین ساخت)
+
+**[دانلود مستقیم APK (اندروید ۸+، نسخه ۱.۰.۰)](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)**
+
+- تگ پایدار `apk-v1` با هر push به `main` بازسازی و جایگزین می‌شود؛ همین لینک همیشه آخرین فایل را می‌دهد.
+- نسخهٔ آزمایشی: [`dev-latest`](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
+- نسخهٔ رسمی همچنان **۱.۰.۰** است (چون هنوز منتشر نشده، شماره تغییر نکرد).
+- APK با کلید ثابت مخزن امضا می‌شود؛ نصب روی نسخهٔ قبلی بدون حذف داده‌ها انجام می‌شود.
+
+## ⚖️ اعتبار اسناد + 📎 آپلود رسید در همهٔ بخش‌ها
+
+- 🧭 **صفحهٔ «اعتبار اسناد»:** هر ۱۷ سند برنامه سطح اعتبار دارد (۱ تا ۴): سند عادی بین طرفین،
+  مدرک حمایتی/قرینه، یادداشت داخلی، و «بدون اعتبار حقوقی». هر سند «چه چیزی را ثابت می‌کند / ثابت
+  نمی‌کند»، «شرایط لازم» و «مبنای حقوقی» دارد؛ با لینک منابع (قانون مدنی، صیاد، مؤدیان، ثبت معاملات).
+- 🏷️ **برچسب اعتبار روی هر سند:** در مرکز اسناد، هر کارت نشان «سطح X» دارد تا کاربر گزارش داخلی را
+  با سند رسمی اشتباه نگیرد.
+- 📝 **اسناد کم‌اعتبار حذف نشدند:** گزارش دفتر مالی، معاملات، بهای تمام‌شده، انبار و فرم چک با
+  توضیح روشن به‌عنوان «یادداشت» می‌مانند؛ حذف یا مخفی نشده‌اند.
+- 📎 **آپلود رسید در هر بخش:** دکمهٔ شناور «آپلود رسید» در همهٔ صفحه‌ها + صفحهٔ **«رسید و فیش»**.
+  عکس یا PDF، فشرده‌سازی خودکار عکس، عنوان/مبلغ/شمارهٔ پیگیری/توضیح، فهرست، دانلود و حذف.
+  رسید آفلاین در حافظهٔ دستگاه می‌ماند و در بکاپ قرار می‌گیرد.
+- 🧠 **کشاورزیار دقیق‌تر:** پرسش‌های «اعتبار سند/چک/رسید/قبض باسکول/اجاره» دیگر با حدس پاسخ داده
+  نمی‌شوند؛ پاسخ قطعی با مبنای حقوقی، شرایط لازم و منابع از جدول تحلیل‌شده ساخته می‌شود و
+  پرسش‌های غیرحقوقی به این لایه سپرده نمی‌شوند (تست جداگانه دارد).
+- 🧪 **آزمون تازه:** `tests/document-validity.test.ts` — ۸ تست دربارهٔ کامل بودن جدول، سطح ۴ فرم چک،
+  سطح ۳ گزارش‌های داخلی، محدودیت رسید پرداخت و اینکه پرسش‌های غیرحقوقی پاسخ حقوقی نگیرند.
+- 📚 جزئیات و منابع: [`docs/DOCUMENT-VALIDITY-AND-RECEIPTS.md`](docs/DOCUMENT-VALIDITY-AND-RECEIPTS.md)
+- 🐞 **رفع نقص‌ها:** نبود نشان اعتبار روی اسناد، نمایش فرم چک بدون هشدار، نبود محل نگهداری رسید،
+  و پاسخ تخمینی هوش به پرسش‌های حقوقی.
+
+
+---
+
 ## 🧾 نقش «سایر»، فروش ساده و ۶ باگ جدید (نسخه ۱.۰.۰)
 
 - 👤 **نقش دلخواه در اولین ورود:** گزینهٔ **«سایر»** در «نقش شما» یک کادر نوشتن
@@ -33,7 +66,7 @@
   «قیمت مؤثر هر کیلو» پیش‌پرداخت را از مبلغ کم می‌کرد · اعشار وزن با نقطهٔ لاتین
   نوشته می‌شد.
 - 📊 جزئیات: [`docs/QUICK-SALE-AND-ROLE.md`](docs/QUICK-SALE-AND-ROLE.md)
-- ⬇️ **دانلود APK:** [نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk) ·
+- ⬇️ **دانلود APK:** [نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk) ·
   [dev-latest](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
 
 > نسخه همچنان **۱.۰.۰** است؛ «معامله محصول» دست‌نخورده باقی مانده و فروش ساده
@@ -56,7 +89,7 @@
 - 📚 **۵۵ پرسش/پاسخ نشان‌دار** (تازه: فروش ساده، تفاوت با معامله، تن/کیلو، قیمت هر تن، نقش سفارشی).
 - 🐞 **۷ باگ تازه رفع شد:** گم‌شدن کسر وزن در حروف، سرریز مبلغ، ناهمگونی ارقام و…
 - 📊 جزئیات: [`docs/QUICK-SALE-AND-ROLE.md`](docs/QUICK-SALE-AND-ROLE.md)
-- ⬇️ **دانلود APK:** [نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk) ·
+- ⬇️ **دانلود APK:** [نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk) ·
   [dev-latest](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
 
 ---
@@ -82,7 +115,7 @@
 - 🐞 **۹ باگ واقعی پیدا و رفع شد:** از جمله خطای ۵٬۰۰۰ برابری مبلغ با کامای هزارگان،
   ناکارآمدی مرز واژهٔ فارسی، گرد کردن نامتقارن اعداد منفی، و خطای ۵۰۰ سریال‌سازی BigInt.
 - 📊 گزارش کامل: [`docs/MATH-ENGINE-AND-BUGS.md`](docs/MATH-ENGINE-AND-BUGS.md)
-- ⬇️ **دانلود APK:** [نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk) ·
+- ⬇️ **دانلود APK:** [نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk) ·
   [dev-latest](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
 
 > نسخه همچنان **۱.۰.۰** است؛ ظاهر تغییر نکرده و ادعای «۲۰ برابر» نداریم —
@@ -116,7 +149,7 @@
   است و ادعای «۲۰ برابر شدن هوش» نمی‌کنیم.
 - 📊 جزئیات کامل: [`docs/CPU-BRAIN-AND-TRAINING.md`](docs/CPU-BRAIN-AND-TRAINING.md) ·
   [`docs/FAST-LAYER.md`](docs/FAST-LAYER.md) · [`docs/FAST-LAYER-BENCH.md`](docs/FAST-LAYER-BENCH.md)
-- ⬇️ **دانلود APK:** [نسخه ۱ (لینک پایدار)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk) ·
+- ⬇️ **دانلود APK:** [نسخه ۱ (لینک پایدار)](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk) ·
   [ساخت خودکار dev-latest](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
 
 > نسخه همچنان **۱.۰.۰** است؛ ظاهر برنامه بازنویسی نشده و تغییرها در لایهٔ فهم،
@@ -147,7 +180,7 @@
   ایندکس‌ها (hash/binary/bloom/Map/FST-proxy) + سنجه‌های bloom در `eval_report.json`.
 - 📊 گزارش کامل: [`docs/FAST-LAYER.md`](docs/FAST-LAYER.md) ·
   اعداد اندازه‌گیری‌شده: [`docs/FAST-LAYER-BENCH.md`](docs/FAST-LAYER-BENCH.md)
-- ⬇️ **دانلود APK:** [نسخه ۱ (link پایدار)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk) ·
+- ⬇️ **دانلود APK:** [نسخه ۱ (link پایدار)](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk) ·
   [ساخت خودکار توسعه (dev-latest)](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
 
 > صداقت: مجموعهٔ آزمون ترکیبی و دیده‌نشده است، نه گفتار واقعی کاربران؛ مدل کوچک
@@ -180,7 +213,7 @@
   ثبت گفتگو و **یادگیری از بازخورد «مفید بود/نبود»** (افزایش وزن دانش).
   پرسش‌های مالی همیشه از دادهٔ واقعی مزرعه پاسخ داده می‌شوند.
 - 🔗 **دانلود رسمی APK (نسخه ۱):**
-  [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk)
+  [KishavarHesab-1.0.0.apk](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)
 
 ## 🌾 تازه: «معامله و تسویه محصول» + پنج سند رسمی قابل چاپ (نسخه ۱.۰.۰)
 
@@ -235,13 +268,13 @@
 - **کنترل کم‌وکسری اسناد:** پیش از چاپ/امضا، درصد کامل‌بودن سند و فهرست فیلدهای الزامی ناقص نشان داده می‌شود.
 - **کشاورزیار (دستیار هوشمند محلی):** دانشنامهٔ حقوقی/مالی/کشاورزی با منابع، درصد اطمینان، پاسخ‌های عددی از دفتر
   واقعی، پیشنهاد پرسش و حافظهٔ گفتگو روی دستگاه. داده‌ای به اینترنت ارسال نمی‌شود.
-- **لینک دانلود:** [دانلود رسمی APK نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk)
+- **لینک دانلود:** [دانلود رسمی APK نسخه ۱](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)
 
 ## 📥 دانلود اپلیکیشن اندروید (APK)
 
 > **نسخه ثابت ۱.۰.۰ · اندروید ۸ و بالاتر · آخرین بازسازی: پس از هر push به main توسط GitHub Actions**
 >
-> ### [⬇️ تنها لینک دانلود رسمی APK](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk)
+> ### [⬇️ تنها لینک دانلود رسمی APK](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)
 >
 > همین یک لینک، همیشه تازه‌ترین فایل ساخته‌شده را از Release با تگ `apk-v1` می‌دهد. این لینک اکنون به بسته ساخته‌شده از
 > تگ انتشار ثابت `apk-v1` است؛ با هر push روی `main` فایل همان تگ بازسازی می‌شود و شماره نسخه `1.0.0` می‌ماند.

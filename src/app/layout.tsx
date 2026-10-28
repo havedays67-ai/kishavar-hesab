@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
+import { ReceiptQuickAction } from "@/components/Receipts";
 import { ensureSeeded } from "@/lib/seed";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body className="min-h-dvh antialiased">
         <AppShell>{children}</AppShell>
+        <ReceiptQuickAction />
       </body>
     </html>
   );
