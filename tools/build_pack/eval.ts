@@ -12,6 +12,7 @@ import { buildRetriever, type RetrievalDoc } from "../../app-v2/src/lib/nlu/retr
 import { fastLayerMetrics, routeFast, type RouteOptions, type RouteResult } from "../../app-v2/src/lib/nlu/router";
 import { validateModelOutput } from "../../app-v2/src/lib/nlu/model";
 import { runRules } from "../../app-v2/src/lib/nlu/rules";
+import { hashKey, sentenceKey } from "../../app-v2/src/lib/nlu/normalizer";
 import { KNOWLEDGE } from "../../app-v2/src/lib/ai/knowledge";
 import type { CorpusRow } from "./lib";
 
@@ -177,6 +178,37 @@ function main(): void {
       reason: "هیچ وزن مدلی در مخزن/APK نیست؛ Router بدون مدل کار می‌کند و در ناشناخته‌ها سؤال شفاف می‌پرسد.",
       modelOnlyBaseline: "not-measured",
     },
+    bloom: (() => {
+      const probes = 2000;
+      let seed = 987654321;
+      let tested = 0;
+      let falsePositives = 0;
+      // نرخ false-positive واقعی: کلیدهای تصادفی که در بسته نیستند
+      while (tested < probes) {
+        seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+        if (pack.lookupByHash(seed) !== null) continue;
+        tested += 1;
+        if (pack.bloom?.contains(seed)) falsePositives += 1;
+      }
+      const manifestBloom = pack.manifest;
+      // زمان «بررسی bloom با هش آماده» جدا از هزینهٔ نرمال‌سازی سنجیده می‌شود
+      const codePoints = hard.map((row) => hashKey(sentenceKey(row.text)));
+      let bloomRejects = 0;
+      const started = performance.now();
+      for (const hash of codePoints) if (!pack.mightContainHash(hash)) bloomRejects += 1;
+      const probeMs = Number(((performance.now() - started) / Math.max(1, hard.length)).toFixed(5));
+      return {
+        enabled: manifestBloom.bloomBytes > 0,
+        bloomBytes: manifestBloom.bloomBytes,
+        bitsPerKey: manifestBloom.bloomBitsPerKey,
+        hashCount: manifestBloom.bloomHashCount,
+        estimatedFalsePositiveRate: manifestBloom.estimatedFalsePositiveRate,
+        measuredFalsePositiveRate: manifestBloom.bloomBytes ? Number((falsePositives / tested).toFixed(6)) : null,
+        rejectsInHardEval: bloomRejects,
+        avgProbeMs: probeMs,
+        storesTextOrMoney: false,
+      };
+    })(),
     metrics: {
       total: metrics.total,
       avgMs: metrics.avgMs,
@@ -187,6 +219,7 @@ function main(): void {
       batteryEstimateMah: metrics.batteryEstimateMah,
       packBytes: metrics.packBytes,
       modelCalls: metrics.modelCalls,
+      bloomRejects: metrics.bloomRejects,
     },
     targets: {
       intentAccuracyTarget: 98,

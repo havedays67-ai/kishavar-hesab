@@ -52,6 +52,8 @@ export interface LayerCounters {
 export interface MetricsSnapshot {
   total: number;
   counters: LayerCounters;
+  /** جمله‌هایی که bloom با اطمینان گفت «در بسته نیست» و جستجوی دودویی انجام نشد */
+  bloomRejects: number;
   hitRate: LayerCounters & { fast: number };
   avgMs: number;
   p50Ms: number;
@@ -69,13 +71,15 @@ class FastLayerMetrics {
   private samples: number[] = [];
   private modelCalls = 0;
   private packBytes = 0;
+  private bloomRejects = 0;
 
-  record(layer: FastLayer, latencyMs: number, extra?: { modelCall?: boolean; packBytes?: number }): void {
+  record(layer: FastLayer, latencyMs: number, extra?: { modelCall?: boolean; packBytes?: number; bloomReject?: boolean }): void {
     this.counters[layer] += 1;
     this.samples.push(latencyMs);
     if (this.samples.length > MAX_SAMPLES) this.samples.shift();
     if (extra?.modelCall) this.modelCalls += 1;
     if (extra?.packBytes) this.packBytes = extra.packBytes;
+    if (extra?.bloomReject) this.bloomRejects += 1;
   }
 
   snapshot(): MetricsSnapshot {
@@ -87,6 +91,7 @@ class FastLayerMetrics {
     const ratio = (value: number) => (total ? Number(((value / total) * 100).toFixed(1)) : 0);
     return {
       total,
+      bloomRejects: this.bloomRejects,
       counters: { ...this.counters },
       hitRate: { ...this.counters, fast: ratio(fast) } as MetricsSnapshot["hitRate"],
       avgMs: Number(avgMs.toFixed(2)),
@@ -155,10 +160,15 @@ export function clarifyingFor(intent: NluIntent): string {
 /** مسیر همگام (بدون مدل) — برای رابط فعلی برنامه. */
 export function routeFast(raw: string, options: RouteOptions): RouteResult {
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const { text, key } = normalizeAndKey(raw);
+  const { text, key, hash } = normalizeAndKey(raw);
+  // bloom فقط زمانی معنا دارد که بسته در اختیار باشد؛ نتیجه‌اش «قطعاً نیست» است
+  // و در شمارنده‌ها ثبت می‌شود تا نرخ رد سریع قابل سنجش باشد.
+  const bloomReject = Boolean(
+    options.usePack !== false && options.pack && !options.pack.mightContainHash(hash),
+  );
   const finish = (layer: FastLayer, result: Omit<RouteResult, "layer" | "latencyMs" | "normalized">): RouteResult => {
     const latencyMs = Number(((typeof performance !== "undefined" ? performance.now() : Date.now()) - started).toFixed(3));
-    fastLayerMetrics.record(layer, latencyMs, { packBytes: options.pack?.manifest.bytes });
+    fastLayerMetrics.record(layer, latencyMs, { packBytes: options.pack?.manifest.bytes, bloomReject: bloomReject && layer !== "pack" });
     return { ...result, layer, latencyMs, normalized: text };
   };
 
@@ -186,7 +196,8 @@ export function routeFast(raw: string, options: RouteOptions): RouteResult {
 
   // ۳-ب) بستهٔ پاسخ
   if (options.usePack !== false && options.pack) {
-    const hit = options.pack.lookup(text);
+    // هش از قبل محاسبه شده؛ لوکاپ دوباره نرمال‌سازی نمی‌کند
+    const hit = options.pack.lookupByHash(hash);
     if (hit) {
       return finish("pack", { intent: hit.intent, slots: hit.slots, confidence: 0.78, matched: "pack" });
     }

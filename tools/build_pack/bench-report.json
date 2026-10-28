@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-28T05:06:47.361Z",
+  "generatedAt": "2026-10-28T05:53:11.828Z",
   "corpus": {
-    "rows": 1551,
-    "uniqueKeys": 1551,
-    "dataset": 35,
-    "synthetic": 1516
+    "rows": 1610,
+    "uniqueKeys": 1610,
+    "dataset": 122,
+    "synthetic": 1488
   },
   "hardEval": {
     "rows": 240
@@ -12,46 +12,46 @@
   "embeddedPack": {
     "format": 1,
     "version": "1.0.0",
-    "count": 6035,
-    "bytes": 276962,
-    "checksum": "3e5ce168",
+    "count": 6122,
+    "bytes": 286951,
+    "checksum": "952f3bc1",
     "builtFrom": "corpus.jsonl (dataset + synthetic)",
-    "syntheticShare": 0.977,
+    "syntheticShare": 0.924,
     "keysAreMasked": true,
     "storesMoney": false
   },
   "sizes": [
     {
       "targetMb": 0.25,
-      "actualMb": 0.46,
+      "actualMb": 0.47,
       "entries": 10485,
       "packHitRate": 0,
-      "fullHitRate": 98.3,
-      "rulesOnlyHitRate": 98.3
+      "fullHitRate": 99.6,
+      "rulesOnlyHitRate": 99.6
     },
     {
       "targetMb": 1,
-      "actualMb": 1.83,
+      "actualMb": 1.88,
       "entries": 41943,
       "packHitRate": 0,
-      "fullHitRate": 98.3,
-      "rulesOnlyHitRate": 98.3
+      "fullHitRate": 99.6,
+      "rulesOnlyHitRate": 99.6
     },
     {
       "targetMb": 5,
-      "actualMb": 9.16,
+      "actualMb": 9.41,
       "entries": 209715,
       "packHitRate": 0,
-      "fullHitRate": 98.3,
-      "rulesOnlyHitRate": 98.3
+      "fullHitRate": 99.6,
+      "rulesOnlyHitRate": 99.6
     },
     {
       "targetMb": 20,
-      "actualMb": 18.34,
+      "actualMb": 18.85,
       "entries": 420000,
       "packHitRate": 0,
-      "fullHitRate": 98.3,
-      "rulesOnlyHitRate": 98.3
+      "fullHitRate": 99.6,
+      "rulesOnlyHitRate": 99.6
     }
   ],
   "conclusion": "نرخ Hit بسته عمدتاً به «تنوع phrasing» وابسته است، نه حجم فایل؛ افزودن رکوردهای بیشتر از خانواده‌های تکراری، حجم را بالا می‌برد ولی Hit را تقریباً ثابت نگه می‌دارد."

@@ -13,11 +13,21 @@
  * JSON.parse و هیچ ساخت آبجکت سنگینی در مسیر داغ اجرا نمی‌شود.
  */
 import { hashKey, sentenceKey } from "./normalizer";
+import {
+  BLOOM_BITS_PER_KEY,
+  BLOOM_HASH_COUNT,
+  bloomFromBits,
+  buildBloom,
+  type BloomFilter,
+} from "./bloom";
 import type { NluIntent, NluSlots } from "./rules";
 
 export const PACK_MAGIC = "KHPK";
-export const PACK_FORMAT = 1;
+/** v2: bloom filter تعبیه‌شده پیش از رکوردها (رد سریع جمله‌های ناشناخته) */
+export const PACK_FORMAT = 2;
+export const PACK_FORMAT_V1 = 1;
 export const MAX_SLOT_VALUE_LENGTH = 48;
+export const MAX_VALUE_BYTES = 255;
 
 export interface PackEntry {
   intent: NluIntent;
@@ -32,6 +42,12 @@ export interface PackManifest {
   checksum: string;
   builtFrom: string;
   syntheticShare: number;
+  /** بایت‌های bloom داخل فایل (۰ = بدون bloom، فرمت v1) */
+  bloomBytes: number;
+  bloomBitsPerKey: number;
+  bloomHashCount: number;
+  /** تخمین نظری نرخ مثبت کاذب bloom (فرمول، نه اندازه‌گیری) */
+  estimatedFalsePositiveRate: number;
 }
 
 export interface PackHit extends PackEntry {
@@ -69,7 +85,18 @@ export interface PackBuildItem extends PackEntry {
 }
 
 /** کدگذاری رکوردها؛ کلیدهای تکراری حذف می‌شوند (اولویت: وزن بالاتر). */
-export function encodePack(items: PackBuildItem[], _meta: { version: string; builtFrom: string; syntheticShare: number; checksum?: string }): Uint8Array {
+export interface PackEncodeOptions {
+  bloomBitsPerKey?: number;
+  bloomHashCount?: number;
+}
+
+export function encodePack(
+  items: PackBuildItem[],
+  _meta: { version: string; builtFrom: string; syntheticShare: number; checksum?: string },
+  options: PackEncodeOptions = {},
+): Uint8Array {
+  const bitsPerKey = Math.max(1, options.bloomBitsPerKey ?? BLOOM_BITS_PER_KEY);
+  const hashCount = Math.max(1, options.bloomHashCount ?? BLOOM_HASH_COUNT);
   const byHash = new Map<number, { value: string; weight: number }>();
   for (const item of items) {
     const value = encodeValue(item);
@@ -82,11 +109,16 @@ export function encodePack(items: PackBuildItem[], _meta: { version: string; bui
   }
   const entries = [...byHash.entries()].sort((a, b) => a[0] - b[0]);
   const encoder = new TextEncoder();
-  const values = entries.map((entry) => encoder.encode(entry[1].value));
+  const values = entries.map((entry) => {
+    const encoded = encoder.encode(entry[1].value);
+    return encoded.length > MAX_VALUE_BYTES ? encoded.subarray(0, MAX_VALUE_BYTES) : encoded;
+  });
   const blobLength = values.reduce((sum, value) => sum + value.length, 0);
-  const headerSize = 4 + 2 + 4 + 4;
-  const recordSize = 4 + 4 + 1;
-  const total = headerSize + entries.length * recordSize + blobLength;
+  const bloom = buildBloom(entries.map(([hash]) => hash), bitsPerKey, hashCount);
+  const bloomBytes = bloom.bits.byteLength;
+  const headerSize = 19;
+  const recordSize = 9;
+  const total = headerSize + bloomBytes + entries.length * recordSize + blobLength;
   const buffer = new ArrayBuffer(total);
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -94,14 +126,17 @@ export function encodePack(items: PackBuildItem[], _meta: { version: string; bui
   view.setUint16(4, PACK_FORMAT, true);
   view.setUint32(6, entries.length, true);
   view.setUint32(10, blobLength, true);
+  view.setUint32(14, bloomBytes, true);
+  view.setUint8(18, bloom.hashCount);
+  bytes.set(bloom.bits, headerSize);
   let blobOffset = 0;
-  const blobStart = headerSize + entries.length * recordSize;
+  const blobStart = headerSize + bloomBytes + entries.length * recordSize;
   entries.forEach(([hash], index) => {
     const valueBytes = values[index];
-    const recordStart = headerSize + index * recordSize;
+    const recordStart = headerSize + bloomBytes + index * recordSize;
     view.setUint32(recordStart, hash, true);
     view.setUint32(recordStart + 4, blobStart + blobOffset, true);
-    view.setUint8(recordStart + 8, Math.min(255, valueBytes.length));
+    view.setUint8(recordStart + 8, Math.min(MAX_VALUE_BYTES, valueBytes.length));
     bytes.set(valueBytes, blobStart + blobOffset);
     blobOffset += valueBytes.length;
   });
@@ -120,6 +155,12 @@ export function checksumOf(bytes: Uint8Array): string {
 
 export interface PackIndex {
   manifest: PackManifest;
+  /** bloom تعبیه‌شده؛ null برای بسته‌های v1 */
+  bloom: BloomFilter | null;
+  /** «قطعاً نیست» → بدون جستجوی دودویی؛ هیچ‌وقت false-negative ندارد */
+  mightContain(text: string): boolean;
+  /** همان بررسی با هش آماده (بدون نرمال‌سازی دوبارهٔ متن) */
+  mightContainHash(hash: number): boolean;
   lookup(text: string): PackHit | null;
   lookupByHash(hash: number): PackHit | null;
   /** فقط برای تست/آمار: همهٔ مقادیر ذخیره‌شده (بدون کلید) */
@@ -133,16 +174,29 @@ export function openPack(source: ArrayBuffer | Uint8Array, manifest?: Partial<Pa
   const magic = decoder.decode(bytes.subarray(0, 4));
   if (magic !== PACK_MAGIC) throw new Error("بستهٔ پاسخ معتبر نیست (magic)");
   const format = view.getUint16(4, true);
-  if (format !== PACK_FORMAT) throw new Error(`نسخهٔ بسته پشتیبانی نمی‌شود: ${format}`);
+  if (format !== PACK_FORMAT && format !== PACK_FORMAT_V1) throw new Error(`نسخهٔ بسته پشتیبانی نمی‌شود: ${format}`);
   const count = view.getUint32(6, true);
-  const headerSize = 14;
   const recordSize = 9;
+  const headerSize = format === PACK_FORMAT ? 19 : 14;
+  const bloomBytes = format === PACK_FORMAT ? view.getUint32(14, true) : 0;
+  const bloomHashCount = format === PACK_FORMAT ? view.getUint8(18) : 0;
+  const bloom =
+    bloomBytes > 0
+      ? bloomFromBits(
+          bytes.subarray(headerSize, headerSize + bloomBytes),
+          bloomBytes * 8,
+          bloomHashCount || BLOOM_HASH_COUNT,
+          count,
+        )
+      : null;
+  const recordStart = headerSize + bloomBytes;
   const lookupByHash = (hash: number): PackHit | null => {
+    if (bloom && !bloom.contains(hash)) return null;
     let low = 0;
     let high = count - 1;
     while (low <= high) {
       const mid = (low + high) >> 1;
-      const start = headerSize + mid * recordSize;
+      const start = recordStart + mid * recordSize;
       const current = view.getUint32(start, true);
       if (current === hash) {
         const offset = view.getUint32(start + 4, true);
@@ -156,7 +210,8 @@ export function openPack(source: ArrayBuffer | Uint8Array, manifest?: Partial<Pa
     }
     return null;
   };
-  const lookup = (text: string): PackHit | null => lookupByHash(packKey(text));
+  const hashOf = (text: string): number => packKey(text);
+  const lookup = (text: string): PackHit | null => lookupByHash(hashOf(text));
   return {
     manifest: {
       format,
@@ -166,13 +221,20 @@ export function openPack(source: ArrayBuffer | Uint8Array, manifest?: Partial<Pa
       checksum: manifest?.checksum ?? checksumOf(bytes),
       builtFrom: manifest?.builtFrom ?? "unknown",
       syntheticShare: manifest?.syntheticShare ?? 0,
+      bloomBytes,
+      bloomBitsPerKey: bloomBytes && count ? Number(((bloomBytes * 8) / count).toFixed(2)) : 0,
+      bloomHashCount: bloom ? bloom.hashCount : 0,
+      estimatedFalsePositiveRate: bloom ? bloom.estimatedFalsePositiveRate : 0,
     },
+    bloom,
+    mightContain: (text: string) => (bloom ? bloom.contains(hashOf(text)) : true),
+    mightContainHash: (hash: number) => (bloom ? bloom.contains(hash) : true),
     lookup,
     lookupByHash,
     values: () => {
       const out: string[] = [];
       for (let index = 0; index < count; index += 1) {
-        const start = headerSize + index * recordSize;
+        const start = recordStart + index * recordSize;
         const offset = view.getUint32(start + 4, true);
         const length = view.getUint8(start + 8);
         out.push(decoder.decode(bytes.subarray(offset, offset + length)));

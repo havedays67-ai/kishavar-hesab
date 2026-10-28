@@ -95,13 +95,13 @@ const RULES: Rule[] = [
   {
     intent: "add_expense",
     groups: [["خریدم", "خرید کردم", "پرداخت کردم", "پرداخت شد", "دادم", "خرج", "هزینه", "هزینه کردم", "گرفتم برام", "فاکتور خرید", "واریز کردم", "پولشو دادم", "پول دادم", "یدکی", "گرفتم براش", "قطعه", "تعمیر"]],
-    block: ["فروختم", "درآمد", "دور آب", "دور آبی", "نوبت آب", "آبی که", "برگشت"],
+    block: ["فروختم", "درآمد", "دور آب", "دور آبی", "نوبت آب", "آبی که", "برگشت", "برگشتن", "بهم برگشت", "پس داد"],
     score: 2.6,
     matched: "expense-verb",
   },
   {
     intent: "add_income",
-    groups: [["فروختم", "فروش", "درآمد", "دریافت کردم", "دریافت شد", "گرفتم از", "واریز شد", "پول فروش", "گیرم اومد", "به دستم رسید"]],
+    groups: [["فروختم", "فروش", "درآمد", "دریافت کردم", "دریافت شد", "گرفتم از", "واریز شد", "پول فروش", "گیرم اومد", "به دستم رسید", "بهم برگشت", "برگشت", "پس داد", "عودت", "برگشتن"]],
     block: ["خریدم", "خرید کردم", "هزینه"],
     score: 2.6,
     matched: "income-verb",
@@ -115,7 +115,9 @@ const RULES: Rule[] = [
   },
   {
     intent: "purchase_input",
-    groups: [["خرید", "خریدم", "تهیه کردم", "کیسه"], ["کود", "سم", "بذر", "نهاده", "سوخت", "کیسه", "ادوات", "قارچ کش", "علف کش"]],
+    groups: [["خرید", "خریدم", "خریداری", "تهیه کردم", "گرفتم"], ["کود", "سم", "بذر", "نهاده", "سوخت", "کیسه", "ادوات", "قارچ کش", "علف کش"]],
+    // اگر پرداخت صریح ذکر شده، intent درست «هزینه» است نه «خرید نهاده»
+    block: ["پولشو", "نقد دادم", "پول دادم", "واریز کردم"],
     score: 3.2,
     matched: "purchase-input",
   },
@@ -134,7 +136,7 @@ const RULES: Rule[] = [
   {
     intent: "fertilizer_pesticide",
     groups: [["کود", "سم", "قارچ کش", "علف کش", "کوددهی", "سمپاشی", "اوره", "سولفات"]],
-    block: ["قرارداد"],
+    block: ["قرارداد", "خریدم", "خرید", "پولشو", "نقد دادم", "فاکتور", "واریز کردم", "پول دادم", "از انبار", "خروج انبار"],
     score: 2.9,
     matched: "fertilizer",
   },
@@ -165,7 +167,7 @@ const RULES: Rule[] = [
   {
     intent: "inventory_out",
     groups: [["از انبار", "انبار"], ["کم کن", "خروج", "مصرف", "کم شد", "برداشتم", "ببر"]],
-    score: 2.9,
+    score: 3.05,
     matched: "inventory-out",
   },
   {
@@ -253,7 +255,9 @@ function matcher(text: string): (word: string) => boolean {
     const normalized = normalizePersian(word);
     if (!normalized) return false;
     if (normalized.includes(" ")) return text.includes(normalized);
-    return tokens.some((token) => token === normalized || (normalized.length >= 4 && token.startsWith(normalized)));
+    // تطبیق واژه‌ای با پسوندهای صرفی رایج («چکهایی»، «سررسیدن»):
+    // فقط از ابتدای توکن و برای واژه‌های ۳ حرف و بیشتر؛ «سم» در «بنویسم» پیدا نمی‌شود.
+    return tokens.some((token) => token === normalized || (normalized.length >= 3 && token.startsWith(normalized)));
   };
 }
 
@@ -295,11 +299,10 @@ export function detectSlots(raw: string, intent: NluIntent): NluSlots {
     const unit = detectUnit(raw);
     if (unit) slots.unit = unit;
   }
+  // فقط نقش/جهتی که صریحاً از intent برمی‌آید و در قرارداد داده انتظار می‌رود.
+  // اسلات‌های حدسی حذف شدند تا هشدارهای اشتباه ساخته نشود (دقت اسلات).
   if (intent === "sale_crop") slots.role = "seller";
-  if (intent === "purchase_input") slots.role = "buyer";
   if (intent === "wage_payment") slots.role = "worker";
-  if (["add_expense", "purchase_input", "wage_payment", "fertilizer_pesticide", "inventory_out"].includes(intent)) slots.direction = "out";
-  if (["add_income", "sale_crop"].includes(intent)) slots.direction = "in";
   if (intent === "cheque_paid") slots.direction = "out";
   if (intent === "cheque_received") slots.direction = "in";
   for (const key of Object.keys(slots) as (keyof NluSlots)[]) if (!slots[key]) delete slots[key];

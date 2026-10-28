@@ -7,6 +7,7 @@ import { checksumOf, decodeValue, encodePack, openPack } from "../app-v2/src/lib
 import { LearnedCache } from "../app-v2/src/lib/nlu/learned-cache";
 import { buildRetriever, type RetrievalDoc } from "../app-v2/src/lib/nlu/retriever";
 import { routeFast, fastLayerMetrics, needsDeterministicAnswer } from "../app-v2/src/lib/nlu/router";
+import { buildBloom, bloomSecondHash, estimatedBloomFpr } from "../app-v2/src/lib/nlu/bloom";
 import { __resetModelForTests, validateModelOutput } from "../app-v2/src/lib/nlu/model";
 
 describe("Normalizer", () => {
@@ -175,5 +176,67 @@ describe("Router", () => {
     expect(snapshot).toHaveProperty("modelCalls");
     expect(snapshot.peakRamBytes).toBeGreaterThan(0);
     expect(snapshot.batteryEstimateMah).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("Bloom prefilter (رد سریع پیش از بسته)", () => {
+  it("هیچ false-negative ندارد: همهٔ کلیدهای داخل بسته پیدا می‌شوند", () => {
+    const texts = Array.from({ length: 500 }, (_, index) => `گندم ${index} کیلو خریدم برای زمین`);
+    const bloom = buildBloom(texts.map((text) => sentenceKey(text).length * 2654435761 + text.length));
+    for (const text of texts) {
+      const hash = sentenceKey(text).length * 2654435761 + text.length;
+      expect(bloom.contains(hash >>> 0)).toBe(true);
+    }
+    const bytes = encodePack(texts.map((text) => ({ text, intent: "add_expense" as const, slots: { crop: "گندم" } })), { version: "t", builtFrom: "t", syntheticShare: 1 });
+    const pack = openPack(bytes);
+    expect(pack.manifest.format).toBe(2);
+    expect(pack.manifest.bloomBytes).toBeGreaterThan(0);
+    for (const text of texts) expect(pack.lookup(text)?.intent).toBe("add_expense");
+  });
+
+  it("جملهٔ ناشناخته را قبل از جستجوی دودویی رد می‌کند و نرخ خطای تخمینی کوچک است", () => {
+    const known = Array.from({ length: 400 }, (_, index) => `هزینه بذر شماره ${index} پرداخت شد`);
+    const bytes = encodePack(known.map((text) => ({ text, intent: "add_expense" as const, slots: { category: "بذر" } })), { version: "t", builtFrom: "t", syntheticShare: 1 });
+    const pack = openPack(bytes);
+    expect(pack.bloom).not.toBeNull();
+    expect(pack.manifest.estimatedFalsePositiveRate).toBeLessThan(0.05);
+    expect(pack.mightContain("هوا فردا چطوره")).toBe(false);
+    expect(pack.lookup("هوا فردا چطوره")).toBeNull();
+    expect(estimatedBloomFpr(1000, 10000, 7)).toBeGreaterThan(0);
+    expect(bloomSecondHash(42)).not.toBe(bloomSecondHash(43));
+  });
+
+  it("بستهٔ قدیمی v1 بدون bloom هم خوانده می‌شود (سازگاری عقب‌رو)", () => {
+    const bytes = encodePack([{ text: "چک گرفتم از مهدی", intent: "cheque_received", slots: { docType: "cheque" } }], { version: "t", builtFrom: "t", syntheticShare: 1 });
+    const pack = openPack(bytes);
+    expect(pack.mightContain("چک گرفتم از مهدی")).toBe(true);
+    expect(pack.lookup("چک گرفتم از مهدی")?.intent).toBe("cheque_received");
+  });
+});
+
+describe("Rule engine — رگرسیون باگ‌های واقعی ارزیابی", () => {
+  it("برگشت پول هزینه = درآمد، نه هزینه", () => {
+    const result = runRules("پول اجاره تراکتور رو که دادم بهم برگشت");
+    expect(result?.intent).toBe("add_income");
+  });
+
+  it("خرید کود با پرداخت نقدی = هزینه", () => {
+    expect(runRules("کود اوره گرفتم واس گوجه، پولشو نقد دادم")?.intent).toBe("add_expense");
+  });
+
+  it("چک‌هایی که نزدیک سررسیدن‌اند = گزارش چک (پسوند صرفی)", () => {
+    expect(runRules("چک‌هایی که نزدیک سررسیدن کدوما هستن")?.intent).toBe("report_cheques");
+  });
+
+  it("بردن کیسه کود از انبار = خروج انبار، نه خرید", () => {
+    const result = runRules("از انبار کیسه‌های کود رو برای زمین بالا ببر واسم بنویس");
+    expect(result?.intent).toBe("inventory_out");
+    expect(result?.slots.category).toBe("کود");
+  });
+
+  it("اسلات حدسی (نقش/جهت) برای هزینه تولید نمی‌شود", () => {
+    const slots = runRules("۲۵۰ میلیون تومان کود برای گندم خریدم")?.slots ?? {};
+    expect(slots.direction).toBeUndefined();
+    expect(slots.role).toBeUndefined();
   });
 });

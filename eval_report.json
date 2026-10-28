@@ -1,59 +1,59 @@
 {
-  "generatedAt": "2026-10-28T05:10:39.467Z",
+  "generatedAt": "2026-10-28T05:53:13.024Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
     "source": "synthetic-held-out (never in pack/cache/training corpus)",
-    "packEntries": 1551,
-    "packBytes": 71055,
-    "packChecksum": "557f5427"
+    "packEntries": 1610,
+    "packBytes": 75781,
+    "packChecksum": "8207bf46"
   },
   "fastLayer": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 97.5,
-    "slotExactMatch": 56.25,
-    "slotPrecision": 51.34,
+    "intentAccuracy": 99.58,
+    "slotExactMatch": 81.25,
+    "slotPrecision": 77.27,
     "slotRecall": 87.43,
-    "clarifyRate": 1.67,
-    "avgMs": 0.287,
-    "p50Ms": 0.271,
-    "p95Ms": 0.399,
+    "clarifyRate": 0.42,
+    "avgMs": 0.455,
+    "p50Ms": 0.431,
+    "p95Ms": 0.733,
     "layers": {
-      "rules": 236,
-      "clarify": 4
+      "rules": 239,
+      "clarify": 1
     }
   },
   "fastLayerClassification": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 97.5,
-    "slotExactMatch": 56.25,
-    "slotPrecision": 51.34,
+    "intentAccuracy": 99.58,
+    "slotExactMatch": 81.25,
+    "slotPrecision": 77.27,
     "slotRecall": 87.43,
-    "clarifyRate": 1.67,
-    "avgMs": 0.287,
-    "p50Ms": 0.271,
-    "p95Ms": 0.399,
+    "clarifyRate": 0.42,
+    "avgMs": 0.455,
+    "p50Ms": 0.431,
+    "p95Ms": 0.733,
     "layers": {
-      "rules": 236,
-      "clarify": 4
+      "rules": 239,
+      "clarify": 1
     }
   },
   "rulesOnly": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 97.5,
-    "slotExactMatch": 56.25,
-    "slotPrecision": 51.34,
+    "intentAccuracy": 99.58,
+    "slotExactMatch": 81.25,
+    "slotPrecision": 77.27,
     "slotRecall": 87.43,
-    "clarifyRate": 1.67,
-    "avgMs": 0.341,
-    "p50Ms": 0.31,
-    "p95Ms": 0.504,
+    "clarifyRate": 0.42,
+    "avgMs": 0.545,
+    "p50Ms": 0.482,
+    "p95Ms": 0.935,
     "layers": {
-      "rules": 236,
-      "clarify": 4
+      "rules": 239,
+      "clarify": 1
     }
   },
   "packOnly": {
@@ -64,9 +64,9 @@
     "slotPrecision": 0,
     "slotRecall": 0,
     "clarifyRate": 100,
-    "avgMs": 0.038,
-    "p50Ms": 0.033,
-    "p95Ms": 0.064,
+    "avgMs": 0.03,
+    "p50Ms": 0.027,
+    "p95Ms": 0.05,
     "layers": {
       "clarify": 240
     }
@@ -77,13 +77,13 @@
       "total": 78,
       "classified": 78,
       "intentAccuracy": 100,
-      "slotExactMatch": 60.26,
-      "slotPrecision": 47.06,
+      "slotExactMatch": 89.74,
+      "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.277,
-      "p50Ms": 0.257,
-      "p95Ms": 0.352,
+      "avgMs": 0.435,
+      "p50Ms": 0.415,
+      "p95Ms": 0.569,
       "layers": {
         "rules": 78
       }
@@ -92,17 +92,17 @@
       "scenario": "colloquial",
       "total": 89,
       "classified": 89,
-      "intentAccuracy": 93.26,
-      "slotExactMatch": 51.69,
-      "slotPrecision": 50.72,
+      "intentAccuracy": 98.88,
+      "slotExactMatch": 70.79,
+      "slotPrecision": 73.68,
       "slotRecall": 88.61,
-      "clarifyRate": 4.49,
-      "avgMs": 0.298,
-      "p50Ms": 0.289,
-      "p95Ms": 0.466,
+      "clarifyRate": 1.12,
+      "avgMs": 0.485,
+      "p50Ms": 0.449,
+      "p95Ms": 0.84,
       "layers": {
-        "rules": 85,
-        "clarify": 4
+        "rules": 88,
+        "clarify": 1
       }
     },
     {
@@ -110,13 +110,13 @@
       "total": 73,
       "classified": 73,
       "intentAccuracy": 100,
-      "slotExactMatch": 57.53,
-      "slotPrecision": 55.43,
+      "slotExactMatch": 84.93,
+      "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.285,
-      "p50Ms": 0.281,
-      "p95Ms": 0.399,
+      "avgMs": 0.439,
+      "p50Ms": 0.407,
+      "p95Ms": 0.639,
       "layers": {
         "rules": 73
       }
@@ -126,7 +126,7 @@
     "simulated": true,
     "beforeCacheLayer": 0,
     "afterConfirmationCacheHits": 0,
-    "cacheSize": 234,
+    "cacheSize": 239,
     "storesMoney": false
   },
   "jsonContract": {
@@ -140,28 +140,40 @@
     "reason": "هیچ وزن مدلی در مخزن/APK نیست؛ Router بدون مدل کار می‌کند و در ناشناخته‌ها سؤال شفاف می‌پرسد.",
     "modelOnlyBaseline": "not-measured"
   },
+  "bloom": {
+    "enabled": true,
+    "bloomBytes": 2013,
+    "bitsPerKey": 10,
+    "hashCount": 7,
+    "estimatedFalsePositiveRate": 0.008184,
+    "measuredFalsePositiveRate": 0.0085,
+    "rejectsInHardEval": 238,
+    "avgProbeMs": 0.00013,
+    "storesTextOrMoney": false
+  },
   "metrics": {
     "total": 480,
-    "avgMs": 0.28,
-    "p50Ms": 0.27,
-    "p95Ms": 0.4,
+    "avgMs": 0.46,
+    "p50Ms": 0.43,
+    "p95Ms": 0.73,
     "layers": {
-      "rules": 472,
+      "rules": 478,
       "cache": 0,
       "pack": 0,
       "retrieval": 0,
       "model": 0,
-      "clarify": 8
+      "clarify": 2
     },
-    "peakRamBytes": 176367,
-    "batteryEstimateMah": 0.0002,
-    "packBytes": 71055,
-    "modelCalls": 0
+    "peakRamBytes": 182293,
+    "batteryEstimateMah": 0.0003,
+    "packBytes": 75781,
+    "modelCalls": 0,
+    "bloomRejects": 714
   },
   "targets": {
     "intentAccuracyTarget": 98,
-    "met": false,
-    "rulesHitRate": 98.33
+    "met": true,
+    "rulesHitRate": 99.58
   },
   "honestNotes": [
     "هارد‌ایوال کاملاً ترکیبی و خارج از بسته/کش/آموزش است؛ دقت روی داده واقعی کاربران ممکن است متفاوت باشد.",

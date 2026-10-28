@@ -61,6 +61,17 @@ jobs:
           npx tsx tools/build_pack/eval.ts
           git diff --exit-code -- training/data tools/build_pack/data app-v2/src/lib/nlu/generated
 
+      - name: Index + bloom benchmark (real numbers, not a gate)
+        run: |
+          npx tsx tools/build_pack/bench-index.ts
+          node -e '
+            const b = require("./artifacts/index-bench.json");
+            if (b.variants.length < 4) { console.error("bench variants missing"); process.exit(1); }
+            if (!(b.pack.bloomBytes > 0)) { console.error("pack has no bloom"); process.exit(1); }
+            if (!(b.pack.measuredFalsePositiveRate < 0.05)) { console.error("bloom false-positive rate too high"); process.exit(1); }
+            console.log("bench ok", b.variants.map((v) => v.label + " miss=" + v.miss.meanUs + "us").join(" | "));
+          '
+
       - name: Fast layer quality gate (JSON contract + measured accuracy)
         run: |
           node -e '
@@ -70,7 +81,10 @@ jobs:
             if (json.rejectedCorruptedJson !== json.sampleSize) { console.error("corrupted JSON accepted"); process.exit(1); }
             if (r.fastLayerClassification.intentAccuracy < 90) { console.error("intent accuracy below gate: " + r.fastLayerClassification.intentAccuracy); process.exit(1); }
             if (r.metrics.modelCalls !== 0) { console.error("unexpected model calls"); process.exit(1); }
-            console.log("fast layer gate ok", r.fastLayerClassification.intentAccuracy, "p95", r.metrics.p95Ms + "ms");
+            if (!r.bloom || !r.bloom.enabled) { console.error("bloom prefilter missing"); process.exit(1); }
+            if (!(r.bloom.measuredFalsePositiveRate < 0.02)) { console.error("bloom false-positive rate above 2%: " + r.bloom.measuredFalsePositiveRate); process.exit(1); }
+            if (r.bloom.storesTextOrMoney !== false) { console.error("bloom must not store text or money"); process.exit(1); }
+            console.log("fast layer gate ok", r.fastLayerClassification.intentAccuracy, "slotExact", r.fastLayerClassification.slotExactMatch, "p95", r.metrics.p95Ms + "ms", "bloomFpr", r.bloom.measuredFalsePositiveRate);
           '
 
       - name: app-v2 typecheck (APK payload)
@@ -98,9 +112,12 @@ jobs:
       - name: Production build
         run: npm run build
 
-      - name: Upload dataset stats
+      - name: Upload dataset stats and benchmark
         uses: actions/upload-artifact@v4
         with:
           name: dataset-stats
-          path: training/data/stats.json
+          path: |
+            training/data/stats.json
+            artifacts/index-bench.json
+            eval_report.json
           if-no-files-found: warn

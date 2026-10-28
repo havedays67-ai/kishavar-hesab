@@ -11,7 +11,7 @@
 import { join } from "node:path";
 import { writeFileSync } from "node:fs";
 import {
-  CROPS, CATEGORIES, UNITS, PARTIES, DATA_DIR, ensureDir, pick, readDatasetRows, rng, summarize,
+  CROPS, CATEGORIES, UNITS, PARTIES, DATA_DIR, ROOT, ensureDir, pick, readDatasetRows, rng, summarize,
   uniqueByKey, validateRow, writeJsonl, type CorpusRow, type EvalRow,
 } from "./lib";
 import { packKey } from "../../app-v2/src/lib/nlu/pack";
