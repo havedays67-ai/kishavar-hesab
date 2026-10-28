@@ -33,7 +33,7 @@ import {
   type StoredReceipt,
 } from "../lib/receipts";
 import { downloadReceiptFile, openReceiptExternally, receiptFileName, receiptIsPdf } from "../lib/receipt-download";
-import { formatAmountInput, formatTomanAmount, parseAmountInput } from "../lib/money-format";
+import { formatTomanAmount, parseAmountInput } from "../lib/money-format";
 
 const money = (value: number) => formatTomanAmount(value);
 const SYNC_EVENT = RECEIPTS_CHANGED_EVENT;
@@ -311,23 +311,7 @@ export function RecordReceipts({
               </ul>
             )}
 
-            <div className="grid grid-cols-2 gap-1.5">
-              <input
-                className="field col-span-2 py-1.5 text-[10px]"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder={`عنوان رسید (پیش‌فرض: ${label})`}
-              />
-              <input
-                className="field py-1.5 text-[10px] tabular-nums"
-                value={amount}
-                onChange={(event) => setAmount(formatAmountInput(event.target.value))}
-                placeholder="مبلغ (تومان، اختیاری)"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={20}
-                aria-label="مبلغ رسید به تومان"
-              />
+            <div className="grid grid-cols-1 gap-1.5">
               <input
                 className="field py-1.5 text-[10px]"
                 value={reference}
@@ -335,11 +319,12 @@ export function RecordReceipts({
                 placeholder="شمارهٔ پیگیری (اختیاری)"
               />
               <input
-                className="field col-span-2 py-1.5 text-[10px]"
+                className="field py-1.5 text-[10px]"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 placeholder="توضیح کوتاه: پرداخت بابت چه چیزی و به چه کسی؟"
               />
+              <p className="text-[7.5px] leading-4 text-[#78968a]">عنوان و مبلغ رسید لازم نیست؛ همان مبلغ و دلیل پرداخت در دفتر ثبت شده است.</p>
             </div>
 
             <div className="flex items-center justify-between gap-2">

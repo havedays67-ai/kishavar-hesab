@@ -48,6 +48,21 @@ const money = (value: number) => `${fa(Math.round(value))} تومان`;
 
 type Filter = "all" | PartyKind;
 
+/** دلیل‌های آماده: هر دلیل مشخص می‌کند آیا پول پرداخت شده (رسید لازم) یا کالا/خدمت داده شده (رسید لازم نیست). */
+const PARTY_REASONS: { label: string; money: boolean }[] = [
+  { label: "قرض / وام نقدی", money: true },
+  { label: "پرداخت پول برای او (واریز یا کارت به کارت)", money: true },
+  { label: "پرداخت بدهی او به شخص سوم", money: true },
+  { label: "خرید نسیه / فاکتور", money: true },
+  { label: "تحویل کالا (گندم، جو، کود…)", money: false },
+  { label: "دام، علوفه یا دامداری", money: false },
+  { label: "خدمات / کارگری / ماشین‌آلات", money: false },
+  { label: "اجاره زمین یا ماشین", money: false },
+  { label: "سهم محصول / شریک زراعی", money: false },
+  { label: "خسارت / غرامت", money: false },
+  { label: "حساب باز / بدون دلیل مشخص", money: false },
+];
+
 export function PartiesPage({
   ledger,
   onAddParty,
@@ -72,6 +87,7 @@ export function PartiesPage({
   const [editParty, setEditParty] = useState<DebtParty | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [settleId, setSettleId] = useState<string | null>(null);
+  const [receiptPrompt, setReceiptPrompt] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [signParty, setSignParty] = useState<DebtParty | null>(null);
   const { audit } = useSignatures();
@@ -206,9 +222,6 @@ export function PartiesPage({
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                 <div className={cn("h-full rounded-full", isDebtor ? "bg-mint-400" : "bg-sand-300")} style={{ width: `${Math.max(2, totalsParty.ratio)}%` }} />
               </div>
-              <div className="mt-3">
-                <RecordReceipts refType="party" refId={party.id} section="parties" label="رسید طلب / بدهی" hint={`رسید دریافت از ${party.name} یا فیش پرداخت به ایشان را ضمیمه کنید.`} compact />
-              </div>
             </article>
           );
         })}
@@ -228,7 +241,7 @@ export function PartiesPage({
         دلیل و تاریخ هر ثبت در دفتر معین و صورتحساب قابل کپی نمایش داده می‌شود.
       </div>
 
-      <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} nameSuggestions={[profile.fullName, ...ledger.parties.map((party) => party.name)]} phoneSuggestions={[profile.phone, ...ledger.parties.map((party) => party.phone)]} onCreate={(party) => { onAddParty(party); setAddOpen(false); setToast("طرف‌حساب ثبت شد"); }} />
+      <AddPartyModal open={addOpen} onClose={() => setAddOpen(false)} nameSuggestions={[profile.fullName, ...ledger.parties.map((party) => party.name)]} phoneSuggestions={[profile.phone, ...ledger.parties.map((party) => party.phone)]} onCreate={(party, wantsReceipt) => { onAddParty(party); setAddOpen(false); setToast("طرف‌حساب ثبت شد"); if (wantsReceipt) setReceiptPrompt(party.id); }} />
       <AddPartyModal
         open={Boolean(editParty)}
         initial={editParty}
@@ -244,6 +257,11 @@ export function PartiesPage({
 
       <Modal open={Boolean(details)} onClose={() => setDetailId(null)} title={details ? `دفتر معین — ${details.name}` : ""} description="گردش کامل بدهی/طلب، دلیل ثبت و پرداخت‌ها" size="lg">
         {details && <PartyLedger party={details} payments={ledger.payments} onCopy={() => copyStatement(details)} copied={copied} onDeletePayment={onDeletePayment} onSettle={() => setSettleId(details.id)} onDelete={() => { onDeleteParty(details.id); setDetailId(null); setToast("طرف‌حساب حذف شد"); }} onPrint={() => { onPrintParty(details); setDetailId(null); }} />}
+        {details && (
+          <div className="border-t border-white/[0.06] px-5 pb-5 pt-3">
+            <RecordReceipts refType="party" refId={details.id} section="parties" label="رسید این حساب" hint="رسید هر پرداخت را از همین‌جا اضافه کنید؛ عنوان و مبلغ دوباره پرسیده نمی‌شود." />
+          </div>
+        )}
       </Modal>
 
       <SettleModal
@@ -253,9 +271,17 @@ export function PartiesPage({
         onSubmit={(payment) => {
           onAddPayment(payment);
           setSettleId(null);
-          setToast("پرداخت ثبت و مانده به‌روز شد");
+          setReceiptPrompt(payment.partyId);
+          setToast("پرداخت ثبت شد؛ اگر رسید دارید همین‌جا ضمیمه کنید");
         }}
       />
+
+      {receiptPrompt ? (
+        (() => {
+          const promptParty = ledger.parties.find((party) => party.id === receiptPrompt) ?? null;
+          return promptParty ? <ReceiptPromptModal party={promptParty} onClose={() => setReceiptPrompt(null)} /> : null;
+        })()
+      ) : null}
 
       <SignatureDialog entity={signParty ? partyEntity(signParty) : null} open={Boolean(signParty)} onClose={() => setSignParty(null)} />
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />
@@ -263,7 +289,7 @@ export function PartiesPage({
   );
 }
 
-function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [], phoneSuggestions = [] }: { open: boolean; onClose: () => void; onCreate: (party: DebtParty) => void; initial?: DebtParty | null; nameSuggestions?: string[]; phoneSuggestions?: string[] }) {
+function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [], phoneSuggestions = [] }: { open: boolean; onClose: () => void; onCreate: (party: DebtParty, wantsReceipt: boolean) => void; initial?: DebtParty | null; nameSuggestions?: string[]; phoneSuggestions?: string[] }) {
   const [kind, setKind] = useState<PartyKind>("debtor");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -274,10 +300,11 @@ function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [],
   const [reminder, setReminder] = useState<JDate | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [wantsReceipt, setWantsReceipt] = useState(false);
 
   const reset = () => {
     setKind("debtor"); setName(""); setPhone(""); setCity(""); setAmount(0); setReason("");
-    setDate(todayJalali()); setReminder(null); setNote(""); setError("");
+    setDate(todayJalali()); setReminder(null); setNote(""); setError(""); setWantsReceipt(false);
   };
 
   useEffect(() => {
@@ -285,7 +312,7 @@ function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [],
     if (initial) {
       setKind(initial.kind); setName(initial.name); setPhone(initial.phone === "—" ? "" : initial.phone);
       setCity(initial.city === "—" ? "" : initial.city); setAmount(initial.amount); setReason(initial.reason);
-      setDate(initial.date); setReminder(initial.dueDate); setNote(initial.note); setError("");
+      setDate(initial.date); setReminder(initial.dueDate); setNote(initial.note); setError(""); setWantsReceipt(false);
       return;
     }
     reset();
@@ -309,7 +336,7 @@ function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [],
       dueDate: reminder,
       note: note.trim(),
       color: colors[Math.floor(Math.random() * colors.length)],
-    });
+    }, wantsReceipt);
     reset();
   };
 
@@ -334,6 +361,24 @@ function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [],
           <AmountField label="مبلغ اولیه" value={amount} onChange={setAmount} required helper={`${numberToPersianWords(amount)} تومان`} />
           <JalaliDatePicker label="تاریخ ثبت بدهی / طلب" value={date} onChange={setDate} />
         </div>
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+          <p className="mb-2 text-[10px] font-medium text-[#c7d9cf]">دلیل بدهی / طلب — یکی را انتخاب کنید</p>
+          <div className="flex flex-wrap gap-1.5">
+            {PARTY_REASONS.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => { setReason(option.label); setWantsReceipt(option.money); }}
+                className={cn("rounded-lg border px-2 py-1.5 text-[8.5px] leading-4 transition", reason === option.label ? "border-mint-300/50 bg-mint-300/10 text-mint-200" : "border-[#2b483a] text-[#a8c0b4] hover:border-[#456755]")}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mb-0 mt-2 text-[8px] leading-4 text-[#78968a]">
+            وقتی پول پرداخت شده (قرض نقدی، واریز، فاکتور) رسید پیشنهاد می‌شود؛ برای کالا و خدمات رسید پرداخت لازم نیست. با کلید پایین هر زمان می‌توانید تغییر دهید.
+          </p>
+        </div>
         <TextField label="دلیل بدهی / طلب" value={reason} onChange={setReason} placeholder="مثلاً خرید ۱۸ کیسه کود اوره — فاکتور ۴۴۸۲" textarea rows={2} required hint="این متن در صورتحساب و دفتر معین نمایش داده می‌شود." />
         <TextField label="یادداشت تکمیلی" value={note} onChange={setNote} placeholder="شماره چک، توافق پرداخت، …" />
         <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
@@ -343,6 +388,25 @@ function AddPartyModal({ open, onClose, onCreate, initial, nameSuggestions = [],
           </div>
           <p className="mb-2 text-[8px] leading-4 text-[#78968a]">این تاریخ برای آماده‌سازی طلب/بدهی است و ثبت آن اختیاری است. پرداخت با تاریخ خودش ثبت می‌شود.</p>
           {reminder ? <JalaliDatePicker label="تاریخ یادآوری" value={reminder} onChange={(value) => setReminder(value)} minDate={date} quickToday={false} /> : <button type="button" onClick={() => setReminder(todayJalali())} className="rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2.5 py-1.5 text-[9px] text-mint-300">تعیین تاریخ یادآوری</button>}
+        </div>
+        <div className="flex items-start justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+          <div className="min-w-0">
+            <p className="mb-0.5 text-[10px] font-medium text-[#d7e9df]">رسید پرداخت را دارم و بعد از ثبت ضمیمه می‌کنم</p>
+            <p className="mb-0 text-[8px] leading-4 text-[#78968a]">
+              خاموش بماند، بعد از ثبت فقط طرف‌حساب ذخیره می‌شود و رسید را بعداً از دفتر معین همان حساب اضافه می‌کنید.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={wantsReceipt}
+            aria-label="رسید پرداخت را ضمیمه می‌کنم"
+            onClick={() => setWantsReceipt((value) => !value)}
+            className="relative h-6 w-11 shrink-0 rounded-full border border-[#3a5a4a] transition"
+            style={{ background: wantsReceipt ? "rgba(70,185,133,0.35)" : "rgba(10,25,18,0.9)" }}
+          >
+            <span className="absolute top-1/2 -translate-y-1/2 rounded-full transition-all" style={{ height: 18, width: 18, right: wantsReceipt ? 22 : 3, background: wantsReceipt ? "#8df3c6" : "#7d998c" }} />
+          </button>
         </div>
         {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a]">{error}</p>}
         <div className="flex gap-2 pt-1">
@@ -419,6 +483,37 @@ function PartyLedger({ party, payments, onCopy, copied, onDeletePayment, onSettl
       )}
       <button type="button" onClick={onDelete} className="mt-3 flex items-center gap-1 text-[8px] text-[#8a6b63] transition hover:text-[#efad9f]"><Trash2 className="h-3 w-3" /> حذف کل طرف‌حساب</button>
     </div>
+  );
+}
+
+function ReceiptPromptModal({ party, onClose }: { party: DebtParty; onClose: () => void }) {
+  const [showBox, setShowBox] = useState(true);
+  return (
+    <Modal open onClose={onClose} title={`رسید پرداخت — ${party.name}`} description="پرداخت ثبت شد. اگر رسید همراهتان نیست ببندید و بعداً از دفتر معین همین حساب اضافه کنید." size="sm">
+      <div className="space-y-3 p-5">
+        <div className="flex items-start justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+          <div className="min-w-0">
+            <p className="mb-0.5 text-[10px] font-medium text-[#d7e9df]">رسید را ضمیمه می‌کنم</p>
+            <p className="mb-0 text-[8px] leading-4 text-[#78968a]">خاموش = کادر آپلود بسته می‌شود، نه حذف؛ با روشن کردن دوباره باز می‌شود.</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showBox}
+            aria-label="نمایش کادر آپلود رسید"
+            onClick={() => setShowBox((value) => !value)}
+            className="relative h-6 w-11 shrink-0 rounded-full border border-[#3a5a4a] transition"
+            style={{ background: showBox ? "rgba(70,185,133,0.35)" : "rgba(10,25,18,0.9)" }}
+          >
+            <span className="absolute top-1/2 -translate-y-1/2 rounded-full transition-all" style={{ height: 18, width: 18, right: showBox ? 22 : 3, background: showBox ? "#8df3c6" : "#7d998c" }} />
+          </button>
+        </div>
+        <div className={showBox ? "" : "hidden"}>
+          <RecordReceipts refType="party" refId={party.id} section="parties" label="رسید پرداخت" hint="فقط تصویر یا PDF رسید؛ عنوان و مبلغ دوباره پرسیده نمی‌شود." />
+        </div>
+        <button type="button" onClick={onClose} className="w-full rounded-xl border border-white/[0.09] py-2.5 text-[10px] text-[#a9c1b5]">بعداً؛ بستن</button>
+      </div>
+    </Modal>
   );
 }
 
