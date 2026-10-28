@@ -13,10 +13,10 @@
 
 ## 📥 دانلود APK — نسخه ۱ (آخرین ساخت)
 
-**[دانلود مستقیم APK (اندروید ۸+، نسخه ۱.۰.۰)](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)**
+**[⬇️ دانلود مستقیم APK — نسخه ۱.۰.۰](https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk)** · [لینک همیشه-آخرین](https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk)
 
 - تگ پایدار `apk-v1` با هر push به `main` بازسازی و جایگزین می‌شود؛ همین لینک همیشه آخرین فایل را می‌دهد.
-- نسخهٔ آزمایشی: [`dev-latest`](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
+- صفحهٔ انتشار: [Releases / apk-v1](https://github.com/havedays67-ai/kishavar-hesab/releases/latest) · نسخهٔ آزمایشی: [`dev-latest`](https://github.com/havedays67-ai/kishavar-hesab/releases/download/dev-latest/KishavarHesab-dev.apk)
 - نسخهٔ رسمی همچنان **۱.۰.۰** است (چون هنوز منتشر نشده، شماره تغییر نکرد).
 - APK با کلید ثابت مخزن امضا می‌شود؛ نصب روی نسخهٔ قبلی بدون حذف داده‌ها انجام می‌شود.
 
