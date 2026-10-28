@@ -12,7 +12,7 @@ import {
   tonWordsOf,
   validateWeight,
 } from "../app-v2/src/lib/units";
-import { computeQuickSale, quickSaleSummary, QUICK_SALE_PRODUCTS } from "../app-v2/src/lib/quick-sale";
+import { computeQuickSale, quickSaleSummary, QUICK_SALE_PRODUCTS, MAX_PRICE_PER_KG } from "../app-v2/src/lib/quick-sale";
 import { numberToPersianWords, toEnglishDigits } from "../app-v2/src/lib/format";
 import {
   isCustomRole,
@@ -182,5 +182,51 @@ describe("نقش «سایر» با ورودی آزاد", () => {
     expect(normalizeStoredRole("کشاورز / مدیر مزرعه")).toBe("کشاورز");
     expect(isCustomRole("کشاورز / مدیر مزرعه")).toBe(false);
     expect(isRoleSelected("کشاورز", "کشاورز / مدیر مزرعه")).toBe(true);
+  });
+});
+
+describe("نمایش دوگانهٔ وزن با حروف (باگ کسرها)", () => {
+  it("کسرهای زیر یک کیلوگرم به گرم تبدیل می‌شوند و گم نمی‌شوند", () => {
+    const small = describeWeight(0.25);
+    expect(small.tonWords).toBe("دویست و پنجاه گرم");
+    expect(small.kgWords).toBe("دویست و پنجاه گرم");
+    expect(small.tonWords).not.toContain("صفر کیلوگرم");
+  });
+
+  it("۱۰۰۰٫۵ کیلوگرم نیم کیلو را از دست نمی‌دهد", () => {
+    const half = describeWeight(1000.5);
+    expect(half.tonWords).toBe("یک تن و پانصد گرم");
+    expect(half.kgWords).toBe("یک هزار کیلوگرم و پانصد گرم");
+  });
+
+  it("مضرب‌های کامل تن و کیلوگرم درست نوشته می‌شوند", () => {
+    expect(describeWeight(2500).tonWords).toBe("دو تن و پانصد کیلوگرم");
+    expect(describeWeight(2000).tonWords).toBe("دو تن");
+    expect(describeWeight(750).kgWords).toBe("هفتصد و پنجاه کیلوگرم");
+    expect(describeWeight(0).both).toContain("۰");
+  });
+});
+
+describe("گارد دقت مبلغ (باگ سرریز عدد صحیح ایمن)", () => {
+  it("مبلغ خارج از محدودهٔ دقیق، خطای شفاف می‌دهد نه عدد نادرست", () => {
+    const result = computeQuickSale({
+      product: "زعفران", buyer: "شرکت", unit: "kg", quantity: 10_000_000, pricePerKg: 1_000_000_000,
+      deductionPct: 0, taxPct: 0, transportToman: 0, prepaidToman: 0,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(" ")).toContain("محدودهٔ دقیق");
+  });
+
+  it("قیمت غیرمنطقی هر کیلو رد می‌شود ولی قیمت واقعی زعفران پذیرفته است", () => {
+    const absurd = computeQuickSale({ product: "زعفران", buyer: "", unit: "kg", quantity: 1, pricePerKg: MAX_PRICE_PER_KG + 1, deductionPct: 0, taxPct: 0, transportToman: 0, prepaidToman: 0 });
+    expect(absurd.ok).toBe(false);
+    const saffron = computeQuickSale({ product: "زعفران", buyer: "", unit: "kg", quantity: 1, pricePerKg: 95_000_000, deductionPct: 0, taxPct: 0, transportToman: 0, prepaidToman: 0 });
+    expect(saffron.ok).toBe(true);
+    if (saffron.ok) expect(saffron.payableToman).toBe(95_000_000);
+  });
+
+  it("مبلغ به حروف برای عدد ناایمن خالی می‌ماند", () => {
+    expect(moneyWords(Number.MAX_SAFE_INTEGER + 10)).toBe("");
+    expect(moneyWords(1500000)).toContain("تومان");
   });
 });

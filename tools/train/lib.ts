@@ -103,12 +103,12 @@ const TEMPLATES: Template[] = [
   {
     intent: "quick_sale",
     texts: [
-      "{crop} را به {party} فروختم {qty} کیلو کیلویی {rate} تومان", "{qty} تن {crop} را به {party} فروختم هر کیلو {rate}",
-      "{crop} را می‌فروشم به {party} {qty} کیلو قیمت هر کیلو {rate} تومان", "فروش ساده {crop} به {party} {qty} تن هر کیلو {rate}",
-      "تخم آفتابگردان {qty} تن به شرکت {party} کیلویی {rate} تومان", "{crop} {qty} کیلو به {party} تحویل شرکت دادم هر کیلو {rate}",
+      "تخم آفتابگردان {qty} {unit} را کیلویی به شرکت فروختم", "فروش سادهٔ {crop} {qty} {unit} کیلویی {price}",
+      "{qty} {unit} {crop} به شرکت {party} فروختم", "قیمت {qty} {unit} {crop} را حساب کن کیلویی {price}",
+      "فروش سریع {crop} مقدار {qty} {unit}", "{crop} {qty} {unit} دست شرکت رفت کیلویی {price}",
     ],
-    slots: (r) => ({ crop: pick(r, ["تخم آفتابگردان", "گندم", "جو", "ذرت", "کلزا"]), unit: pick(r, UNITS), role: "seller" }),
-    answer: () => "برای فروش ساده کافی است مقدار (کیلو یا تن) و قیمت هر کیلو را بدهید؛ مبلغ نهایی، وزن و مبلغ با هر دو واحد و هم با حروف نمایش داده می‌شود.",
+    slots: (r) => ({ crop: pick(r, CROPS), unit: pick(r, ["تن", "کیلوگرم"]) }),
+    answer: () => "در «فروش ساده» مقدار (کیلو یا تن) و قیمت هر کیلو را بدهید؛ مبلغ نهایی و مبلغ به حروف هر دو واحد نمایش داده می‌شود.",
   },
   {
     intent: "purchase_input",
@@ -234,6 +234,16 @@ const TEMPLATES: Template[] = [
     answer: () => "راهنمای کامل در تب «راهنمای کامل» با گام‌های عملی و پرسش/پاسخ باز می‌شود؛ همه‌چیز آفلاین است.",
   },
   {
+    intent: "app_help",
+    texts: [
+      "نقش من در برنامه چیست", "چطور نقش خودم را بنویسم", "گزینهٔ سایر برای نقش کجاست",
+      "نقش دلخواه ثبت کنم", "پروفایل من را چطور کامل کنم", "در اولین ورود چه چیزی پر کنم",
+      "راهنمای فروش ساده", "تفاوت فروش ساده و معامله محصول",
+    ],
+    slots: () => ({}),
+    answer: () => "در «پروفایل» یا اولین ورود نقش را انتخاب کنید؛ گزینهٔ «سایر» کادر نوشتن آزاد باز می‌کند. راهنمای هر بخش در تب «راهنمای کامل» است.",
+  },
+  {
     intent: "math_query",
     texts: [
       "محاسبه کن {p} درصد از {amount} تومان", "حساب کن {amount} تومان با {p} درصد تخفیف",
@@ -300,6 +310,8 @@ export function generateLabeled(count: number, seed = 20261116): LabeledSample[]
       .replace("{party}", pick(random, PARTIES))
       .replace("{unit}", slots.unit ?? pick(random, UNITS))
       .replace("{month}", pick(random, MONTHS))
+      .replace(/{qty}/g, [1, 2.5, 5, 12, 100, 1500][Math.floor(random() * 6)] + "")
+      .replace(/{price}/g, (20000 + Math.floor(random() * 80) * 1000).toLocaleString("en-US"))
       .replace(/{amount}/g, amount)
       .replace(/{p}/g, percent)
       .replace(/{people}/g, people)

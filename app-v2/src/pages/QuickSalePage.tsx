@@ -122,6 +122,22 @@ export function QuickSalePage() {
     window.setTimeout(() => setCopied(false), 2000);
   };
 
+  const share = async () => {
+    if (!result) return;
+    const text = quickSaleSummary(result);
+    try {
+      if (typeof navigator !== "undefined" && "share" in navigator && window.isSecureContext) {
+        await (navigator as Navigator & { share: (data: { title: string; text: string }) => Promise<void> }).share({ title: "خلاصهٔ فروش", text });
+        setToast("خلاصهٔ فروش با برنامهٔ دلخواه شما به اشتراک گذاشته شد.");
+        return;
+      }
+    } catch {
+      /* کاربر لغو کرد یا اشتراک در دسترس نبود → کپی */
+    }
+    void navigator.clipboard?.writeText(text);
+    setToast("اشتراک‌گذاری در دسترس نبود؛ خلاصه کپی شد.");
+  };
+
   const removeEntry = (id: string) => {
     const updated = history.filter((item) => item.id !== id);
     setHistory(updated);
@@ -283,7 +299,8 @@ export function QuickSalePage() {
                     {result.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
                   </ul>
                 )}
-                <button type="button" onClick={copy} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-mint-300/25 bg-mint-300/[0.08] py-2 text-[9px] text-mint-300">
+                <button type="button" onClick={() => void share()} className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[8px] text-[#b9cec3]"><Sparkles className="h-3 w-3" /> اشتراک‌گذاری خلاصه</button>
+                  <button type="button" onClick={copy} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-mint-300/25 bg-mint-300/[0.08] py-2 text-[9px] text-mint-300">
                   {copied ? <Check className="h-3.5 w-3.5" /> : <ClipboardCopy className="h-3.5 w-3.5" />} کپی خلاصهٔ فروش
                 </button>
               </div>

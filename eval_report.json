@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T10:02:34.149Z",
+  "generatedAt": "2026-10-28T10:09:03.242Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
@@ -16,9 +16,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.499,
-    "p50Ms": 0.477,
-    "p95Ms": 0.708,
+    "avgMs": 0.422,
+    "p50Ms": 0.394,
+    "p95Ms": 0.623,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -32,9 +32,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.499,
-    "p50Ms": 0.477,
-    "p95Ms": 0.708,
+    "avgMs": 0.422,
+    "p50Ms": 0.394,
+    "p95Ms": 0.623,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -48,9 +48,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.584,
-    "p50Ms": 0.529,
-    "p95Ms": 0.89,
+    "avgMs": 0.479,
+    "p50Ms": 0.417,
+    "p95Ms": 0.852,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -59,17 +59,17 @@
   "packOnly": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 62.5,
-    "slotExactMatch": 69.58,
-    "slotPrecision": 78.23,
-    "slotRecall": 55.43,
-    "clarifyRate": 35.83,
-    "avgMs": 0.271,
-    "p50Ms": 0.236,
-    "p95Ms": 0.539,
+    "intentAccuracy": 58.33,
+    "slotExactMatch": 67.5,
+    "slotPrecision": 75.86,
+    "slotRecall": 50.29,
+    "clarifyRate": 40,
+    "avgMs": 0.231,
+    "p50Ms": 0.208,
+    "p95Ms": 0.444,
     "layers": {
-      "brain": 154,
-      "clarify": 86
+      "brain": 144,
+      "clarify": 96
     }
   },
   "byScenario": [
@@ -82,9 +82,9 @@
       "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.498,
-      "p50Ms": 0.464,
-      "p95Ms": 0.831,
+      "avgMs": 0.421,
+      "p50Ms": 0.382,
+      "p95Ms": 0.717,
       "layers": {
         "rules": 78
       }
@@ -98,9 +98,9 @@
       "slotPrecision": 73.96,
       "slotRecall": 89.87,
       "clarifyRate": 0,
-      "avgMs": 0.515,
-      "p50Ms": 0.505,
-      "p95Ms": 0.729,
+      "avgMs": 0.429,
+      "p50Ms": 0.411,
+      "p95Ms": 0.549,
       "layers": {
         "rules": 88,
         "brain": 1
@@ -115,9 +115,9 @@
       "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.481,
-      "p50Ms": 0.455,
-      "p95Ms": 0.636,
+      "avgMs": 0.414,
+      "p50Ms": 0.366,
+      "p95Ms": 0.51,
       "layers": {
         "rules": 73
       }
@@ -149,14 +149,14 @@
     "estimatedFalsePositiveRate": 0.008184,
     "measuredFalsePositiveRate": 0.0095,
     "rejectsInHardEval": 237,
-    "avgProbeMs": 0.00013,
+    "avgProbeMs": 0.00012,
     "storesTextOrMoney": false
   },
   "math": {
     "referenceCases": 15,
     "exactMatches": 15,
     "accuracyPercent": 100,
-    "avgMs": 1.1,
+    "avgMs": 1.021,
     "mismatches": [],
     "safetyGuardsPassed": 5,
     "safetyGuardsTotal": 5,
@@ -187,7 +187,7 @@
         "labels": 29,
         "weightBytes": 118784,
         "math": "integer only (CPU inference)",
-        "accuracyOnHoldoutPercent": 99.99
+        "accuracyOnHoldoutPercent": 100
       },
       "persian": {
         "lines": 300000,
@@ -196,38 +196,23 @@
       },
       "perIntentWorst": [
         {
-          "intent": "sale_crop",
-          "total": 345,
-          "accuracy": 99.71
-        },
-        {
           "intent": "legal_signature",
-          "total": 345,
+          "total": 3334,
           "accuracy": 100
         },
         {
-          "intent": "loan_installment",
-          "total": 345,
+          "intent": "cheque_paid",
+          "total": 3333,
           "accuracy": 100
         },
         {
-          "intent": "contract_help",
-          "total": 345,
-          "accuracy": 100
-        },
-        {
-          "intent": "report_receivable",
-          "total": 345,
-          "accuracy": 100
-        },
-        {
-          "intent": "purchase_input",
-          "total": 345,
+          "intent": "add_expense",
+          "total": 3333,
           "accuracy": 100
         }
       ],
       "math": {
-        "labeledSamples": 6896,
+        "labeledSamples": 6666,
         "checked": 2000,
         "solvedByEnginePercent": 100,
         "exactArithmetic": "rational-bigint",
@@ -236,8 +221,8 @@
       "hardEval": {
         "total": 240,
         "asked": 240,
-        "correct": 184,
-        "accuracy": 76.67,
+        "correct": 183,
+        "accuracy": 76.25,
         "coverage": 100
       },
       "honesty": [
@@ -264,9 +249,9 @@
   },
   "metrics": {
     "total": 480,
-    "avgMs": 0.49,
-    "p50Ms": 0.47,
-    "p95Ms": 0.7,
+    "avgMs": 0.41,
+    "p50Ms": 0.39,
+    "p95Ms": 0.64,
     "layers": {
       "math": 0,
       "rules": 478,
@@ -278,7 +263,7 @@
       "clarify": 0
     },
     "peakRamBytes": 182533,
-    "batteryEstimateMah": 0.0003,
+    "batteryEstimateMah": 0.0002,
     "packBytes": 75781,
     "modelCalls": 0,
     "bloomRejects": 711

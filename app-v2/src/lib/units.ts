@@ -91,24 +91,37 @@ export function formatTon(kg: number): string {
   return `${label} تن`;
 }
 
-/** «۲ تن و پانصد کیلوگرم» برای مقدارهای ترکیبی؛ برای مضرب‌های کامل: «۲ تن». */
+/**
+ * «۲ تن و پانصد کیلوگرم» برای مقدارهای ترکیبی.
+ * باگ‌های رفع‌شده:
+ *  • ۰٫۲۵ کیلوگرم قبلاً «صفر کیلوگرم» می‌شد (کسر زیر نیم کیلو کامل گم می‌شد).
+ *  • ۱۰۰۰٫۵ کیلوگرم «یک تن و یک کیلوگرم» می‌شد (نیم کیلو گرد می‌شد).
+ * اکنون گرم‌ها هم نوشته می‌شوند و هیچ بخشی گم نمی‌شود.
+ */
 export function tonWordsOf(kg: number): string {
-  const safe = Math.round(roundKg(kg) * 1000) / 1000;
+  const safe = roundKg(kg);
   const wholeTon = Math.floor(toTon(safe));
   const remainderKg = roundKg(safe - wholeTon * 1000);
-  if (remainderKg === 0) {
-    return wholeTon === 0 ? "صفر تن" : `${numberToPersianWords(wholeTon)} تن`;
-  }
-  if (wholeTon === 0) return `${numberToPersianWords(Math.round(remainderKg))} کیلوگرم`;
-  return `${numberToPersianWords(wholeTon)} تن و ${numberToPersianWords(Math.round(remainderKg))} کیلوگرم`;
+  const wholeKg = Math.floor(remainderKg);
+  const grams = Math.round((remainderKg - wholeKg) * 1000);
+  const parts: string[] = [];
+  if (wholeTon > 0) parts.push(`${numberToPersianWords(wholeTon)} تن`);
+  if (wholeKg > 0) parts.push(`${numberToPersianWords(wholeKg)} کیلوگرم`);
+  if (grams > 0) parts.push(`${numberToPersianWords(grams)} گرم`);
+  if (!parts.length) return "صفر تن";
+  return parts.join(" و ");
 }
 
+/** «یک هزار کیلوگرم و پانصد گرم»؛ برای کمتر از یک کیلو فقط گرم نوشته می‌شود. */
 export function kgWordsOf(kg: number): string {
   const safe = roundKg(kg);
   const whole = Math.floor(safe);
   const grams = Math.round((safe - whole) * 1000);
-  if (grams === 0) return `${numberToPersianWords(whole)} کیلوگرم`;
-  return `${numberToPersianWords(whole)} کیلوگرم و ${numberToPersianWords(grams)} گرم`;
+  if (grams > 0) {
+    if (whole === 0) return `${numberToPersianWords(grams)} گرم`;
+    return `${numberToPersianWords(whole)} کیلوگرم و ${numberToPersianWords(grams)} گرم`;
+  }
+  return `${numberToPersianWords(whole)} کیلوگرم`;
 }
 
 /** نمایش کامل: رقم هر دو واحد + حروف هر دو واحد. */
@@ -130,6 +143,8 @@ export function describeWeight(kg: number): WeightDisplay {
 export function moneyWords(toman: number): string {
   if (!Number.isFinite(toman)) return "";
   const rounded = Math.round(toman);
+  // خارج از محدودهٔ عدد صحیح ایمن، هیچ حروفی نوشته نمی‌شود (به‌جای متن نادرست)
+  if (!Number.isSafeInteger(rounded)) return "";
   const words = numberToPersianWords(rounded);
   return words ? `${words} تومان` : "";
 }

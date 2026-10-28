@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, Building2, MapPin, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { formatJalali, toEnglishDigits, todayJalali } from "./format";
 import { TextField } from "../components/FormControls";
@@ -162,6 +162,14 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
   const [customRole, setCustomRole] = useState("");
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const customRoleBox = useRef<HTMLDivElement | null>(null);
+  // با انتخاب «سایر»، کادر نوشتن در دید کاربر قرار می‌گیرد (در موبایل پایین صفحه بود)
+  useEffect(() => {
+    if (role !== PROFILE_ROLE_OTHER) return;
+    customRoleBox.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // فوکوس روی کادر نوشتن تا کاربر فوراً بتواند نقش سفارشی را تایپ کند
+    window.setTimeout(() => customRoleBox.current?.querySelector("input")?.focus(), 120);
+  }, [role]);
 
   const finish = () => {
     if (fullName.trim().length < 3) return setError("نام و نام خانوادگی خود را کامل وارد کنید.");
@@ -210,7 +218,7 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
                   ))}
                 </div>
                 {role === PROFILE_ROLE_OTHER && (
-                  <div className="mt-2">
+                  <div className="mt-2" ref={customRoleBox}>
                     <TextField label="نقش خود را بنویسید" value={customRole} onChange={(value) => { setCustomRole(value); setError(""); }} placeholder="مثلاً دامدار، کارشناس بیمهٔ محصول، مسئول خرید شرکت" hint="این عنوان در پروفایل و سربرگ اسناد استفاده می‌شود." />
                   </div>
                 )}

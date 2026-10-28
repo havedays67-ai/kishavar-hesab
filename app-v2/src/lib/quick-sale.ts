@@ -11,6 +11,10 @@
  *  • هر ورودی نامعتبر → خطا با پیام شفاف، بدون حدس.
  */
 import { describeWeight, moneyWords, roundKg, toKg, toTon, validateWeight, type WeightDisplay, type WeightUnit } from "./units";
+import { toPersianDigits } from "./format";
+
+/** عدد تومان با ارقام فارسی و جداکنندهٔ هزارگان — یکدست با بقیهٔ برنامه. */
+const fa = (value: number): string => toPersianDigits(Math.round(value).toLocaleString("en-US"));
 
 export interface QuickSaleInput {
   product: string;
@@ -61,6 +65,15 @@ export interface QuickSaleError {
   errors: string[];
 }
 
+/**
+ * سقف قیمت هر کیلو و سقف مبلغ قابل‌محاسبه.
+ * باگ واقعی: ۱۰٬۰۰۰ تن × ۱ میلیارد تومان = ۱۰^۱۶ که از محدودهٔ عدد صحیح ایمن
+ * جاوااسکریپت (۲^۵۳) بیرون است؛ نتیجه بی‌صدا نادقیق می‌شد و مبلغ به حروف هم
+ * بی‌معنا («ده میلیون میلیارد تومان»). حالا خطای شفاف داده می‌شود.
+ */
+export const MAX_PRICE_PER_KG = 10_000_000_000;
+export const MAX_SAFE_MONEY = Number.MAX_SAFE_INTEGER;
+
 const safeNumber = (value: number | null | undefined): number => {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
   return value;
@@ -79,6 +92,8 @@ export function computeQuickSale(input: QuickSaleInput): QuickSaleResult | Quick
   if (weightError) errors.push(weightError);
   if (input.pricePerKg === null || !Number.isFinite(input.pricePerKg) || input.pricePerKg <= 0) {
     errors.push("قیمت هر کیلو را به تومان و بزرگ‌تر از صفر وارد کنید.");
+  } else if (input.pricePerKg > MAX_PRICE_PER_KG) {
+    errors.push(`قیمت هر کیلو بیش از سقف مجاز (${MAX_PRICE_PER_KG.toLocaleString("en-US")} تومان) است؛ قیمت را بررسی کنید.`);
   }
   const deductionPct = safeNumber(input.deductionPct);
   if (deductionPct < 0 || deductionPct >= 100) errors.push("درصد افت/کسورات باید بین ۰ و کمتر از ۱۰۰ باشد.");
@@ -102,6 +117,18 @@ export function computeQuickSale(input: QuickSaleInput): QuickSaleResult | Quick
   const taxToman = roundToman((netToman * taxPct) / 100);
   const payableToman = roundToman(netToman + taxToman + transport - prepaid);
 
+  // گارد دقت: هیچ مبلغی نباید از محدودهٔ عدد صحیح ایمن بیرون بزند
+  const moneyValues = { grossToman, deductionToman, netToman, taxToman, payableToman };
+  const unsafe = Object.entries(moneyValues).find(([, value]) => !Number.isSafeInteger(value));
+  if (unsafe) {
+    return {
+      ok: false,
+      errors: [
+        `مبلغ محاسبه‌شده از محدودهٔ دقیق (${MAX_SAFE_MONEY.toLocaleString("en-US")} تومان) فراتر رفت (${unsafe[0]}). مقدار وزن یا قیمت را کوچک‌تر کنید.`,
+      ],
+    };
+  }
+
   if (prepaid > netToman + taxToman + transport) {
     warnings.push("پیش‌پرداخت از مبلغ قابل پرداخت بیشتر است؛ مانده منفی یعنی فروشنده باید مابه‌التفاوت را برگرداند.");
   }
@@ -116,14 +143,14 @@ export function computeQuickSale(input: QuickSaleInput): QuickSaleResult | Quick
 
   const steps: QuickSaleStep[] = [
     { title: "وزن به کیلوگرم", detail: `${quantity.kgLabel}${input.unit === "ton" ? ` (ورودی: ${toTon(quantityKg)} تن)` : ""}` },
-    { title: "افت و کسورات", detail: `${deductionPct}٪ = ${deductionKg.toLocaleString("en-US")} کیلوگرم؛ وزن خالص ${netWeight.kgLabel}` },
-    { title: "مبلغ ناخالص", detail: `${quantity.kgLabel} × ${pricePerKg.toLocaleString("en-US")} تومان = ${grossToman.toLocaleString("en-US")} تومان` },
-    { title: "کسر افت", detail: `− ${deductionToman.toLocaleString("en-US")} تومان` },
+    { title: "افت و کسورات", detail: `${toPersianDigits(deductionPct)}٪ = ${toPersianDigits(deductionKg.toLocaleString("en-US"))} کیلوگرم؛ وزن خالص ${netWeight.kgLabel}` },
+    { title: "مبلغ ناخالص", detail: `${quantity.kgLabel} × ${fa(pricePerKg)} تومان = ${fa(grossToman)} تومان` },
+    { title: "کسر افت", detail: `− ${fa(deductionToman)} تومان` },
   ];
-  if (taxToman) steps.push({ title: "مالیات/عوارض", detail: `${taxPct}٪ = ${taxToman.toLocaleString("en-US")} تومان (محصول خام کشاورزی معمولاً معاف است)` });
-  if (transport) steps.push({ title: "کرایهٔ حمل و هزینه‌ها", detail: `+ ${transport.toLocaleString("en-US")} تومان` });
-  if (prepaid) steps.push({ title: "پیش‌پرداخت", detail: `− ${prepaid.toLocaleString("en-US")} تومان` });
-  steps.push({ title: "مبلغ قابل پرداخت", detail: `${payableToman.toLocaleString("en-US")} تومان = ${moneyWords(payableToman)}` });
+  if (taxToman) steps.push({ title: "مالیات/عوارض", detail: `${toPersianDigits(taxPct)}٪ = ${fa(taxToman)} تومان (محصول خام کشاورزی معمولاً معاف است)` });
+  if (transport) steps.push({ title: "کرایهٔ حمل و هزینه‌ها", detail: `+ ${fa(transport)} تومان` });
+  if (prepaid) steps.push({ title: "پیش‌پرداخت", detail: `− ${fa(prepaid)} تومان` });
+  steps.push({ title: "مبلغ قابل پرداخت", detail: `${fa(payableToman)} تومان = ${moneyWords(payableToman)}` });
 
   return {
     ok: true,
@@ -155,11 +182,11 @@ export function quickSaleSummary(result: QuickSaleResult): string {
     `فروش ${result.product}${result.buyer ? ` به ${result.buyer}` : ""}`,
     `مقدار: ${result.quantity.both} — ${result.quantity.bothWords}`,
     `وزن خالص پس از کسورات: ${result.netWeight.both} — ${result.netWeight.bothWords}`,
-    `قیمت هر کیلو: ${result.pricePerKg.toLocaleString("en-US")} تومان · هر تن: ${result.pricePerTon.toLocaleString("en-US")} تومان`,
-    `مبلغ ناخالص: ${result.grossToman.toLocaleString("en-US")} تومان (${result.grossWords})`,
-    `کسورات: ${result.deductionToman.toLocaleString("en-US")} تومان · مالیات: ${result.taxToman.toLocaleString("en-US")} تومان · حمل: ${result.transportToman.toLocaleString("en-US")} تومان`,
-    `مبلغ قابل پرداخت: ${result.payableToman.toLocaleString("en-US")} تومان (${result.payableWords})`,
-    `قیمت مؤثر هر کیلو: ${result.effectivePricePerKg.toLocaleString("en-US")} تومان`,
+    `قیمت هر کیلو: ${fa(result.pricePerKg)} تومان · هر تن: ${fa(result.pricePerTon)} تومان`,
+    `مبلغ ناخالص: ${fa(result.grossToman)} تومان (${result.grossWords})`,
+    `کسورات: ${fa(result.deductionToman)} تومان · مالیات: ${fa(result.taxToman)} تومان · حمل: ${fa(result.transportToman)} تومان`,
+    `مبلغ قابل پرداخت: ${fa(result.payableToman)} تومان (${result.payableWords})`,
+    `قیمت مؤثر هر کیلو: ${fa(result.effectivePricePerKg)} تومان`,
   ];
   return lines.join("\n");
 }

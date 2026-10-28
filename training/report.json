@@ -19,7 +19,7 @@
     "labels": 29,
     "weightBytes": 118784,
     "math": "integer only (CPU inference)",
-    "accuracyOnHoldoutPercent": 99.99
+    "accuracyOnHoldoutPercent": 100
   },
   "persian": {
     "lines": 300000,
@@ -28,38 +28,23 @@
   },
   "perIntentWorst": [
     {
-      "intent": "sale_crop",
-      "total": 345,
-      "accuracy": 99.71
-    },
-    {
       "intent": "legal_signature",
-      "total": 345,
+      "total": 3334,
       "accuracy": 100
     },
     {
-      "intent": "loan_installment",
-      "total": 345,
+      "intent": "cheque_paid",
+      "total": 3333,
       "accuracy": 100
     },
     {
-      "intent": "contract_help",
-      "total": 345,
-      "accuracy": 100
-    },
-    {
-      "intent": "report_receivable",
-      "total": 345,
-      "accuracy": 100
-    },
-    {
-      "intent": "purchase_input",
-      "total": 345,
+      "intent": "add_expense",
+      "total": 3333,
       "accuracy": 100
     }
   ],
   "math": {
-    "labeledSamples": 6896,
+    "labeledSamples": 6666,
     "checked": 2000,
     "solvedByEnginePercent": 100,
     "exactArithmetic": "rational-bigint",
@@ -68,8 +53,8 @@
   "hardEval": {
     "total": 240,
     "asked": 240,
-    "correct": 184,
-    "accuracy": 76.67,
+    "correct": 183,
+    "accuracy": 76.25,
     "coverage": 100
   },
   "honesty": [
