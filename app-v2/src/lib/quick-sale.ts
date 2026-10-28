@@ -10,8 +10,8 @@
  *  • هیچ مبلغ یا نتیجه‌ای در کش/بستهٔ پاسخ ذخیره نمی‌گردد.
  *  • هر ورودی نامعتبر → خطا با پیام شفاف، بدون حدس.
  */
-import { describeWeight, moneyWords, roundKg, toKg, toTon, validateWeight, type WeightDisplay, type WeightUnit } from "./units";
-import { toPersianDigits } from "./format";
+import { MAX_KG, describeWeight, moneyWords, roundKg, toKg, toTon, validateWeight, type WeightDisplay, type WeightUnit } from "./units";
+import { toPersianDigits } from "./fa-number";
 
 /** عدد تومان با ارقام فارسی و جداکنندهٔ هزارگان — یکدست با بقیهٔ برنامه. */
 const fa = (value: number): string => toPersianDigits(Math.round(value).toLocaleString("en-US"));
@@ -30,6 +30,8 @@ export interface QuickSaleInput {
   taxPct?: number | null;
   /** پیش‌پرداخت/بیعانه به تومان */
   prepaidToman?: number | null;
+  /** مبنای قیمت واردشده: هر کیلو یا هر تن (پیش‌فرض کیلو) */
+  priceUnit?: "kg" | "ton";
 }
 
 export interface QuickSaleStep {
@@ -39,6 +41,8 @@ export interface QuickSaleStep {
 
 export interface QuickSaleResult {
   ok: true;
+  /** قیمت ورودی کاربر و واحد آن */
+  priceInput: { value: number; unit: "kg" | "ton" };
   product: string;
   buyer: string;
   unit: WeightUnit;
@@ -90,9 +94,10 @@ export function computeQuickSale(input: QuickSaleInput): QuickSaleResult | Quick
 
   const weightError = validateWeight(input.quantity, input.unit);
   if (weightError) errors.push(weightError);
+  const priceUnit: "kg" | "ton" = input.priceUnit === "ton" ? "ton" : "kg";
   if (input.pricePerKg === null || !Number.isFinite(input.pricePerKg) || input.pricePerKg <= 0) {
-    errors.push("قیمت هر کیلو را به تومان و بزرگ‌تر از صفر وارد کنید.");
-  } else if (input.pricePerKg > MAX_PRICE_PER_KG) {
+    errors.push("قیمت را به تومان و بزرگ‌تر از صفر وارد کنید.");
+  } else if (input.pricePerKg > MAX_PRICE_PER_KG * (priceUnit === "ton" ? 1000 : 1)) {
     errors.push(`قیمت هر کیلو بیش از سقف مجاز (${MAX_PRICE_PER_KG.toLocaleString("en-US")} تومان) است؛ قیمت را بررسی کنید.`);
   }
   const deductionPct = safeNumber(input.deductionPct);
@@ -108,7 +113,9 @@ export function computeQuickSale(input: QuickSaleInput): QuickSaleResult | Quick
   const quantityKg = roundKg(toKg(input.quantity as number, input.unit));
   const deductionKg = roundKg((quantityKg * deductionPct) / 100);
   const netKg = roundKg(quantityKg - deductionKg);
-  const pricePerKg = Math.round(input.pricePerKg as number);
+  // داخلی همیشه «تومان بر کیلو» است؛ اگر کاربر هر تن وارد کرده باشد تبدیل می‌شود
+  const pricePerKg = Math.round(priceUnit === "ton" ? (input.pricePerKg as number) / 1000 : (input.pricePerKg as number));
+  if (pricePerKg <= 0) return { ok: false, errors: ["قیمت پس از تبدیل به هر کیلو صفر شد؛ عدد بزرگ‌تری وارد کنید."] };
   const pricePerTon = Math.round(pricePerKg * 1000);
 
   const grossToman = roundToman(quantityKg * pricePerKg);
@@ -154,6 +161,7 @@ export function computeQuickSale(input: QuickSaleInput): QuickSaleResult | Quick
 
   return {
     ok: true,
+    priceInput: { value: Math.round(input.pricePerKg as number), unit: priceUnit },
     product: input.product.trim(),
     buyer: input.buyer.trim(),
     unit: input.unit,
@@ -182,13 +190,53 @@ export function quickSaleSummary(result: QuickSaleResult): string {
     `فروش ${result.product}${result.buyer ? ` به ${result.buyer}` : ""}`,
     `مقدار: ${result.quantity.both} — ${result.quantity.bothWords}`,
     `وزن خالص پس از کسورات: ${result.netWeight.both} — ${result.netWeight.bothWords}`,
-    `قیمت هر کیلو: ${fa(result.pricePerKg)} تومان · هر تن: ${fa(result.pricePerTon)} تومان`,
+    result.priceInput.unit === "ton"
+      ? `قیمت هر تن: ${toPersianDigits(result.priceInput.value.toLocaleString("en-US"))} تومان (هر کیلو ${toPersianDigits(result.pricePerKg.toLocaleString("en-US"))} تومان)`
+      : `قیمت هر کیلو: ${toPersianDigits(result.priceInput.value.toLocaleString("en-US"))} تومان · هر تن: ${toPersianDigits(result.pricePerTon.toLocaleString("en-US"))} تومان`,
     `مبلغ ناخالص: ${fa(result.grossToman)} تومان (${result.grossWords})`,
     `کسورات: ${fa(result.deductionToman)} تومان · مالیات: ${fa(result.taxToman)} تومان · حمل: ${fa(result.transportToman)} تومان`,
     `مبلغ قابل پرداخت: ${fa(result.payableToman)} تومان (${result.payableWords})`,
     `قیمت مؤثر هر کیلو: ${fa(result.effectivePricePerKg)} تومان`,
   ];
   return lines.join("\n");
+}
+
+/* -------------------- ابزارهای کمکی قطعی (باسکول/رطوبت/بارها) -------------------- */
+
+/** وزن خالص باسکول = پر − خالی؛ ورودی نامعتبر خطای شفاف می‌دهد. */
+export function weighbridgeNetKg(grossKg: number, tareKg: number): { ok: true; netKg: number } | { ok: false; error: string } {
+  if (!Number.isFinite(grossKg) || !Number.isFinite(tareKg)) return { ok: false, error: "وزن پر و خالی را با رقم وارد کنید." };
+  if (grossKg <= 0) return { ok: false, error: "وزن پر باید بزرگ‌تر از صفر باشد." };
+  if (tareKg < 0) return { ok: false, error: "وزن خالی نمی‌تواند منفی باشد." };
+  if (tareKg >= grossKg) return { ok: false, error: "وزن خالی باید کمتر از وزن پر باشد." };
+  if (grossKg > MAX_KG) return { ok: false, error: "وزن پر از سقف مجاز بیشتر است." };
+  return { ok: true, netKg: roundKg(grossKg - tareKg) };
+}
+
+/**
+ * افت رطوبت با فرمول وزنی باسکول:
+ *   (رطوبت اندازه‌گیری‌شده − پایه) ÷ (۱۰۰ − پایه) × ۱۰۰
+ * اگر اندازه‌گیری ≤ پایه باشد، افت صفر است.
+ */
+export function moistureDeductionPct(measuredPct: number, basePct: number): { ok: true; pct: number } | { ok: false; error: string } {
+  if (!Number.isFinite(measuredPct) || !Number.isFinite(basePct)) return { ok: false, error: "رطوبت اندازه‌گیری‌شده و پایه را وارد کنید." };
+  if (measuredPct < 0 || measuredPct > 100) return { ok: false, error: "رطوبت اندازه‌گیری‌شده باید بین ۰ و ۱۰۰ باشد." };
+  if (basePct < 0 || basePct >= 100) return { ok: false, error: "رطوبت پایه باید بین ۰ و کمتر از ۱۰۰ باشد." };
+  if (measuredPct <= basePct) return { ok: true, pct: 0 };
+  return { ok: true, pct: Math.round(((measuredPct - basePct) / (100 - basePct)) * 100 * 1000) / 1000 };
+}
+
+/** جمع چند بار (هر بار با واحد خودش) → کیلوگرم. */
+export function sumLoadsKg(loads: { value: number; unit: WeightUnit }[]): { ok: true; kg: number; count: number } | { ok: false; error: string } {
+  if (!Array.isArray(loads) || loads.length === 0) return { ok: false, error: "حداقل یک بار با مقدار وارد کنید." };
+  let total = 0;
+  for (const load of loads) {
+    if (!Number.isFinite(load.value) || load.value <= 0) return { ok: false, error: "مقدار هر بار باید بزرگ‌تر از صفر باشد." };
+    total += toKg(load.value, load.unit === "ton" ? "ton" : "kg");
+  }
+  const kg = roundKg(total);
+  if (kg > MAX_KG) return { ok: false, error: `جمع بارها از سقف مجاز (${MAX_KG / 1000} تن) بیشتر است.` };
+  return { ok: true, kg, count: loads.length };
 }
 
 export const QUICK_SALE_PRODUCTS = [

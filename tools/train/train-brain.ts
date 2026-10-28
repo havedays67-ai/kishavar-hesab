@@ -21,7 +21,7 @@ import { CREATE_TABLES_SQL, TRAIN_DIR, ROOT, writeIfChanged } from "./io";
 import { BRAIN_BUCKETS, fnv1a } from "../../app-v2/src/lib/nlu/brain-features";
 import { brainFeatures } from "../../app-v2/src/lib/nlu/brain-features";
 import { sentenceKey } from "../../app-v2/src/lib/nlu/normalizer";
-import { LABELS, generateLabeled, generatePersian, wordFrequencies, type LabeledSample } from "./lib";
+import { LABELS, generateLabeled, generatePersian, hasRawPlaceholder, wordFrequencies, type LabeledSample } from "./lib";
 import { solveMath } from "../../app-v2/src/lib/ai/math-engine";
 
 const args = process.argv.slice(2);
@@ -63,6 +63,14 @@ function main(): void {
     if (solveMath(row.q)) mathSolvable += 1;
   }
   const mathCoverage = Number(((mathSolvable / Math.max(1, mathChecked)) * 100).toFixed(2));
+
+  // دروازهٔ کیفیت داده: هیچ جای‌نگهدار خامی نباید وارد آموزش شود
+  const rawPlaceholders = labeled.filter((row) => hasRawPlaceholder(row.q)).length;
+  const quickSaleSamples = labeled.filter((row) => row.intent === "quick_sale").length;
+  if (rawPlaceholders > 0) {
+    console.error(`training data has raw placeholders: ${rawPlaceholders}`);
+    process.exit(1);
+  }
 
   /* ---------------- ۲) آموزش Naive Bayes با سطل هش ---------------- */
   const labelIndex = new Map<string, number>();
@@ -207,6 +215,7 @@ export const PERSIAN_VOCAB = ${JSON.stringify(vocabulary.join(" "))};
   const report = {
     version: meta.version,
     mode: full ? "full" : "ci",
+    dataQuality: { rawPlaceholders, quickSaleSamples },
     scale: {
       labeledTarget: LABELED,
       labeledGenerated: labeled.length,

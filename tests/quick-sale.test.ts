@@ -12,8 +12,8 @@ import {
   tonWordsOf,
   validateWeight,
 } from "../app-v2/src/lib/units";
-import { computeQuickSale, quickSaleSummary, QUICK_SALE_PRODUCTS, MAX_PRICE_PER_KG } from "../app-v2/src/lib/quick-sale";
-import { numberToPersianWords, toEnglishDigits } from "../app-v2/src/lib/format";
+import { computeQuickSale, moistureDeductionPct, quickSaleSummary, sumLoadsKg, weighbridgeNetKg, QUICK_SALE_PRODUCTS, MAX_PRICE_PER_KG } from "../app-v2/src/lib/quick-sale";
+import { numberToPersianWords, toEnglishDigits } from "../app-v2/src/lib/fa-number";
 import {
   isCustomRole,
   isRoleSelected,
@@ -228,5 +228,39 @@ describe("گارد دقت مبلغ (باگ سرریز عدد صحیح ایمن)"
   it("مبلغ به حروف برای عدد ناایمن خالی می‌ماند", () => {
     expect(moneyWords(Number.MAX_SAFE_INTEGER + 10)).toBe("");
     expect(moneyWords(1500000)).toContain("تومان");
+  });
+});
+
+describe("ابزارهای تازهٔ فروش ساده (باسکول، رطوبت، چند بار، قیمت تن)", () => {
+  it("باسکول: خالص = پر − خالی؛ ورودی نامعتبر رد می‌شود", () => {
+    expect(weighbridgeNetKg(12_500, 2_500)).toEqual({ ok: true, netKg: 10_000 });
+    expect(weighbridgeNetKg(2_000, 2_000).ok).toBe(false);
+    expect(weighbridgeNetKg(0, 0).ok).toBe(false);
+    expect(weighbridgeNetKg(Number.NaN, 5).ok).toBe(false);
+  });
+
+  it("افت رطوبت با فرمول وزنی و کف صفر", () => {
+    const result = moistureDeductionPct(16, 14);
+    expect(result.ok && Number(result.pct.toFixed(3))).toBe(2.326);
+    expect(moistureDeductionPct(12, 14)).toEqual({ ok: true, pct: 0 });
+    expect(moistureDeductionPct(101, 14).ok).toBe(false);
+    expect(moistureDeductionPct(16, 100).ok).toBe(false);
+  });
+
+  it("جمع چند بار با واحدهای مختلف", () => {
+    expect(sumLoadsKg([{ value: 1.5, unit: "ton" }, { value: 500, unit: "kg" }])).toEqual({ ok: true, kg: 2000, count: 2 });
+    expect(sumLoadsKg([{ value: 0, unit: "kg" }]).ok).toBe(false);
+    expect(sumLoadsKg([]).ok).toBe(false);
+  });
+
+  it("قیمت هر تن همان نتیجهٔ قیمت هر کیلو است", () => {
+    const perKg = computeQuickSale({ product: "تخم آفتابگردان", buyer: "شرکت", unit: "ton", quantity: 2.5, pricePerKg: 45000 });
+    const perTon = computeQuickSale({ product: "تخم آفتابگردان", buyer: "شرکت", unit: "ton", quantity: 2.5, pricePerKg: 45_000_000, priceUnit: "ton" });
+    expect(perKg.ok && perTon.ok).toBe(true);
+    if (!perKg.ok || !perTon.ok) return;
+    expect(perTon.payableToman).toBe(perKg.payableToman);
+    expect(perTon.pricePerKg).toBe(45000);
+    expect(perTon.priceInput.unit).toBe("ton");
+    expect(quickSaleSummary(perTon)).toContain("قیمت هر تن");
   });
 });

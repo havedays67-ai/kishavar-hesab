@@ -1,6 +1,10 @@
 {
   "version": "1.0.0-cpu",
   "mode": "ci",
+  "dataQuality": {
+    "rawPlaceholders": 0,
+    "quickSaleSamples": 6667
+  },
   "scale": {
     "labeledTarget": 200000,
     "labeledGenerated": 200000,

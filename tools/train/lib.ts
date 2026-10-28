@@ -316,7 +316,10 @@ export function generateLabeled(count: number, seed = 20261116): LabeledSample[]
       .replace(/{p}/g, percent)
       .replace(/{people}/g, people)
       .replace(/{qty}/g, String([1, 2, 5, 10, 20, 50][Math.floor(random() * 6)]))
-      .replace(/{rate}/g, String([35, 45, 60, 85, 120][Math.floor(random() * 5)] * 1000));
+      .replace(/{rate}/g, String([35, 45, 60, 85, 120][Math.floor(random() * 5)] * 1000))
+      .replace(/{qty}/g, String([1, 1.5, 2, 2.5, 5, 10, 250, 500][Math.floor(random() * 8)]))
+      .replace(/{rate2}/g, String([18000, 25000, 32000, 45000, 68000][Math.floor(random() * 5)]))
+      .replace(/{weightUnit}/g, ["تن", "کیلوگرم", "کیلو", "خروار"][Math.floor(random() * 4)]);
     const withAmount = `${Math.floor(random() * 90 + 1)} میلیون تومان ${base}`;
     const text = mutate(`${pick(random, PREFIXES)}${random() % 2 === 0 ? withAmount : base}${pick(random, SUFFIXES)}`, guard + 3);
     const q = text.replace(/\s+/g, " ").trim();
@@ -370,4 +373,10 @@ export function wordFrequencies(lines: string[]): Map<string, number> {
     }
   }
   return counts;
+}
+
+
+/** هر جای‌نگهدار خام در نمونه یعنی دادهٔ آموزشی خراب؛ برای گیت کیفیت. */
+export function hasRawPlaceholder(text: string): boolean {
+  return /\{[a-zA-Z0-9]+\}/.test(text);
 }

@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import { toPersianDigits } from "../lib/format";
-import { parseNumericInput, validateWeight, type WeightUnit } from "../lib/units";
-import { computeQuickSale, quickSaleSummary, QUICK_SALE_PRODUCTS, type QuickSaleResult } from "../lib/quick-sale";
+import { MAX_KG, describeWeight, parseNumericInput, validateWeight, type WeightUnit } from "../lib/units";
+import { computeQuickSale, moistureDeductionPct, quickSaleSummary, sumLoadsKg, weighbridgeNetKg, QUICK_SALE_PRODUCTS, type QuickSaleResult } from "../lib/quick-sale";
 import { useProfile, profileDisplayName } from "../lib/profile";
 import { Toast } from "../components/ui";
 
@@ -50,6 +50,13 @@ export function QuickSalePage() {
   const [unit, setUnit] = useState<WeightUnit>("kg");
   const [quantity, setQuantity] = useState("1000");
   const [pricePerKg, setPricePerKg] = useState("45000");
+  const [priceUnit, setPriceUnit] = useState<"kg" | "ton">("kg");
+  const [gross, setGross] = useState("");
+  const [tare, setTare] = useState("");
+  const [moistureMeasured, setMoistureMeasured] = useState("");
+  const [moistureBase, setMoistureBase] = useState("14");
+  const [loads, setLoads] = useState<{ value: string; unit: WeightUnit }[]>([{ value: "", unit: "ton" }]);
+  const [toolNote, setToolNote] = useState<string | null>(null);
   const [advanced, setAdvanced] = useState(false);
   const [deductionPct, setDeductionPct] = useState("0");
   const [transport, setTransport] = useState("0");
@@ -84,6 +91,7 @@ export function QuickSalePage() {
       unit,
       quantity: quantityNumber,
       pricePerKg: parseNumericInput(pricePerKg),
+      priceUnit,
       deductionPct: parseNumericInput(deductionPct),
       transportToman: parseNumericInput(transport),
       taxPct: parseNumericInput(taxPct),
@@ -148,12 +156,53 @@ export function QuickSalePage() {
     }
   };
 
+  const applyWeighbridge = () => {
+    const grossValue = parseNumericInput(gross);
+    const tareValue = parseNumericInput(tare);
+    if (grossValue === null || tareValue === null) { setToolNote("وزن پر و خالی باسکول را با رقم وارد کنید."); return; }
+    const net = weighbridgeNetKg(grossValue, tareValue);
+    if (!net.ok) { setToolNote(net.error); return; }
+    setUnit("kg");
+    setQuantity(String(net.netKg));
+    const shown = describeWeight(net.netKg);
+    setToolNote(`وزن خالص باسکول: ${shown.both} — ${shown.bothWords}`);
+  };
+
+  const applyMoisture = () => {
+    const measured = parseNumericInput(moistureMeasured);
+    const base = parseNumericInput(moistureBase);
+    if (measured === null || base === null) { setToolNote("رطوبت اندازه‌گیری‌شده و پایه را وارد کنید."); return; }
+    const deduction = moistureDeductionPct(measured, base);
+    if (!deduction.ok) { setToolNote(deduction.error); return; }
+    setDeductionPct(String(deduction.pct));
+    setAdvanced(true);
+    setToolNote(deduction.pct === 0 ? "رطوبت از پایه بیشتر نیست؛ افت صفر شد." : `افت رطوبت: ${toPersianDigits(deduction.pct)}٪ در کسورات اعمال شد.`);
+  };
+
+  const applyLoads = () => {
+    const parsed = loads
+      .map((load) => ({ value: parseNumericInput(load.value), unit: load.unit }))
+      .filter((load): load is { value: number; unit: WeightUnit } => load.value !== null);
+    const total = sumLoadsKg(parsed);
+    if (!total.ok) { setToolNote(total.error); return; }
+    setUnit("kg");
+    setQuantity(String(total.kg));
+    const shown = describeWeight(total.kg);
+    setToolNote(`${toPersianDigits(total.count)} بار جمع شد: ${shown.both} — ${shown.bothWords}`);
+  };
+
   const reset = () => {
     setProduct(QUICK_SALE_PRODUCTS[0]);
     setBuyer("");
     setUnit("kg");
     setQuantity("1000");
     setPricePerKg("45000");
+    setPriceUnit("kg");
+    setGross("");
+    setTare("");
+    setMoistureMeasured("");
+    setLoads([{ value: "", unit: "ton" }]);
+    setToolNote(null);
     setDeductionPct("0");
     setTransport("0");
     setTaxPct("0");
@@ -212,10 +261,69 @@ export function QuickSalePage() {
                 {weightHint && <p className={cn("mt-1 text-[8px]", weightHint.tone === "error" ? "text-[#f0a59a]" : "text-[#8ba79a]")}>{weightHint.text}</p>}
               </div>
               <label className="block">
-                <span className="label">قیمت هر کیلو (تومان)</span>
-                <input value={pricePerKg} onChange={(event) => setPricePerKg(event.target.value)} inputMode="numeric" placeholder="۴۵٬۰۰۰" className="field mt-1 py-2 text-[11px]" />
-                <p className="mt-1 text-[8px] text-[#8ba79a]">هم‌ارز هر تن با محاسبه نشان داده می‌شود.</p>
+                <span className="label">قیمت (تومان)</span>
+                <div className="mt-1 flex gap-2">
+                  <input value={pricePerKg} onChange={(event) => setPricePerKg(event.target.value)} inputMode="numeric" placeholder="۴۵٬۰۰۰" className="field py-2 text-[11px]" aria-label="قیمت" />
+                  <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-black/25 p-1">
+                    {([["kg", "هر کیلو"], ["ton", "هر تن"]] as const).map(([id, label]) => (
+                      <button key={id} type="button" onClick={() => setPriceUnit(id)} className={cn("rounded-lg px-2 py-1 text-[9px]", priceUnit === id ? "bg-mint-300/15 text-mint-200" : "text-[#8ba79a]")}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-1 text-[8px] text-[#8ba79a]">قیمت هر کیلو و هر تن، هر دو محاسبه و نمایش داده می‌شوند.</p>
               </label>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-mint-300/15 bg-mint-300/[0.04] p-3">
+              <p className="text-[9px] font-semibold text-mint-200">ابزارهای سریع: باسکول، رطوبت و چند بار</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <span className="label">وزن پر باسکول (کیلو)</span>
+                  <input value={gross} onChange={(event) => setGross(event.target.value)} inputMode="numeric" placeholder="۱۲۵۰۰" className="field mt-1 py-1.5 text-[10px]" aria-label="وزن پر باسکول" />
+                </div>
+                <div>
+                  <span className="label">وزن خالی (کیلو)</span>
+                  <div className="mt-1 flex gap-1.5">
+                    <input value={tare} onChange={(event) => setTare(event.target.value)} inputMode="numeric" placeholder="۲۵۰۰" className="field py-1.5 text-[10px]" aria-label="وزن خالی" />
+                    <button type="button" onClick={applyWeighbridge} className="shrink-0 rounded-lg border border-mint-300/25 bg-mint-300/10 px-2 text-[8px] text-mint-200">محاسبهٔ خالص</button>
+                  </div>
+                </div>
+                <div>
+                  <span className="label">رطوبت اندازه‌گیری‌شده (٪)</span>
+                  <div className="mt-1 flex gap-1.5">
+                    <input value={moistureMeasured} onChange={(event) => setMoistureMeasured(event.target.value)} inputMode="decimal" placeholder="۱۶" className="field py-1.5 text-[10px]" aria-label="رطوبت اندازه‌گیری‌شده" />
+                    <input value={moistureBase} onChange={(event) => setMoistureBase(event.target.value)} inputMode="decimal" placeholder="۱۴" className="field py-1.5 text-[10px]" aria-label="رطوبت پایه" />
+                    <button type="button" onClick={applyMoisture} className="shrink-0 rounded-lg border border-mint-300/25 bg-mint-300/10 px-2 text-[8px] text-mint-200">افت رطوبت</button>
+                  </div>
+                </div>
+                <div>
+                  <span className="label">چند بار (کیلو/تن)</span>
+                  <div className="mt-1 space-y-1">
+                    {loads.map((load, index) => (
+                      <div key={index} className="flex items-center gap-1">
+                        <input
+                          value={load.value}
+                          onChange={(event) => setLoads((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, value: event.target.value } : item)))}
+                          inputMode="decimal"
+                          placeholder="۱٫۵"
+                          className="field py-1.5 text-[10px]"
+                          aria-label={`مقدار بار ${index + 1}`}
+                        />
+                        <button type="button" onClick={() => setLoads((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, unit: item.unit === "ton" ? "kg" : "ton" } : item)))} className="shrink-0 rounded-lg border border-white/10 px-1.5 py-1.5 text-[8px] text-[#9db5a8]">{load.unit === "ton" ? "تن" : "کیلو"}</button>
+                        {loads.length > 1 && (
+                          <button type="button" onClick={() => setLoads((current) => current.filter((_item, itemIndex) => itemIndex !== index))} className="shrink-0 text-[#8a6a63]" aria-label="حذف بار"><Trash2 className="h-3 w-3" /></button>
+                        )}
+                      </div>
+                    ))}
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={() => setLoads((current) => [...current, { value: "", unit: "ton" }])} className="rounded-lg border border-white/10 px-2 py-1 text-[8px] text-[#a9c1b5]">+ بار</button>
+                      <button type="button" onClick={applyLoads} className="rounded-lg border border-mint-300/25 bg-mint-300/10 px-2 py-1 text-[8px] text-mint-200">جمع بارها</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {toolNote && <p className="rounded-lg bg-black/25 px-2 py-1.5 text-[8px] leading-5 text-[#b6ccc0]">{toolNote}</p>}
+              <p className="text-[7px] leading-4 text-[#78968a]">سقف مجاز {toPersianDigits((MAX_KG / 1000).toLocaleString("en-US"))} تن؛ افت رطوبت با فرمول وزنی باسکول محاسبه می‌شود.</p>
             </div>
 
             <button type="button" onClick={() => setAdvanced((value) => !value)} className="flex w-full items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-[9px] text-[#a9c1b5]">

@@ -7,7 +7,7 @@
  *
  * هیچ ورودی نامعتبری حدس زده نمی‌شود: مقدار منفی/غیرعددی → null.
  */
-import { numberToPersianWords, toPersianDigits } from "./format";
+import { numberToPersianWords, toPersianDigits } from "./fa-number";
 
 export type WeightUnit = "kg" | "ton";
 
