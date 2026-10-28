@@ -44,3 +44,8 @@ __pycache__/
 
 # آزمایشی: کلید ثابت debug برای ساخت قابل ارتقا (کلید تولید نیست)
 !signing/debug.keystore
+artifacts/
+tools/build_pack/data/*.jsonl
+!tools/build_pack/data/hard-eval.jsonl
+!tools/build_pack/data/corpus.jsonl
+tools/build_pack/data/corpus-stats.jsonl

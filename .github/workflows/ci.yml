@@ -51,6 +51,38 @@ jobs:
       - name: Dataset validation (zero contract errors gate)
         run: npx tsx scripts/validate-dataset.ts training/data/*.jsonl
 
+      - name: Fast understanding layer tests (normalizer, rules, pack, cache, router)
+        run: npx vitest run tests/fast-layer.test.ts
+
+      - name: Corpus + hard-eval determinism
+        run: |
+          npx tsx tools/build_pack/generate.ts
+          npx tsx tools/build_pack/build-pack.ts
+          npx tsx tools/build_pack/eval.ts
+          git diff --exit-code -- training/data tools/build_pack/data app-v2/src/lib/nlu/generated
+
+      - name: Fast layer quality gate (JSON contract + measured accuracy)
+        run: |
+          node -e '
+            const r = require("./eval_report.json");
+            const json = r.jsonContract;
+            if (json.acceptedValidJson !== json.sampleSize) { console.error("valid JSON rejected"); process.exit(1); }
+            if (json.rejectedCorruptedJson !== json.sampleSize) { console.error("corrupted JSON accepted"); process.exit(1); }
+            if (r.fastLayerClassification.intentAccuracy < 90) { console.error("intent accuracy below gate: " + r.fastLayerClassification.intentAccuracy); process.exit(1); }
+            if (r.metrics.modelCalls !== 0) { console.error("unexpected model calls"); process.exit(1); }
+            console.log("fast layer gate ok", r.fastLayerClassification.intentAccuracy, "p95", r.metrics.p95Ms + "ms");
+          '
+
+      - name: app-v2 typecheck (APK payload)
+        working-directory: app-v2
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit --pretty false
+
+      - name: app-v2 production build (APK payload)
+        working-directory: app-v2
+        run: npm run build
+
       - name: Type generation
         run: npx next typegen
 

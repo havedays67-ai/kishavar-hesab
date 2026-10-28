@@ -1,0 +1,240 @@
+{"text":"جمع بدهی‌های من به فروشندگان نهاده چقدر شد یادت باشه","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی راهنمای پشتیبان‌گیری از برنامه ثبت کن","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که بدهی به تأمین‌کنندگان چقدر است یادت باشه","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"با اجازه آبیاری مزرعه انجام شد حالا چه کنم","intent":"irrigation_log","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"راستش دیشب تو گلخونه سم پاشی کردم، کنه داشت برای حساب مزرعه","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز برای مزارعه چه بندهایی توی قرارداد بنویسم یادت باشه","intent":"contract_help","slots":{"docType":"contract"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"براي فردا بارندگي هست؟ لطفا","intent":"weather","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه بار گوجه رفت سیلو، قرار شد پولشو هفته بعد بدن درست گفتم؟","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"هزینه بذر برای زمین شمالی پرداخت شد واسم بنویس","intent":"add_expense","slots":{"category":"بذر"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی درآمد فروش محصول دریافت شد یادت باشه","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه مطالبات از مشتريان چقدر هست","intent":"report_receivable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"راستش برداشت پسته شروع شد، کلاله‌ها خشک شدن حالا چه کنم","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چی تو انبار مونده واسم بنویس","intent":"report_inventory","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه خريد نهاده داشتم؛ گوگرد و سولفات آمونيوم لطفا","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي جمع بدهيهاي من به فروشندگان نهاده چقدر شد براي حساب مزرعه","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"رهستش مطالبات از مشتريان چقدر هست حالا چه كنم","intent":"report_receivable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی محصول پسته رو به تعاونی تحویل دادم درست گفتم؟","intent":"sale_crop","slots":{"crop":"پسته","role":"seller"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه قسط بانک کشاورزی رو پرداخت کردم","intent":"loan_installment","slots":{"topic":"وام"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه هزینه بذر برای زمین شمالی پرداخت شد واسم بنویس","intent":"add_expense","slots":{"category":"بذر"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"رهستش پول اجاره تراكتور رو كه دادم بهم برگشت لطفا","intent":"add_income","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تسویه کارگرهای برداشت انجام شد حالا چه کنم","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"راستش آبیاری مزرعه انجام شد واسم بنویس","intent":"irrigation_log","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برا کشت امسال موجودی نقد چقدر است","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز امرو رفتم فروشنیه، کود اوره گرفتم واس گوجه، پولشو نقد دادم حالا چه کنم","intent":"add_expense","slots":{"category":"کود","crop":"گندم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه اين فصل روي گوجه سود كردم يا ضرر يادت باشه","intent":"report_profit","slots":{"crop":"گوجه"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه چنتا کیسه بذر گواهی شده واس زمین جنوبی گرفتم ثبت کن","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه درآمد فروش محصول دريافت شد لطفا","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز امضای انگشتی من روی صفحه نمایش اعتبار قانونی دارد","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"راهنماي پشتيبانگيري از برنامه درست گفتم؟","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که هزینه بذر برای زمین شمالی پرداخت شد درست گفتم؟","intent":"add_expense","slots":{"category":"بذر"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"دیروز محصول سیب‌زمینی رو به تعاونی تحویل دادم حالا چه کنم","intent":"sale_crop","slots":{"crop":"پسته","role":"seller"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"راستش تسمه تراکتور پاره شد، یدکی گرفتم براش حالا چه کنم","intent":"add_expense","slots":{"category":"تعمیر و نگهداری"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"فروش خرما به خريدار انجام شد ثبت كن","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه امضاي الكترونيكي برنامه از نظر قانوني معتبر هست درست گفتم؟","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برا کشت امسال برای مزارعه چه بندهایی توی قرارداد بنویسم ثبت کن","intent":"contract_help","slots":{"docType":"contract"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"راهنمای پشتیبان‌گیری از برنامه حالا چه کنم","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"با اجازه برای فروشنیه چک صادر کردم بابت بدهی","intent":"cheque_paid","slots":{"docType":"cheque","direction":"out"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز چطوری داده هامو نگه دارم اگه گوشی عوض شه یادت باشه","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال جمع بدهی‌های من به فروشندگان نهاده چقدر شد لطفا","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"رهستش خيلي لطف كردي، خداحافظ حالا چه كنم","intent":"thanks","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"رهستش قبض برق چاه را واريز كردم امروز ثبت كن","intent":"add_expense","slots":{"category":"آب و برق"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برا كشت امسال ديشب تو گلخونه سم پاشي كردم، كنه داشت واسم بنويس","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"درآمد فروش محصول دریافت شد درست گفتم؟","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي چكهايي كه نزديك سررسيدن كدوما هستن لطفا","intent":"report_cheques","slots":{"docType":"cheque"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز سود و زیان این دوره چقدر است لطفا","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"قسط بانك كشاورزي رو پرداخت كردم يادت باشه","intent":"loan_installment","slots":{"topic":"وام"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"ديروز براي مزارعه چه بندهايي توي قرارداد بنويسم لطفا","intent":"contract_help","slots":{"docType":"contract"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"رهستش چطوري داده هامو نگه دارم اگه گوشي عوض شه","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه تسمه تراكتور پاره شد، يدكي گرفتم براش ثبت كن","intent":"add_expense","slots":{"category":"تعمیر و نگهداری"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه چنتا كيسه بذر گواهي شده واس زمين جنوبي گرفتم حالا چه كنم","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال دیشب تو گلخونه سم پاشی کردم، کنه داشت درست گفتم؟","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه مطالبات از مشتريان چقدر هست لطفا","intent":"report_receivable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز بدهي به تأمينكنندگان چقدر هست","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه چطوری داده هامو نگه دارم اگه گوشی عوض شه یادت باشه","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا كشت امسال دور آبي كه به قطعه دو دادم تموم شد","intent":"irrigation_log","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه خرید نهاده داشتم؛ گوگرد و سولفات آمونیوم واسم بنویس","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"براي مزارعه چه بندهايي توي قرارداد بنويسم ثبت كن","intent":"contract_help","slots":{"docType":"contract"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برا کشت امسال سلام آقا مهندس حالا چه کنم","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز چك چاپي از نظر قانوني معتبر هست حالا چه كنم","intent":"legal_cheque","slots":{"docType":"cheque"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه قبض برق چاه را واريز كردم امروز لطفا","intent":"add_expense","slots":{"category":"آب و برق"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه اجاره نامه دستي با دو شاهد كافيه؟ ثبت كن","intent":"legal_contract","slots":{"docType":"contract"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چطوري داده هامو نگه دارم اگه گوشي عوض شه ثبت كن","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"رهستش تسمه تراكتور پاره شد، يدكي گرفتم براش واسم بنويس","intent":"add_expense","slots":{"category":"تعمیر و نگهداری"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تسویه کارگرهای برداشت انجام شد واسم بنویس","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی از مهدی یه برگه چک گرفتم، صیادی ثبتش کردم درست گفتم؟","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"راهنماي پشتيبانگيري از برنامه واسم بنويس","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي تسويه كارگرهاي برداشت انجام شد حالا چه كنم","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه الان تو صندوق و حساب چقدر پول هست واسم بنويس","intent":"report_cash","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"ديروز محصول پسته رو به تعاوني تحويل دادم ثبت كن","intent":"sale_crop","slots":{"crop":"پسته","role":"seller"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه راهنمای پشتیبان‌گیری از برنامه درست گفتم؟","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"رهستش خريد كود و سم براي كشت امسال انجام شد درست گفتم؟","intent":"purchase_input","slots":{"category":"کود"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی چطوری داده هامو نگه دارم اگه گوشی عوض شه لطفا","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"اجاره نامه دستی با دو شاهد کافیه؟ یادت باشه","intent":"legal_contract","slots":{"docType":"contract"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز سلام آقا مهندس ثبت كن","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه اجاره نامه دستي با دو شاهد كافيه؟ حالا چه كنم","intent":"legal_contract","slots":{"docType":"contract"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز قبض برق چاه را واریز کردم امروز واسم بنویس","intent":"add_expense","slots":{"category":"آب و برق"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"ديروز موجودي نقد چقدر هست درست گفتم؟","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی چک‌هایی که نزدیک سررسیدن کدوما هستن واسم بنویس","intent":"report_cheques","slots":{"docType":"cheque"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه چنتا کیسه بذر گواهی شده واس زمین جنوبی گرفتم برای حساب مزرعه","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"رهستش آبياري مزرعه انجام شد يادت باشه","intent":"irrigation_log","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که دیشب تو گلخونه سم پاشی کردم، کنه داشت ثبت کن","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امضاي الكترونيكي برنامه از نظر قانوني معتبر هست ثبت كن","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که بدهی به تأمین‌کنندگان چقدر است برای حساب مزرعه","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز جمع بدهی‌های من به فروشندگان نهاده چقدر شد یادت باشه","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"امروز درآمد فروش محصول دريافت شد يادت باشه","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"دیروز دیشب تو گلخونه سم پاشی کردم، کنه داشت لطفا","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز دور آبی که به قطعه دو دادم تموم شد درست گفتم؟","intent":"irrigation_log","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"ديروز به عباس آقا و دو تا كارگر ديگه مزد هفته رو دادم واسم بنويس","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"خريد كود و سم براي كشت امسال انجام شد لطفا","intent":"purchase_input","slots":{"category":"کود"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز براي فردا بارندگي هست؟ لطفا","intent":"weather","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتیه که درآمد فروش محصول دریافت شد درست گفتم؟","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه چنتا كيسه بذر گواهي شده واس زمين جنوبي گرفتم واسم بنويس","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی چطوری داده هامو نگه دارم اگه گوشی عوض شه ثبت کن","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه برداشت محصول در زمین اصلی انجام شد ثبت کن","intent":"harvest_record","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"دیروز هزینه بذر برای زمین شمالی پرداخت شد","intent":"add_expense","slots":{"category":"بذر"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"رهستش به عباس آقا و دو تا كارگر ديگه مزد هفته رو دادم ثبت كن","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"این فصل روی سیب‌زمینی سود کردم یا ضرر یادت باشه","intent":"report_profit","slots":{"crop":"گوجه"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"ديروز قسط بانك كشاورزي رو پرداخت كردم ثبت كن","intent":"loan_installment","slots":{"topic":"وام"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه دور آبی که به قطعه دو دادم تموم شد حالا چه کنم","intent":"irrigation_log","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال برای فردا بارندگی هست؟ لطفا","intent":"weather","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"مطالبات از مشتريان چقدر هست ثبت كن","intent":"report_receivable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"دیروز کود سرک اوره رو پای بوته‌های خرما دادم واسم بنویس","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"ذرت"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه از انبار كيسههاي كود رو براي زمين بالا ببر واسم بنويس","intent":"inventory_out","slots":{"category":"کود"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"خيلي لطف كردي، خداحافظ حالا چه كنم","intent":"thanks","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه الان تو صندوق و حساب چقدر پول هست لطفا","intent":"report_cash","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي برداشت زعفران شروع شد، كلالهها خشك شدن ثبت كن","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی به عباس آقا و دو تا کارگر دیگه مزد هفته رو دادم لطفا","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز برای فردا بارندگی هست؟ درست گفتم؟","intent":"weather","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه از مهدي يه برگه چك گرفتم، صيادي ثبتش كردم براي حساب مزرعه","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی اجاره نامه دستی با دو شاهد کافیه؟ یادت باشه","intent":"legal_contract","slots":{"docType":"contract"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه برداشت زعفران شروع شد، کلاله‌ها خشک شدن برای حساب مزرعه","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی خرید نهاده داشتم؛ گوگرد و سولفات آمونیوم واسم بنویس","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه آبیاری مزرعه انجام شد","intent":"irrigation_log","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"سود و زیان این دوره چقدر است واسم بنویس","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز چک چاپی از نظر قانونی معتبر است لطفا","intent":"legal_cheque","slots":{"docType":"cheque"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"راستش بار گندم رفت سیلو، قرار شد پولشو هفته بعد بدن","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی امضای انگشتی من روی صفحه نمایش اعتبار قانونی دارد لطفا","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی کود سرک اوره رو پای بوته‌های ذرت دادم درست گفتم؟","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"ذرت"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"امروز امرو کمباین اومد، زمین سه رو درو کردیم یادت باشه","intent":"harvest_record","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز چی تو انبار مونده ثبت کن","intent":"report_inventory","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برا كشت امسال چنتا كيسه بذر گواهي شده واس زمين جنوبي گرفتم ثبت كن","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه خیلی لطف کردی، خداحافظ درست گفتم؟","intent":"thanks","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برا کشت امسال دیشب تو گلخونه سم پاشی کردم، کنه داشت یادت باشه","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز به عباس آقا و دو تا كارگر ديگه مزد هفته رو دادم واسم بنويس","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی به عباس آقا و دو تا کارگر دیگه مزد هفته رو دادم حالا چه کنم","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه الان تو صندوق و حساب چقدر پول هست","intent":"report_cash","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"از مهدی یه برگه چک گرفتم، صیادی ثبتش کردم واسم بنویس","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه به عباس آقا و دو تا كارگر ديگه مزد هفته رو دادم براي حساب مزرعه","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز آبیاری مزرعه انجام شد لطفا","intent":"irrigation_log","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه برداشت پنبه شروع شد، کلاله‌ها خشک شدن واسم بنویس","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتیه که سود و زیان این دوره چقدر است حالا چه کنم","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"با اجازه کیا بهم بدهکارن؟ لیستشو بده یادت باشه","intent":"report_receivable","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه برای مزارعه چه بندهایی توی قرارداد بنویسم درست گفتم؟","intent":"contract_help","slots":{"docType":"contract"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"دیروز پمپ چاه رو روشن کردم برای آبیاری پنبه لطفا","intent":"irrigation_log","slots":{"crop":"گندم"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه بار سیب‌زمینی رفت سیلو، قرار شد پولشو هفته بعد بدن ثبت کن","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال موجودی نقد چقدر است حالا چه کنم","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چک‌هایی که نزدیک سررسیدن کدوما هستن حالا چه کنم","intent":"report_cheques","slots":{"docType":"cheque"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه درآمد فروش محصول دريافت شد حالا چه كنم","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی امضای انگشتی من روی صفحه نمایش اعتبار قانونی دارد واسم بنویس","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"رهستش امضاي انگشتي من روي صفحه نمايش اعتبار قانوني دارد","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه به عباس آقا و دو تا کارگر دیگه مزد هفته رو دادم یادت باشه","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چک‌هایی که نزدیک سررسیدن کدوما هستن یادت باشه","intent":"report_cheques","slots":{"docType":"cheque"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چند وقتیه که چک A4 که چاپ کردیم رو بانک قبول می‌کنه؟ ثبت کن","intent":"legal_cheque","slots":{"docType":"cheque"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه امضاي انگشتي من روي صفحه نمايش اعتبار قانوني دارد لطفا","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه ديشب تو گلخونه سم پاشي كردم، كنه داشت لطفا","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه امضاي الكترونيكي برنامه از نظر قانوني معتبر هست","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که اجاره نامه دستی با دو شاهد کافیه؟","intent":"legal_contract","slots":{"docType":"contract"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي جمع بدهيهاي من به فروشندگان نهاده چقدر شد واسم بنويس","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي سلام آقا مهندس براي حساب مزرعه","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه اين فصل روي سيبزميني سود كردم يا ضرر حالا چه كنم","intent":"report_profit","slots":{"crop":"گوجه"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه به عباس آقا و دو تا کارگر دیگه مزد هفته رو دادم لطفا","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز دیشب تو گلخونه سم پاشی کردم، کنه داشت ثبت کن","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"ديروز موجودي نقد چقدر هست حالا چه كنم","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"رهستش چك چاپي از نظر قانوني معتبر هست","intent":"legal_cheque","slots":{"docType":"cheque"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برا كشت امسال سلام آقا مهندس لطفا","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز پول اجاره تراكتور رو كه دادم بهم برگشت يادت باشه","intent":"add_income","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه کود سرک اوره رو پای بوته‌های انگور دادم لطفا","intent":"fertilizer_pesticide","slots":{"category":"کود","crop":"ذرت"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی موجودی نقد چقدر است لطفا","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز راهنمای پشتیبان‌گیری از برنامه لطفا","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه قسط بانک کشاورزی رو پرداخت کردم برای حساب مزرعه","intent":"loan_installment","slots":{"topic":"وام"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه كيا بهم بدهكارن؟ ليستشو بده ثبت كن","intent":"report_receivable","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"دیروز خرید کود و سم برای کشت امسال انجام شد لطفا","intent":"purchase_input","slots":{"category":"کود"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی سلام آقا مهندس یادت باشه","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا كشت امسال خريد نهاده داشتم؛ گوگرد و سولفات آمونيوم درست گفتم؟","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"دور آبي كه به قطعه دو دادم تموم شد حالا چه كنم","intent":"irrigation_log","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال قبض برق چاه را واریز کردم امروز","intent":"add_expense","slots":{"category":"آب و برق"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی خرید نهاده داشتم؛ گوگرد و سولفات آمونیوم ثبت کن","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتیه که قسط بانک کشاورزی رو پرداخت کردم لطفا","intent":"loan_installment","slots":{"topic":"وام"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتیه که دستمزد کارگران پرداخت شد لطفا","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه آبیاری مزرعه انجام شد ثبت کن","intent":"irrigation_log","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"ديروز الان تو صندوق و حساب چقدر پول هست ثبت كن","intent":"report_cash","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی دستمزد کارگران پرداخت شد ثبت کن","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز برای مزارعه چه بندهایی توی قرارداد بنویسم ثبت کن","intent":"contract_help","slots":{"docType":"contract"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"دیروز بار گندم رفت سیلو، قرار شد پولشو هفته بعد بدن برای حساب مزرعه","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال برای فروشنیه چک صادر کردم بابت بدهی","intent":"cheque_paid","slots":{"docType":"cheque","direction":"out"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه دستمزد كارگران پرداخت شد درست گفتم؟","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"الان تو صندوق و حساب چقدر پول هست","intent":"report_cash","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"رهستش فروش سيبزميني به خريدار انجام شد حالا چه كنم","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"راستش دستمزد کارگران پرداخت شد یادت باشه","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که برداشت سیب‌زمینی شروع شد، کلاله‌ها خشک شدن واسم بنویس","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برا کشت امسال برداشت محصول در زمین اصلی انجام شد برای حساب مزرعه","intent":"harvest_record","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي هزينه بذر براي زمين شمالي پرداخت شد","intent":"add_expense","slots":{"category":"بذر"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"ديروز از مهدي يه برگه چك گرفتم، صيادي ثبتش كردم لطفا","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز کیا بهم بدهکارن؟ لیستشو بده","intent":"report_receivable","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"سود و زيان اين دوره چقدر هست براي حساب مزرعه","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که سلام آقا مهندس لطفا","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال بار گندم رفت سیلو، قرار شد پولشو هفته بعد بدن لطفا","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"با اجازه چطوري داده هامو نگه دارم اگه گوشي عوض شه براي حساب مزرعه","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"راستش دستمزد کارگران پرداخت شد ثبت کن","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"هزینه بذر برای زمین شمالی پرداخت شد لطفا","intent":"add_expense","slots":{"category":"بذر"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه قسط بانك كشاورزي رو پرداخت كردم ثبت كن","intent":"loan_installment","slots":{"topic":"وام"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"امروز تسويه كارگرهاي برداشت انجام شد حالا چه كنم","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"دیروز امضای الکترونیکی برنامه از نظر قانونی معتبر است یادت باشه","intent":"legal_signature","slots":{"docType":"signature"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز برداشت جو شروع شد، کلاله‌ها خشک شدن برای حساب مزرعه","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"قبض برق چاه را واریز کردم امروز واسم بنویس","intent":"add_expense","slots":{"category":"آب و برق"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی چطوری داده هامو نگه دارم اگه گوشی عوض شه یادت باشه","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال جمع بدهی‌های من به فروشندگان نهاده چقدر شد درست گفتم؟","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی سود و زیان این دوره چقدر است حالا چه کنم","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز چک چاپی از نظر قانونی معتبر است","intent":"legal_cheque","slots":{"docType":"cheque"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه جمع بدهيهاي من به فروشندگان نهاده چقدر شد ثبت كن","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"دیروز جمع بدهی‌های من به فروشندگان نهاده چقدر شد","intent":"report_payable","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی بدهی به تأمین‌کنندگان چقدر است درست گفتم؟","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"چند وقتیه که مطالبات از مشتریان چقدر است","intent":"report_receivable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"بار انگور رفت سیلو، قرار شد پولشو هفته بعد بدن درست گفتم؟","intent":"sale_crop","slots":{"crop":"گندم","role":"seller"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چی تو انبار مونده برای حساب مزرعه","intent":"report_inventory","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"دیروز دیشب تو گلخونه سم پاشی کردم، کنه داشت یادت باشه","intent":"fertilizer_pesticide","slots":{"category":"سم"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه چطوری داده هامو نگه دارم اگه گوشی عوض شه درست گفتم؟","intent":"app_help","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه خرید کود و سم برای کشت امسال انجام شد حالا چه کنم","intent":"purchase_input","slots":{"category":"کود"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"با اجازه بدهي به تأمينكنندگان چقدر هست ثبت كن","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز خرید نهاده داشتم؛ گوگرد و سولفات آمونیوم ثبت کن","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتیه که خیلی لطف کردی، خداحافظ حالا چه کنم","intent":"thanks","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي خيلي لطف كردي، خداحافظ لطفا","intent":"thanks","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"رهستش چنتا كيسه بذر گواهي شده واس زمين جنوبي گرفتم براي حساب مزرعه","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"تو مزرعه برداشت محصول در زمین اصلی انجام شد واسم بنویس","intent":"harvest_record","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"براي زمين شمالي درآمد فروش محصول دريافت شد براي حساب مزرعه","intent":"add_income","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"راستش بدهی به تأمین‌کنندگان چقدر است برای حساب مزرعه","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"با اجازه براي فردا بارندگي هست؟ يادت باشه","intent":"weather","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه مطالبات از مشتريان چقدر هست براي حساب مزرعه","intent":"report_receivable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"رهستش بدهي به تأمينكنندگان چقدر هست","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه دستمزد كارگران پرداخت شد براي حساب مزرعه","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"common","source":"synthetic-held-out"}
+{"text":"ديروز سود و زيان اين دوره چقدر هست ثبت كن","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برداشت گوجه شروع شد، کلاله‌ها خشک شدن درست گفتم؟","intent":"harvest_record","slots":{"crop":"زعفران"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"تو مزرعه موجودي نقد چقدر هست براي حساب مزرعه","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه الان تو صندوق و حساب چقدر پول هست يادت باشه","intent":"report_cash","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا كشت امسال بدهي به تأمينكنندگان چقدر هست درست گفتم؟","intent":"report_payable","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز چنتا كيسه بذر گواهي شده واس زمين جنوبي گرفتم لطفا","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی چی تو انبار مونده ثبت کن","intent":"report_inventory","slots":{},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"امروز تسویه کارگرهای برداشت انجام شد لطفا","intent":"wage_payment","slots":{"category":"کارگر","role":"worker"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"پول اجاره تراکتور رو که دادم بهم برگشت","intent":"add_income","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال سلام آقا مهندس واسم بنویس","intent":"greeting","slots":{},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برای زمین شمالی موجودی نقد چقدر است","intent":"report_cash","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"برا کشت امسال از مهدی یه برگه چک گرفتم، صیادی ثبتش کردم درست گفتم؟","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چند وقتيه كه از مهدي يه برگه چك گرفتم، صيادي ثبتش كردم براي حساب مزرعه","intent":"cheque_received","slots":{"docType":"cheque","direction":"in"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"چند وقتیه که راهنمای پشتیبان‌گیری از برنامه یادت باشه","intent":"app_help","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه تسمه تراكتور پاره شد، يدكي گرفتم براش يادت باشه","intent":"add_expense","slots":{"category":"تعمیر و نگهداری"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"امروز خريد نهاده داشتم؛ گوگرد و سولفات آمونيوم واسم بنويس","intent":"purchase_input","slots":{"category":"کود"},"scenario":"novel","source":"synthetic-held-out"}
+{"text":"با اجازه سود و زيان اين دوره چقدر هست براي حساب مزرعه","intent":"report_profit","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"امروز برداشت محصول در زمين اصلي انجام شد يادت باشه","intent":"harvest_record","slots":{},"scenario":"common","source":"synthetic-held-out"}
+{"text":"تو مزرعه چنتا کیسه بذر گواهی شده واس زمین جنوبی گرفتم یادت باشه","intent":"purchase_input","slots":{"category":"بذر"},"scenario":"colloquial","source":"synthetic-held-out"}
+{"text":"برا کشت امسال چک A4 که چاپ کردیم رو بانک قبول می‌کنه؟","intent":"legal_cheque","slots":{"docType":"cheque"},"scenario":"colloquial","source":"synthetic-held-out"}

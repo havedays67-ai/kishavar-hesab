@@ -1,0 +1,171 @@
+{
+  "generatedAt": "2026-10-28T05:06:48.315Z",
+  "architectureVersion": "1.0.0",
+  "dataset": {
+    "hardEval": 240,
+    "source": "synthetic-held-out (never in pack/cache/training corpus)",
+    "packEntries": 1551,
+    "packBytes": 71055,
+    "packChecksum": "557f5427"
+  },
+  "fastLayer": {
+    "total": 240,
+    "classified": 240,
+    "intentAccuracy": 97.5,
+    "slotExactMatch": 56.25,
+    "slotPrecision": 51.34,
+    "slotRecall": 87.43,
+    "clarifyRate": 1.67,
+    "avgMs": 0.291,
+    "p50Ms": 0.281,
+    "p95Ms": 0.453,
+    "layers": {
+      "rules": 236,
+      "clarify": 4
+    }
+  },
+  "fastLayerClassification": {
+    "total": 240,
+    "classified": 240,
+    "intentAccuracy": 97.5,
+    "slotExactMatch": 56.25,
+    "slotPrecision": 51.34,
+    "slotRecall": 87.43,
+    "clarifyRate": 1.67,
+    "avgMs": 0.291,
+    "p50Ms": 0.281,
+    "p95Ms": 0.453,
+    "layers": {
+      "rules": 236,
+      "clarify": 4
+    }
+  },
+  "rulesOnly": {
+    "total": 240,
+    "classified": 240,
+    "intentAccuracy": 97.5,
+    "slotExactMatch": 56.25,
+    "slotPrecision": 51.34,
+    "slotRecall": 87.43,
+    "clarifyRate": 1.67,
+    "avgMs": 0.324,
+    "p50Ms": 0.301,
+    "p95Ms": 0.501,
+    "layers": {
+      "rules": 236,
+      "clarify": 4
+    }
+  },
+  "packOnly": {
+    "total": 240,
+    "classified": 240,
+    "intentAccuracy": 0,
+    "slotExactMatch": 44.58,
+    "slotPrecision": 0,
+    "slotRecall": 0,
+    "clarifyRate": 100,
+    "avgMs": 0.039,
+    "p50Ms": 0.034,
+    "p95Ms": 0.05,
+    "layers": {
+      "clarify": 240
+    }
+  },
+  "byScenario": [
+    {
+      "scenario": "common",
+      "total": 78,
+      "classified": 78,
+      "intentAccuracy": 100,
+      "slotExactMatch": 60.26,
+      "slotPrecision": 47.06,
+      "slotRecall": 94.12,
+      "clarifyRate": 0,
+      "avgMs": 0.275,
+      "p50Ms": 0.267,
+      "p95Ms": 0.365,
+      "layers": {
+        "rules": 78
+      }
+    },
+    {
+      "scenario": "colloquial",
+      "total": 89,
+      "classified": 89,
+      "intentAccuracy": 93.26,
+      "slotExactMatch": 51.69,
+      "slotPrecision": 50.72,
+      "slotRecall": 88.61,
+      "clarifyRate": 4.49,
+      "avgMs": 0.321,
+      "p50Ms": 0.296,
+      "p95Ms": 0.546,
+      "layers": {
+        "rules": 85,
+        "clarify": 4
+      }
+    },
+    {
+      "scenario": "novel",
+      "total": 73,
+      "classified": 73,
+      "intentAccuracy": 100,
+      "slotExactMatch": 57.53,
+      "slotPrecision": 55.43,
+      "slotRecall": 82.26,
+      "clarifyRate": 0,
+      "avgMs": 0.273,
+      "p50Ms": 0.263,
+      "p95Ms": 0.389,
+      "layers": {
+        "rules": 73
+      }
+    }
+  ],
+  "learnedCache": {
+    "simulated": true,
+    "beforeCacheLayer": 0,
+    "afterConfirmationCacheHits": 0,
+    "cacheSize": 228,
+    "storesMoney": false
+  },
+  "jsonContract": {
+    "acceptedValidJson": 117,
+    "sampleSize": 120,
+    "rejectedCorruptedJson": 120,
+    "note": "اعتبارسنج سخت؛ مدل روی دستگاه در این نسخه همراه APK نیست، بنابراین نرخ JSON مدل واقعی اندازه‌گیری نشده است."
+  },
+  "model": {
+    "status": "not-available",
+    "reason": "هیچ وزن مدلی در مخزن/APK نیست؛ Router بدون مدل کار می‌کند و در ناشناخته‌ها سؤال شفاف می‌پرسد.",
+    "modelOnlyBaseline": "not-measured"
+  },
+  "metrics": {
+    "total": 480,
+    "avgMs": 0.28,
+    "p50Ms": 0.27,
+    "p95Ms": 0.41,
+    "layers": {
+      "rules": 472,
+      "cache": 0,
+      "pack": 0,
+      "retrieval": 0,
+      "model": 0,
+      "clarify": 8
+    },
+    "peakRamBytes": 174927,
+    "batteryEstimateMah": 0.0002,
+    "packBytes": 71055,
+    "modelCalls": 0
+  },
+  "targets": {
+    "intentAccuracyTarget": 98,
+    "met": false,
+    "rulesHitRate": 98.33
+  },
+  "honestNotes": [
+    "هارد‌ایوال کاملاً ترکیبی و خارج از بسته/کش/آموزش است؛ دقت روی داده واقعی کاربران ممکن است متفاوت باشد.",
+    "هیچ عددی برای مدل روی دستگاه گزارش نشده چون مدل همراه APK نیست.",
+    "زمان‌ها روی Node اندازه‌گیری شده‌اند، نه روی گوشی ۶ گیگ؛ برای گوشی باید همان بنچمارک تکرار شود."
+  ]
+}

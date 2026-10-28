@@ -205,6 +205,23 @@ jobs:
           printf 'variant=%s\nversionCode=%s\napk-cert-sha256=%s\n' "$VARIANT" "$VCODE" "$ACTUAL" > apk-build-info.txt
           cat apk-build-info.txt
 
+      - name: Fast-layer quality gates before publishing
+        run: |
+          cd app-v2
+          npx tsc --noEmit --pretty false
+          cd ..
+          npx vitest run tests/fast-layer.test.ts
+          node -e '
+            const r = require("./eval_report.json");
+            if (r.fastLayerClassification.intentAccuracy < 90) process.exit(1);
+            if (r.jsonContract.rejectedCorruptedJson !== r.jsonContract.sampleSize) process.exit(1);
+          '
+
+      - name: Prepare dev APK (auto pre-release on every main push)
+        run: |
+          cp KishavarHesab-1.0.0.apk KishavarHesab-dev.apk
+          ls -lh KishavarHesab-dev.apk
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -254,6 +271,20 @@ jobs:
           console.log('');
           console.log('نصب تازه کاملاً خالی است؛ داده‌های نمونه فقط در حالت آزمایش و به‌صورت دستی بارگذاری می‌شوند.');
           NODE
+
+      - name: Publish dev pre-release (dev-latest)
+        if: ${{ github.event_name == 'push' || github.event.inputs.variant == 'debug' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-latest
+          name: کشاورزحساب — نسخه توسعه (آفلاین، dev)
+          prerelease: true
+          make_latest: false
+          body: |
+            **نسخه توسعه، ساخت خودکار از شاخه main — برای آزمایش.**
+            نسخه رسمی همچنان `1.0.0` است و تگ پایدار `apk-v1` منتشر می‌شود.
+            versionCode از شماره اجرای GitHub Actions ساخته می‌شود و APK با کلید ثابت مخزن امضا می‌شود.
+          files: KishavarHesab-dev.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

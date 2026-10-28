@@ -35,13 +35,8 @@ import {
   tradeBalance,
 } from "../lib/trade";
 
-const PRINT_CSS = `
-  body{font-family:Vazirmatn,Tahoma,sans-serif;background:#eee;margin:0;padding:24px;direction:rtl;color:#18241e}
-  .sheet{max-width:210mm;min-height:297mm;margin:0 auto;padding:14mm;background:#fff;box-sizing:border-box}
-  table{width:100%;border-collapse:collapse;margin:8px 0}
-  th,td{border:1px solid #b9b4a7;padding:6px;text-align:right;font-size:11px}
-  th{background:#f0eee5}
-`;
+// استایل چاپ در lib/pdf.ts و lib/exportFile.ts متمرکز شده است.
+
 
 const thClass = "border border-[#c9c4b4] bg-[#f1efe6] px-2 py-1.5 text-[10px] font-semibold text-[#27362e]";
 const tdClass = "border border-[#d9d4c5] px-2 py-1.5 text-[10px] text-[#1e2a23]";
@@ -210,7 +205,7 @@ export function DocumentDialog({
 }) {
   const [copied, setCopied] = useState(false);
   const [zoom, setZoom] = useState<"fit" | "large">("fit");
-  const [busy, setBusy] = useState<"pdf" | "png" | "html" | null>(null);
+  const [busy, setBusy] = useState<"pdf" | "png" | "html" | "print" | null>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "err" | "info"; text: string } | null>(null);
   const [directFile, setDirectFile] = useState<{ url: string; filename: string } | null>(null);
   const [signOpen, setSignOpen] = useState(false);

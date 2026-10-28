@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-10-28T05:06:47.361Z",
+  "corpus": {
+    "rows": 1551,
+    "uniqueKeys": 1551,
+    "dataset": 35,
+    "synthetic": 1516
+  },
+  "hardEval": {
+    "rows": 240
+  },
+  "embeddedPack": {
+    "format": 1,
+    "version": "1.0.0",
+    "count": 6035,
+    "bytes": 276962,
+    "checksum": "3e5ce168",
+    "builtFrom": "corpus.jsonl (dataset + synthetic)",
+    "syntheticShare": 0.977,
+    "keysAreMasked": true,
+    "storesMoney": false
+  },
+  "sizes": [
+    {
+      "targetMb": 0.25,
+      "actualMb": 0.46,
+      "entries": 10485,
+      "packHitRate": 0,
+      "fullHitRate": 98.3,
+      "rulesOnlyHitRate": 98.3
+    },
+    {
+      "targetMb": 1,
+      "actualMb": 1.83,
+      "entries": 41943,
+      "packHitRate": 0,
+      "fullHitRate": 98.3,
+      "rulesOnlyHitRate": 98.3
+    },
+    {
+      "targetMb": 5,
+      "actualMb": 9.16,
+      "entries": 209715,
+      "packHitRate": 0,
+      "fullHitRate": 98.3,
+      "rulesOnlyHitRate": 98.3
+    },
+    {
+      "targetMb": 20,
+      "actualMb": 18.34,
+      "entries": 420000,
+      "packHitRate": 0,
+      "fullHitRate": 98.3,
+      "rulesOnlyHitRate": 98.3
+    }
+  ],
+  "conclusion": "نرخ Hit بسته عمدتاً به «تنوع phrasing» وابسته است، نه حجم فایل؛ افزودن رکوردهای بیشتر از خانواده‌های تکراری، حجم را بالا می‌برد ولی Hit را تقریباً ثابت نگه می‌دارد."
+}

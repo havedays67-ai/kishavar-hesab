@@ -20,6 +20,9 @@ import { plotMetrics, type CropPlot } from "../samples";
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../trade";
 import type { SavedContract } from "../data";
 import { formatJalali, toPersianDigits, todayJalali } from "../format";
+import { LearnedCache } from "../nlu/learned-cache";
+import { smallPack } from "../nlu/generated/pack-small";
+import { routeFast, fastLayerMetrics, type RouteResult } from "../nlu/router";
 import {
   ASSISTANT_GLOSSARY,
   KNOWLEDGE,
@@ -46,6 +49,11 @@ export interface AssistantMeta {
   matchedId: string;
   kind: "data" | "knowledge" | "fallback" | "social";
   highStakes?: boolean;
+  /** لایهٔ فهم سریع که این پاسخ را مسیریابی کرد (قواعد/بسته/کش/بازیابی/مدل) */
+  fastLayer?: string;
+  fastIntent?: string;
+  fastLatencyMs?: number;
+  fastConfidence?: number;
 }
 
 export interface AssistantReply {
@@ -62,6 +70,40 @@ export interface AssistantMessage {
 }
 
 const MEMORY_KEY = "kishavar.assistant.memory.v3";
+
+/* ---------------- لایهٔ فهم سریع (قواعد → بسته/کش → بازیابی) ---------------- */
+let nluCache: LearnedCache | null = null;
+let nluPack = null as ReturnType<typeof smallPack> | null;
+
+function fastUnderstand(raw: string): RouteResult {
+  try {
+    if (!nluCache) nluCache = new LearnedCache(undefined, 400);
+    if (!nluPack) nluPack = smallPack();
+    const result = routeFast(raw, { mode: "support", pack: nluPack, cache: nluCache });
+    fastLayerMetrics.setPackBytes(nluPack.manifest.bytes);
+    return result;
+  } catch {
+    return { layer: "clarify", intent: "unknown", slots: {}, confidence: 0, latencyMs: 0, normalized: "", matched: "error" };
+  }
+}
+
+function withFast(reply: AssistantReply, fast: RouteResult): AssistantReply {
+  return {
+    ...reply,
+    meta: {
+      ...reply.meta,
+      fastLayer: fast.layer,
+      fastIntent: fast.intent,
+      fastLatencyMs: fast.latencyMs,
+      fastConfidence: fast.confidence,
+    },
+  };
+}
+
+export function fastLayerSnapshot() {
+  return { pack: nluPack?.manifest ?? null, metrics: fastLayerMetrics.snapshot(), cache: nluCache?.stats() ?? null };
+}
+
 
 const STOPWORDS = new Set(
   [
@@ -375,10 +417,11 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   }
 
   // ۱) سؤال عددی/مالی: اول دفتر واقعی، مگر اینکه سؤال صریحاً حقوقی باشد.
+  const fast = fastUnderstand(raw);
   const legalIntent = hasAny(text, ["قانون", "قانونی", "معتبر", "اعتبار", "دادگاه", "شکایت", "ماده", "امضای الکترونیکی", "سند عادی", "سند رسمی", "ثبت رسمی", "دفتر اسناد"]);
   if (isDataQuestion(text) && !legalIntent) {
     const direct = dataAnswer(text, context);
-    if (direct) return direct;
+    if (direct) return withFast(direct, fast);
   }
 
   // ۲) دانشنامهٔ حقوقی/آموزشی و پرسش‌های مفهومی.
@@ -395,14 +438,15 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
         answer.meta.confidence = Math.max(answer.meta.confidence, 95);
       }
     }
-    return answer;
+    if (isDataQuestion(text)) return withFast(answer, fast);
+    return withFast(answer, fast);
   }
 
   // ۳) پاسخ عددی برای جمله‌هایی که «چقدر» نداشته‌اند.
   const direct = dataAnswer(text, context);
-  if (direct) return direct;
+  if (direct) return withFast(direct, fast);
 
-  return fallbackAnswer(normalized, scored);
+  return withFast(fallbackAnswer(normalized, scored), fast);
 }
 
 export function greeting(context: AssistantContext, profileName = ""): string {

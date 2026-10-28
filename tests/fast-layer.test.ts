@@ -1,0 +1,179 @@
+import { describe, expect, it } from "vitest";
+import {
+  hashKey, maskNumbers, normalizePersian, normalizeVerbalNumbers, sentenceKey, normalizeUnits,
+} from "../app-v2/src/lib/nlu/normalizer";
+import { runRules, RULE_THRESHOLD } from "../app-v2/src/lib/nlu/rules";
+import { checksumOf, decodeValue, encodePack, openPack } from "../app-v2/src/lib/nlu/pack";
+import { LearnedCache } from "../app-v2/src/lib/nlu/learned-cache";
+import { buildRetriever, type RetrievalDoc } from "../app-v2/src/lib/nlu/retriever";
+import { routeFast, fastLayerMetrics, needsDeterministicAnswer } from "../app-v2/src/lib/nlu/router";
+import { __resetModelForTests, validateModelOutput } from "../app-v2/src/lib/nlu/model";
+
+describe("Normalizer", () => {
+  it("ورودی‌های معادل یک کلید یکسان می‌سازند", () => {
+    const variants = [
+      "۲,۵۰۰,۰۰۰ تومان كود خريدم",
+      "2500000 تومان کود خریدم",
+      "دو میلیون و پانصد هزار تومان کود خریدم",
+      "۲۵۰۰۰۰۰‌تومان‌کود خریدم",
+    ];
+    const keys = new Set(variants.map((text) => sentenceKey(text)));
+    expect(keys.size).toBe(1);
+    expect([...keys][0]).not.toMatch(/\d/);
+  });
+
+  it("ارقام فارسی/عربی و ی/ک عربی را یکسان می‌کند", () => {
+    expect(normalizePersian("علي ۱۲٣")).toBe(normalizePersian("علی 123"));
+    expect(normalizePersian("كتاب")).toContain("کتاب");
+  });
+
+  it("عدد حرفی و واحدها را استاندارد می‌کند", () => {
+    expect(normalizeVerbalNumbers("دو میلیون و پانصد هزار").text).toBe("2500000");
+    expect(normalizeUnits(normalizePersian("۵ كيلو گرم گندم"))).toContain("کیلوگرم");
+  });
+
+  it("ماسک اعداد، هیچ مبلغی باقی نمی‌گذارد", () => {
+    expect(maskNumbers("۲۵ میلیون تومان برای کود")).not.toMatch(/\d/);
+  });
+
+  it("هش پایدار است", () => {
+    expect(hashKey("گندم")).toBe(hashKey("گندم"));
+    expect(hashKey("گندم")).not.toBe(hashKey("جو"));
+  });
+});
+
+describe("Rule engine", () => {
+  it("ثبت هزینه/فروش/چک/سود را تشخیص می‌دهد", () => {
+    expect(["add_expense", "purchase_input"]).toContain(runRules("۲۵ میلیون تومان کود اوره برای گندم خریدم")?.intent);
+    expect(runRules("کرایه کامیون حمل بار را دادم")?.intent).toBe("add_expense");
+    expect(runRules("چک ۴۴ میلیون تومانی از مهدی گرفتم")?.intent).toBe("cheque_received");
+    expect(runRules("چقدر طلب دارم")?.intent).toBe("report_receivable");
+    expect(runRules("چک چاپی از نظر قانونی معتبر است")?.intent).toBe("legal_cheque");
+  });
+
+  it("زیررشته‌ی نادرست ایجاد نمی‌کند («سم» داخل «بنویسم»)", () => {
+    const result = runRules("برای مزارعه چه بندهایی توی قرارداد بنویسم");
+    expect(result?.intent).not.toBe("fertilizer_pesticide");
+  });
+
+  it("اطمینان زیر آستانه، نتیجه نمی‌دهد", () => {
+    expect(runRules("")).toBeNull();
+    expect(RULE_THRESHOLD).toBeGreaterThan(0.5);
+  });
+
+  it("اسلات مالی تولید نمی‌کند", () => {
+    const result = runRules("۲۵۰ میلیون تومان کود برای گندم خریدم");
+    expect(result).not.toBeNull();
+    expect(JSON.stringify(result?.slots ?? {})).not.toMatch(/\d/);
+    expect(result?.slots.crop).toBe("گندم");
+  });
+});
+
+describe("Answer pack", () => {
+  const items = [
+    { text: "۲۵ میلیون تومان کود خریدم برای گندم", intent: "add_expense" as const, slots: { crop: "گندم", category: "کود" } },
+    { text: "چک ۴۴ میلیون تومانی از مهدی گرفتم", intent: "cheque_received" as const, slots: { docType: "cheque" } },
+  ];
+
+  it("رفت‌وبرگشت بسته و جستجو با کلید ماسک‌شده", () => {
+    const bytes = encodePack(items, { version: "test", builtFrom: "test", syntheticShare: 1 });
+    const pack = openPack(bytes);
+    expect(pack.manifest.count).toBeGreaterThan(0);
+    expect(pack.lookup("۲۵ میلیون تومان کود خریدم برای گندم")?.intent).toBe("add_expense");
+    // مبلغ متفاوت، همان کلید (عدد ماسک شده است)
+    expect(pack.lookup("۹۹ میلیون تومان کود خریدم برای گندم")?.intent).toBe("add_expense");
+    expect(pack.lookup("سلام خوبی")).toBeNull();
+    expect(checksumOf(bytes)).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it("هیچ مبلغی در بسته ذخیره نمی‌شود", () => {
+    const bytes = encodePack(items, { version: "test", builtFrom: "test", syntheticShare: 1 });
+    const pack = openPack(bytes);
+    for (const value of pack.values()) expect(value).not.toMatch(/\d/);
+    expect(decodeValue("add_expense|گندم|کود")).toEqual({ intent: "add_expense", slots: { crop: "گندم", category: "کود" } });
+  });
+
+  it("بستهٔ با امضای نادرست رد می‌شود", () => {
+    expect(() => openPack(new Uint8Array([1, 2, 3, 4]))).toThrow();
+  });
+});
+
+describe("Learned cache", () => {
+  it("ثبت، بازیابی، LRU و پاک‌سازی", () => {
+    const cache = new LearnedCache(undefined, 20);
+    cache.clear();
+    for (let index = 0; index < 30; index += 1) {
+      cache.put(`گندم ${index} هزار`, "add_expense", { crop: "گندم" }, "pack");
+    }
+    expect(cache.size()).toBeLessThanOrEqual(20);
+    expect(cache.stats().limit).toBe(20);
+    cache.put("چک گرفتم از مهدی", "cheque_received", { docType: "cheque" }, "model");
+    expect(cache.get("چک گرفتم از مهدی")?.intent).toBe("cheque_received");
+    cache.clear();
+    expect(cache.size()).toBe(0);
+    expect(cache.containsNumbers()).toBe(false);
+  });
+
+  it("هیچ مبلغی در کش ذخیره نمی‌شود و ورودی دارای رقم رد می‌شود", () => {
+    const cache = new LearnedCache(undefined, 20);
+    cache.clear();
+    expect(cache.put("۲۵۰ میلیون تومان", "add_expense", { crop: "گندم" } as never, "model")).toBe(true);
+    expect(cache.put("متن", "add_expense", { crop: "۱۲۳" } as never, "model")).toBe(false);
+    for (const record of cache.dump()) {
+      expect(JSON.stringify(record.slots)).not.toMatch(/\d/);
+      expect(record.intent).not.toMatch(/\d/);
+    }
+    expect(cache.containsNumbers()).toBe(false);
+  });
+});
+
+describe("Support retriever", () => {
+  const docs: RetrievalDoc[] = [
+    { id: "1", title: "چک صیاد", text: "چک قانونی باید در سامانه صیاد ثبت شود", category: "حقوقی" },
+    { id: "2", title: "استهلاک", text: "استهلاک خط مستقیم ماشین آلات کشاورزی", category: "مالی" },
+  ];
+
+  it("سند مرتبط را پیدا می‌کند و برای پرسش بی‌ربط چیزی برنمی‌گرداند", () => {
+    const index = buildRetriever(docs);
+    expect(index.lookup("ثبت چک در صیاد").length).toBeGreaterThan(0);
+    expect(index.lookup("xyz")).toHaveLength(0);
+  });
+});
+
+describe("Model fallback و قرارداد JSON", () => {
+  it("JSON معتبر را می‌پذیرد و خروجی خراب/مبلغی را رد می‌کند", () => {
+    expect(validateModelOutput('{"intent":"add_expense","slots":{"crop":"گندم"},"confidence":0.9}').ok).toBe(true);
+    expect(validateModelOutput('```json\n{"intent":"add_expense","slots":{},"confidence":0.9}\n```').ok).toBe(true);
+    expect(validateModelOutput('{"intent":"add_expense"').ok).toBe(false);
+    expect(validateModelOutput('{"intent":"not_real","slots":{}}').ok).toBe(false);
+    expect(validateModelOutput('{"intent":"add_expense","slots":{"amount":"۲۵۰۰۰۰۰۰"}}').ok).toBe(false);
+    __resetModelForTests();
+  });
+});
+
+describe("Router", () => {
+  const docs: RetrievalDoc[] = [{ id: "1", title: "چک صیاد", text: "چک قانونی باید در سامانه صیاد ثبت شود" }];
+  const retriever = buildRetriever(docs);
+
+  it("ترتیب لایه‌ها: قواعد قبل از بسته، بازیابی فقط در پشتیبان", () => {
+    const bytes = encodePack([{ text: "چک ۴۴ میلیون تومانی از مهدی گرفتم", intent: "cheque_received", slots: { docType: "cheque" } }], { version: "t", builtFrom: "t", syntheticShare: 1 });
+    const pack = openPack(bytes);
+    const cache = new LearnedCache(undefined, 20);
+    cache.clear();
+    const rulesFirst = routeFast("چک ۴۴ میلیون تومانی از مهدی گرفتم", { mode: "assistant", pack, cache, retriever });
+    expect(rulesFirst.layer).toBe("rules");
+    expect(needsDeterministicAnswer(rulesFirst.intent)).toBe(false);
+    expect(needsDeterministicAnswer("report_cash")).toBe(true);
+    const assistantNoRetrieval = routeFast("xyzabc", { mode: "assistant", pack, cache, retriever });
+    expect(assistantNoRetrieval.layer).toBe("clarify");
+    expect(assistantNoRetrieval.clarifyingQuestion).toBeTruthy();
+  });
+
+  it("سنجه‌ها را ثبت می‌کند و RAM/باتری تخمینی دارد", () => {
+    const snapshot = fastLayerMetrics.snapshot();
+    expect(snapshot).toHaveProperty("p95Ms");
+    expect(snapshot).toHaveProperty("modelCalls");
+    expect(snapshot.peakRamBytes).toBeGreaterThan(0);
+    expect(snapshot.batteryEstimateMah).toBeGreaterThanOrEqual(0);
+  });
+});
