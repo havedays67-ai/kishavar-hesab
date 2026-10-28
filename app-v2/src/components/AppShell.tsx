@@ -23,6 +23,7 @@ import {
   UserRound,
   UsersRound,
   Wallet,
+  Wheat,
   X,
 } from "lucide-react";
 import { cn } from "../utils/cn";
@@ -40,7 +41,8 @@ const NAV_ITEMS: {
   group: "work" | "ledger" | "system";
 }[] = [
   { id: "dashboard", label: "پیشخوان مزرعه", short: "پیشخوان", icon: LayoutDashboard, group: "work" },
-  { id: "trade", label: "معامله محصول", short: "معامله", icon: Scale, badge: "جدید", group: "work" },
+  { id: "trade", label: "معامله محصول", short: "معامله", icon: Scale, badge: "کامل", group: "work" },
+  { id: "quick-sale", label: "فروش ساده", short: "فروش ساده", icon: Wheat, badge: "جدید", group: "work" },
   { id: "contracts", label: "قرارداد زمین", short: "قرارداد", icon: FileText, group: "work" },
   { id: "rentals", label: "اجاره و اقساط", short: "اجاره", icon: Landmark, group: "work" },
   { id: "crops", label: "زمین و کشت", short: "زمین", icon: Sprout, group: "work" },
@@ -59,6 +61,7 @@ const NAV_ITEMS: {
 const PAGE_LABELS: Record<Page, string> = {
   dashboard: "پیشخوان",
   trade: "معامله محصول",
+  "quick-sale": "فروش ساده",
   contracts: "قرارداد زمین",
   rentals: "اجاره و اقساط",
   crops: "زمین و کشت",

@@ -14,7 +14,7 @@ import type { NluIntent, NluSlots } from "./rules";
 import { isRecordSafe } from "./learned-cache";
 
 const ALLOWED_INTENTS: NluIntent[] = [
-  "add_expense", "add_income", "sale_crop", "purchase_input", "harvest_record", "wage_payment",
+  "add_expense", "add_income", "sale_crop", "quick_sale", "purchase_input", "harvest_record", "wage_payment",
   "fertilizer_pesticide", "irrigation_log", "cheque_received", "cheque_paid", "loan_installment",
   "inventory_out", "report_receivable", "report_payable", "report_cash", "report_profit",
   "report_cheques", "report_inventory", "legal_cheque", "legal_signature", "legal_contract",

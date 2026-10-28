@@ -45,13 +45,19 @@ export const EMPTY_PROFILE: UserProfile = {
 };
 
 export const PROFILE_STORAGE_KEY = "kishavar.profile.v2";
-export const PROFILE_ROLES = ["کشاورز", "باغدار", "مدیر مزرعه", "مالک زمین", "مستاجر زمین", "کارشناس خرید محصول", "کشت و صنعت", "شرکت تعاونی"];
+export { PROFILE_ROLE_CHOICES, PROFILE_ROLE_OTHER, isCustomRole, isRoleSelected, normalizeStoredRole, validateCustomRole } from "./profile-role";
+import { PROFILE_ROLE_CHOICES, PROFILE_ROLE_OTHER, isRoleSelected, normalizeStoredRole, validateCustomRole } from "./profile-role";
+
+/** فهرست نقش‌ها؛ آخرین گزینه «سایر» است و کادر نوشتن را باز می‌کند. */
+export const PROFILE_ROLES: string[] = [...PROFILE_ROLE_CHOICES];
 
 export function loadProfile(): UserProfile | null {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
     if (!raw) return null;
     const parsed = { ...EMPTY_PROFILE, ...(JSON.parse(raw) as Partial<UserProfile>) };
+    // نقش قدیمی/خالی به مقدار معتبر نگاشت می‌شود تا در رابط «سایر» دیده نشود
+    parsed.role = normalizeStoredRole(parsed.role) || EMPTY_PROFILE.role;
     if (!parsed.fullName?.trim() || !parsed.phone?.trim()) return null;
     return parsed;
   } catch {
@@ -152,13 +158,20 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
   const [farmName, setFarmName] = useState("");
   const [province, setProvince] = useState("");
   const [city, setCity] = useState("");
-  const [role, setRole] = useState(PROFILE_ROLES[0]);
+  const [role, setRole] = useState<string>(PROFILE_ROLES[0]);
+  const [customRole, setCustomRole] = useState("");
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
   const finish = () => {
     if (fullName.trim().length < 3) return setError("نام و نام خانوادگی خود را کامل وارد کنید.");
     if (!isValidIranMobile(phone)) return setError("شماره موبایل معتبر ایران را وارد کنید؛ مثلاً ۰۹۱۲۱۲۳۴۵۶۷.");
+    let finalRole = role;
+    if (role === PROFILE_ROLE_OTHER) {
+      const checked = validateCustomRole(customRole);
+      if (!checked.ok) return setError(checked.error ?? "نقش خود را بنویسید.");
+      finalRole = checked.value;
+    }
     onDone({
       ...EMPTY_PROFILE,
       fullName,
@@ -167,7 +180,7 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
       farmName: farmName.trim(),
       province: province.trim(),
       city: city.trim(),
-      role,
+      role: finalRole,
     });
     setToast("پروفایل شما ساخته شد");
   };
@@ -193,9 +206,14 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
                 <div className="label">نقش شما</div>
                 <div className="flex flex-wrap gap-1.5">
                   {PROFILE_ROLES.map((item) => (
-                    <button key={item} type="button" onClick={() => setRole(item)} className={`rounded-lg border px-2.5 py-1.5 text-[9px] ${role === item ? "border-mint-300/35 bg-mint-300/[0.08] text-mint-300" : "border-white/[0.08] text-[#9db5a8]"}`}>{item}</button>
+                    <button key={item} type="button" onClick={() => { setRole(item); setError(""); }} className={`rounded-lg border px-2.5 py-1.5 text-[9px] ${isRoleSelected(item, role) ? "border-mint-300/35 bg-mint-300/[0.08] text-mint-300" : "border-white/[0.08] text-[#9db5a8]"}`}>{item}</button>
                   ))}
                 </div>
+                {role === PROFILE_ROLE_OTHER && (
+                  <div className="mt-2">
+                    <TextField label="نقش خود را بنویسید" value={customRole} onChange={(value) => { setCustomRole(value); setError(""); }} placeholder="مثلاً دامدار، کارشناس بیمهٔ محصول، مسئول خرید شرکت" hint="این عنوان در پروفایل و سربرگ اسناد استفاده می‌شود." />
+                  </div>
+                )}
               </div>
               {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a]">{error}</p>}
               <button type="button" onClick={() => { if (fullName.trim().length < 3) { setError("نام و نام خانوادگی خود را کامل وارد کنید."); return; } if (!isValidIranMobile(phone)) { setError("شماره موبایل معتبر ایران را وارد کنید."); return; } setError(""); setStep(2); }} className="w-full rounded-xl bg-mint-400 py-2.5 text-[11px] font-bold text-[#07110d]">ادامه</button>

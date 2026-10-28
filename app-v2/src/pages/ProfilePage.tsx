@@ -20,6 +20,9 @@ import { TextField } from "../components/FormControls";
 import { Avatar, Toast } from "../components/ui";
 import {
   PROFILE_ROLES,
+  PROFILE_ROLE_OTHER,
+  isRoleSelected,
+  validateCustomRole,
   isValidIranMobile,
   isValidNationalId,
   normalizePhone,
@@ -36,6 +39,7 @@ const COLORS: UserProfile["color"][] = ["sand", "mint", "blue", "rose"];
 export function ProfilePage({ onBack }: { onBack: () => void }) {
   const { profile, saveProfile, clearProfile } = useProfile();
   const [editing, setEditing] = useState(!profile.fullName);
+  const [customRole, setCustomRole] = useState(isRoleSelected(PROFILE_ROLE_OTHER, profile.role) ? profile.role : "");
   const [draft, setDraft] = useState<UserProfile>(profile);
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -48,6 +52,17 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
     if (draft.nationalId && !isValidNationalId(draft.nationalId)) return setError("کد ملی معتبر نیست؛ ۱۰ رقم و با رقم کنترل درست وارد کنید.");
     if (draft.postalCode && !/^\d{10}$/.test(toEnglishDigits(draft.postalCode).replace(/\D/g, ""))) return setError("کد پستی باید ۱۰ رقم باشد.");
     if (draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) return setError("ایمیل معتبر نیست.");
+    // نقش سفارشی («سایر») فقط با متن معتبر ذخیره می‌شود
+    if (draft.role === PROFILE_ROLE_OTHER) {
+      const checked = validateCustomRole(customRole);
+      if (!checked.ok) return setError(checked.error ?? "نقش خود را بنویسید.");
+      setCustomRole(checked.value);
+      setDraft((current) => ({ ...current, role: checked.value }));
+      saveProfile({ ...draft, role: checked.value, phone: normalizePhone(draft.phone), postalCode: toEnglishDigits(draft.postalCode), nationalId: toEnglishDigits(draft.nationalId) });
+      setEditing(false);
+      setToast("پروفایل با موفقیت ذخیره شد");
+      return;
+    }
     setError("");
     saveProfile({ ...draft, phone: normalizePhone(draft.phone), postalCode: toEnglishDigits(draft.postalCode), nationalId: toEnglishDigits(draft.nationalId) });
     setEditing(false);
@@ -135,8 +150,20 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
             <div className="sm:col-span-2">
               <div className="label">نقش</div>
               <div className="flex flex-wrap gap-1.5">
-                {PROFILE_ROLES.map((role) => <button key={role} type="button" onClick={() => update("role", role)} className={cn("rounded-lg border px-2.5 py-1.5 text-[9px]", draft.role === role ? "border-mint-300/35 bg-mint-300/[0.08] text-mint-300" : "border-white/[0.08] text-[#9db5a8]")}>{role}</button>)}
+                {PROFILE_ROLES.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => { update("role", role); setError(""); if (role === PROFILE_ROLE_OTHER) setCustomRole(isRoleSelected(PROFILE_ROLE_OTHER, profile.role) ? profile.role : customRole); }}
+                    className={cn("rounded-lg border px-2.5 py-1.5 text-[9px]", isRoleSelected(role, draft.role) ? "border-mint-300/35 bg-mint-300/[0.08] text-mint-300" : "border-white/[0.08] text-[#9db5a8]")}
+                  >{role}</button>
+                ))}
               </div>
+              {draft.role === PROFILE_ROLE_OTHER && (
+                <div className="mt-2">
+                  <TextField label="نقش خود را بنویسید" value={customRole} onChange={(value) => { setCustomRole(value); setError(""); }} placeholder="مثلاً دامدار، کارشناس بیمهٔ محصول، مسئول خرید شرکت" hint="این عنوان جای «سایر» در پروفایل و اسناد می‌نشیند." />
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2">
               <TextField label="یادداشت" value={draft.notes} onChange={(value) => update("notes", value)} placeholder="هر توضیح مفید درباره کسب‌وکار" textarea rows={2} />
@@ -144,7 +171,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
             {error && <p className="rounded-lg border border-[#8f4c44]/30 bg-[#8f4c44]/10 px-3 py-2 text-[10px] text-[#f0a59a] sm:col-span-2">{error}</p>}
             <div className="flex flex-wrap gap-2 sm:col-span-2">
               <button type="button" onClick={save} className="flex items-center gap-1.5 rounded-xl bg-mint-400 px-4 py-2.5 text-[10px] font-bold text-[#07110d]"><Save className="h-3.5 w-3.5" /> ذخیره پروفایل</button>
-              <button type="button" onClick={() => { setDraft(profile); setEditing(false); setError(""); }} className="rounded-xl border border-white/[0.09] px-4 py-2.5 text-[10px] text-[#a9c1b5]">انصراف</button>
+              <button type="button" onClick={() => { setDraft(profile); setCustomRole(isRoleSelected(PROFILE_ROLE_OTHER, profile.role) ? profile.role : ""); setEditing(false); setError(""); }} className="rounded-xl border border-white/[0.09] px-4 py-2.5 text-[10px] text-[#a9c1b5]">انصراف</button>
               <button type="button" onClick={onBack} className="rounded-xl px-3 py-2.5 text-[9px] text-[#7e9b8e]">بازگشت به برنامه</button>
             </div>
           </div>

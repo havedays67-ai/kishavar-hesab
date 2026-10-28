@@ -33,8 +33,8 @@ const argValue = (name: string, fallback: number): number => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 };
 
-const LABELED = argValue("--labeled", full ? 2_000_000 : 150_000);
-const PERSIAN = argValue("--persian", full ? 1_000_000 : 250_000);
+const LABELED = argValue("--labeled", full ? 2_000_000 : 200_000);
+const PERSIAN = argValue("--persian", full ? 1_000_000 : 300_000);
 const HOLDOUT_EVERY = 20; // ۵٪ انتهای هر بلوک، هرگز در آموزش نیست
 const SMOOTHING = 0.2;
 const LABELS_ORDER = LABELS;

@@ -51,10 +51,12 @@ import { useMemo } from "react";
 import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./pages/RentalsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
+import { QuickSalePage } from "./pages/QuickSalePage";
 
 const AVAILABLE_PAGES: Page[] = [
   "dashboard",
   "trade",
+  "quick-sale",
   "contracts",
   "rentals",
   "crops",
@@ -96,6 +98,7 @@ const STORAGE_SIGNATURES = "kishavar.signatures.v1";
 const PAGE_TITLES: Record<Page, string> = {
   dashboard: "پیشخوان",
   trade: "معامله محصول",
+  "quick-sale": "فروش ساده",
   contracts: "قرارداد زمین کشاورزی",
   rentals: "اجاره و اقساط",
   crops: "زمین و کشت",
@@ -298,6 +301,7 @@ export default function App() {
             onOpenDocument={setActiveDocument}
           />
         )}
+        {page === "quick-sale" && <QuickSalePage />}
         {page === "contracts" && (
           <ContractsPage parties={parties} contracts={contracts} onCreateParty={createParty} onCreateContract={createContract} onNavigate={navigate} />
         )}

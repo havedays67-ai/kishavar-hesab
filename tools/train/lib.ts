@@ -18,7 +18,7 @@ export interface LabeledSample {
 }
 
 export const LABELS: NluIntent[] = [
-  "add_expense", "add_income", "sale_crop", "purchase_input", "harvest_record", "wage_payment",
+  "add_expense", "add_income", "sale_crop", "quick_sale", "purchase_input", "harvest_record", "wage_payment",
   "fertilizer_pesticide", "irrigation_log", "cheque_received", "cheque_paid", "loan_installment",
   "inventory_out", "report_receivable", "report_payable", "report_cash", "report_profit",
   "report_cheques", "report_inventory", "legal_cheque", "legal_signature", "legal_contract",
@@ -99,6 +99,16 @@ const TEMPLATES: Template[] = [
     ],
     slots: (r) => ({ crop: pick(r, CROPS), unit: pick(r, UNITS), role: "seller" }),
     answer: (s) => `فروش آمادهٔ ثبت است؛ ${slotText(s)}. افت رطوبت، افت مفید/غیرمفید و مانده تسویه محاسبه می‌شود.`,
+  },
+  {
+    intent: "quick_sale",
+    texts: [
+      "{crop} را به {party} فروختم {qty} کیلو کیلویی {rate} تومان", "{qty} تن {crop} را به {party} فروختم هر کیلو {rate}",
+      "{crop} را می‌فروشم به {party} {qty} کیلو قیمت هر کیلو {rate} تومان", "فروش ساده {crop} به {party} {qty} تن هر کیلو {rate}",
+      "تخم آفتابگردان {qty} تن به شرکت {party} کیلویی {rate} تومان", "{crop} {qty} کیلو به {party} تحویل شرکت دادم هر کیلو {rate}",
+    ],
+    slots: (r) => ({ crop: pick(r, ["تخم آفتابگردان", "گندم", "جو", "ذرت", "کلزا"]), unit: pick(r, UNITS), role: "seller" }),
+    answer: () => "برای فروش ساده کافی است مقدار (کیلو یا تن) و قیمت هر کیلو را بدهید؛ مبلغ نهایی، وزن و مبلغ با هر دو واحد و هم با حروف نمایش داده می‌شود.",
   },
   {
     intent: "purchase_input",
@@ -266,7 +276,7 @@ const TEMPLATES: Template[] = [
 ];
 
 /** تعداد کاندید برای هر قصد (بدون شمارش مالی) — ظرفیت تا ۲ میلیون نمونه */
-export function generateLabeled(count: number, seed = 20261115): LabeledSample[] {
+export function generateLabeled(count: number, seed = 20261116): LabeledSample[] {
   const random = mulberry(seed);
   const out: LabeledSample[] = [];
   let guard = 0;
@@ -292,7 +302,9 @@ export function generateLabeled(count: number, seed = 20261115): LabeledSample[]
       .replace("{month}", pick(random, MONTHS))
       .replace(/{amount}/g, amount)
       .replace(/{p}/g, percent)
-      .replace(/{people}/g, people);
+      .replace(/{people}/g, people)
+      .replace(/{qty}/g, String([1, 2, 5, 10, 20, 50][Math.floor(random() * 6)]))
+      .replace(/{rate}/g, String([35, 45, 60, 85, 120][Math.floor(random() * 5)] * 1000));
     const withAmount = `${Math.floor(random() * 90 + 1)} میلیون تومان ${base}`;
     const text = mutate(`${pick(random, PREFIXES)}${random() % 2 === 0 ? withAmount : base}${pick(random, SUFFIXES)}`, guard + 3);
     const q = text.replace(/\s+/g, " ").trim();

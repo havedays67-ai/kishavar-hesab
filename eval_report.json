@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T08:23:00.860Z",
+  "generatedAt": "2026-10-28T10:02:34.149Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
@@ -16,9 +16,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.304,
-    "p50Ms": 0.291,
-    "p95Ms": 0.444,
+    "avgMs": 0.499,
+    "p50Ms": 0.477,
+    "p95Ms": 0.708,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -32,9 +32,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.304,
-    "p50Ms": 0.291,
-    "p95Ms": 0.444,
+    "avgMs": 0.499,
+    "p50Ms": 0.477,
+    "p95Ms": 0.708,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -48,9 +48,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.357,
-    "p50Ms": 0.314,
-    "p95Ms": 0.598,
+    "avgMs": 0.584,
+    "p50Ms": 0.529,
+    "p95Ms": 0.89,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -59,17 +59,17 @@
   "packOnly": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 61.67,
+    "intentAccuracy": 62.5,
     "slotExactMatch": 69.58,
-    "slotPrecision": 79.17,
-    "slotRecall": 54.29,
-    "clarifyRate": 37.08,
-    "avgMs": 0.167,
-    "p50Ms": 0.147,
-    "p95Ms": 0.307,
+    "slotPrecision": 78.23,
+    "slotRecall": 55.43,
+    "clarifyRate": 35.83,
+    "avgMs": 0.271,
+    "p50Ms": 0.236,
+    "p95Ms": 0.539,
     "layers": {
-      "brain": 151,
-      "clarify": 89
+      "brain": 154,
+      "clarify": 86
     }
   },
   "byScenario": [
@@ -82,9 +82,9 @@
       "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.301,
-      "p50Ms": 0.288,
-      "p95Ms": 0.421,
+      "avgMs": 0.498,
+      "p50Ms": 0.464,
+      "p95Ms": 0.831,
       "layers": {
         "rules": 78
       }
@@ -98,9 +98,9 @@
       "slotPrecision": 73.96,
       "slotRecall": 89.87,
       "clarifyRate": 0,
-      "avgMs": 0.306,
-      "p50Ms": 0.296,
-      "p95Ms": 0.401,
+      "avgMs": 0.515,
+      "p50Ms": 0.505,
+      "p95Ms": 0.729,
       "layers": {
         "rules": 88,
         "brain": 1
@@ -115,9 +115,9 @@
       "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.305,
-      "p50Ms": 0.288,
-      "p95Ms": 0.56,
+      "avgMs": 0.481,
+      "p50Ms": 0.455,
+      "p95Ms": 0.636,
       "layers": {
         "rules": 73
       }
@@ -149,14 +149,14 @@
     "estimatedFalsePositiveRate": 0.008184,
     "measuredFalsePositiveRate": 0.0095,
     "rejectsInHardEval": 237,
-    "avgProbeMs": 0.00009,
+    "avgProbeMs": 0.00013,
     "storesTextOrMoney": false
   },
   "math": {
     "referenceCases": 15,
     "exactMatches": 15,
     "accuracyPercent": 100,
-    "avgMs": 0.748,
+    "avgMs": 1.1,
     "mismatches": [],
     "safetyGuardsPassed": 5,
     "safetyGuardsTotal": 5,
@@ -170,11 +170,11 @@
       "version": "1.0.0-cpu",
       "mode": "ci",
       "scale": {
-        "labeledTarget": 150000,
-        "labeledGenerated": 150000,
-        "train": 142500,
-        "holdout": 7500,
-        "persianTarget": 250000
+        "labeledTarget": 200000,
+        "labeledGenerated": 200000,
+        "train": 190000,
+        "holdout": 10000,
+        "persianTarget": 300000
       },
       "capacity": {
         "labeledSamplesSupported": 2000000,
@@ -184,50 +184,50 @@
       "model": {
         "kind": "multinomial-naive-bayes-int8",
         "buckets": 4096,
-        "labels": 28,
-        "weightBytes": 114688,
+        "labels": 29,
+        "weightBytes": 118784,
         "math": "integer only (CPU inference)",
-        "accuracyOnHoldoutPercent": 100
+        "accuracyOnHoldoutPercent": 99.99
       },
       "persian": {
-        "lines": 250000,
+        "lines": 300000,
         "uniqueWords": 260,
         "vocabulary": 260
       },
       "perIntentWorst": [
         {
-          "intent": "legal_contract",
-          "total": 1072,
+          "intent": "sale_crop",
+          "total": 345,
+          "accuracy": 99.71
+        },
+        {
+          "intent": "legal_signature",
+          "total": 345,
+          "accuracy": 100
+        },
+        {
+          "intent": "loan_installment",
+          "total": 345,
+          "accuracy": 100
+        },
+        {
+          "intent": "contract_help",
+          "total": 345,
           "accuracy": 100
         },
         {
           "intent": "report_receivable",
-          "total": 1072,
+          "total": 345,
           "accuracy": 100
         },
         {
-          "intent": "harvest_record",
-          "total": 1072,
-          "accuracy": 100
-        },
-        {
-          "intent": "trade_help",
-          "total": 1071,
-          "accuracy": 100
-        },
-        {
-          "intent": "report_cheques",
-          "total": 1071,
-          "accuracy": 100
-        },
-        {
-          "intent": "cheque_received",
-          "total": 1071,
+          "intent": "purchase_input",
+          "total": 345,
           "accuracy": 100
         }
       ],
       "math": {
-        "labeledSamples": 5357,
+        "labeledSamples": 6896,
         "checked": 2000,
         "solvedByEnginePercent": 100,
         "exactArithmetic": "rational-bigint",
@@ -236,8 +236,8 @@
       "hardEval": {
         "total": 240,
         "asked": 240,
-        "correct": 183,
-        "accuracy": 76.25,
+        "correct": 184,
+        "accuracy": 76.67,
         "coverage": 100
       },
       "honesty": [
@@ -264,9 +264,9 @@
   },
   "metrics": {
     "total": 480,
-    "avgMs": 0.3,
-    "p50Ms": 0.29,
-    "p95Ms": 0.42,
+    "avgMs": 0.49,
+    "p50Ms": 0.47,
+    "p95Ms": 0.7,
     "layers": {
       "math": 0,
       "rules": 478,
@@ -278,7 +278,7 @@
       "clarify": 0
     },
     "peakRamBytes": 182533,
-    "batteryEstimateMah": 0.0002,
+    "batteryEstimateMah": 0.0003,
     "packBytes": 75781,
     "modelCalls": 0,
     "bloomRejects": 711

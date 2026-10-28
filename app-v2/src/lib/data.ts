@@ -3,6 +3,7 @@ import { addJalaliYears, todayJalali, type JDate } from "./format";
 export type Page =
   | "dashboard"
   | "trade"
+  | "quick-sale"
   | "contracts"
   | "rentals"
   | "crops"

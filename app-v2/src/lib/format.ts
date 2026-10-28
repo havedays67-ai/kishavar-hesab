@@ -34,10 +34,16 @@ export function toPersianDigits(value: string | number): string {
   return String(value).replace(/\d/g, (digit) => FA_DIGITS[Number(digit)]);
 }
 
+/**
+ * ارقام فارسی/عربی را لاتین می‌کند و جداکننده‌های فارسی را هم ترجمه می‌کند.
+ * باگ قبلی: «۲٬۵۰۰» با جداکنندهٔ فارسی برمی‌گشت و Number() مقدار NaN می‌داد.
+ */
 export function toEnglishDigits(value: string): string {
   return value
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[٬\u066c،]/g, ",")
+    .replace(/٫/g, ".");
 }
 
 export function normalizeSearch(value: string): string {
@@ -141,7 +147,8 @@ const ONES = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت"
 const TEENS = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
 const TENS = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
 const HUNDREDS = ["", "یکصد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
-const SCALES = ["", " هزار", " میلیون", " میلیارد", " هزار میلیارد"];
+// ۱۰^۱۲ = هزار میلیارد، ۱۰^۱۵ = میلیون میلیارد، ۱۰^۱۸ = میلیارد میلیارد
+const SCALES = ["", " هزار", " میلیون", " میلیارد", " هزار میلیارد", " میلیون میلیارد", " میلیارد میلیارد"];
 
 function threeDigitsToWords(value: number): string {
   const parts: string[] = [];
@@ -159,18 +166,28 @@ function threeDigitsToWords(value: number): string {
   return parts.filter(Boolean).join(" و ");
 }
 
+/**
+ * عدد → حروف فارسی. باگ‌های قبلی که رفع شد:
+ *  • اعداد منفی بی‌صدا «صفر» می‌شدند (Math.max(0, ...))؛ اکنون «منفی …» می‌شود.
+ *  • اعداد ≥ ۱۰^۱۵ فقط «یک» برمی‌گرداندند؛ جدول مقیاس‌ها تا ۱۰^۱۸ گسترده شد.
+ *  • ورودی نامعتبر (NaN/بی‌نهایت) رشتهٔ خالی می‌دهد نه عدد اشتباه.
+ */
 export function numberToPersianWords(value: number): string {
-  const safe = Math.max(0, Math.floor(value));
+  if (!Number.isFinite(value)) return "";
+  const negative = value < 0;
+  const safe = Math.abs(Math.floor(value));
   if (safe === 0) return "صفر";
+  if (safe >= 1e18) return "";
   const groups: number[] = [];
   let remaining = safe;
   while (remaining > 0) {
     groups.push(remaining % 1000);
     remaining = Math.floor(remaining / 1000);
   }
-  return groups
+  const words = groups
     .map((group, index) => (group ? `${threeDigitsToWords(group)}${SCALES[index] ?? ""}` : ""))
     .filter(Boolean)
     .reverse()
     .join(" و ");
+  return negative ? `منفی ${words}` : words;
 }
