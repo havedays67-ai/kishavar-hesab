@@ -23,6 +23,7 @@ import { formatJalali, toPersianDigits, todayJalali } from "../format";
 import { LearnedCache } from "../nlu/learned-cache";
 import { smallPack } from "../nlu/generated/pack-small";
 import { routeFast, fastLayerMetrics, type RouteResult } from "../nlu/router";
+import { findMarkedQA, markedSuggestions } from "./qa-bank";
 import {
   ASSISTANT_GLOSSARY,
   KNOWLEDGE,
@@ -446,8 +447,27 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
   const direct = dataAnswer(text, context);
   if (direct) return withFast(direct, fast);
 
+  // ۴) بانک سؤال/جواب نشان‌دار: پاسخ قطعی برای پرسش‌های پرتکرار
+  const marked = findMarkedQA(raw);
+  if (marked) {
+    const reply: AssistantReply = {
+      text: marked.a,
+      meta: {
+        confidence: 92,
+        category: marked.tag === "برنامه" ? "برنامه" : marked.tag === "مالی" ? "مالی و حسابداری" : marked.tag === "کشت" || marked.tag === "انبار" ? "کشاورزی" : "حقوقی",
+        sources: [{ label: `بانک پرسش/پاسخ نشان‌دار · ${marked.tag}` }],
+        followUps: MARKED_FOLLOWUPS,
+        matchedId: marked.id,
+        kind: "knowledge",
+      },
+    };
+    return withFast(reply, fast);
+  }
+
   return withFast(fallbackAnswer(normalized, scored), fast);
 }
+
+const MARKED_FOLLOWUPS = ["چک‌های نزدیک سررسید", "بهای تمام‌شدهٔ هر کیلو", "راهنمای کامل", "پشتیبان‌گیری از برنامه"];
 
 export function greeting(context: AssistantContext, profileName = ""): string {
   const data = snapshot(context);
@@ -465,8 +485,8 @@ export function assistantSuggestedQuestions(context: AssistantContext): string[]
   if (data.lowItems.length > 0) questions.push("انبار چه کمبودی دارد؟");
   if (context.plots.length > 0) questions.push("کدام زمین سود بیشتری دارد؟");
   if (context.trades.length > 0) questions.push("سود فروش محصول چقدر است؟");
-  questions.push("آیا چک چاپی معتبر است؟", "چاپ سند و رفع صفحهٔ سیاه", "قرارداد زمین چه ارکانی دارد؟", "دانلود امضا کار نمی‌کند");
-  return Array.from(new Set(questions)).slice(0, 6);
+  questions.push(...markedSuggestions(12));
+  return Array.from(new Set(questions)).slice(0, 12);
 }
 
 export function assistantProfileStats(context: AssistantContext) {

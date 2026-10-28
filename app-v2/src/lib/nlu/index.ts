@@ -9,3 +9,7 @@ export * from "./learned-cache";
 export * from "./retriever";
 export * from "./model";
 export * from "./router";
+export * from "./cpu-brain";
+export * from "./persian-lexicon";
+export * from "./brain-features";
+export * from "./processor-sim";

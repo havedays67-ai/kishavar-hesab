@@ -51,7 +51,24 @@ jobs:
       - name: Dataset validation (zero contract errors gate)
         run: npx tsx scripts/validate-dataset.ts training/data/*.jsonl
 
-      - name: Fast understanding layer tests (normalizer, rules, pack, cache, router)
+      - name: Train CPU brain + Persian lexicon (deterministic, CPU only)
+        run: npx tsx tools/train/train-brain.ts
+
+      - name: Brain artifacts must match training (no manual drift)
+        run: git diff --exit-code -- app-v2/src/lib/nlu/generated training/report.json
+
+      - name: Brain quality gate (real hold-out + hard-eval numbers)
+        run: |
+          node -e '
+            const r = require("./training/report.json");
+            if (!(r.model.weightBytes > 80000)) { console.error("brain weights missing"); process.exit(1); }
+            if (!(r.model.accuracyOnHoldoutPercent >= 90)) { console.error("brain hold-out accuracy below 90: " + r.model.accuracyOnHoldoutPercent); process.exit(1); }
+            if (!(r.hardEval && r.hardEval.total >= 200)) { console.error("brain hard-eval missing"); process.exit(1); }
+            if (!(r.persian.vocabulary >= 200)) { console.error("persian vocabulary too small"); process.exit(1); }
+            console.log("brain gate ok", "holdout", r.model.accuracyOnHoldoutPercent, "hardEval", r.hardEval.accuracy, "vocab", r.persian.vocabulary);
+          '
+
+      - name: Fast understanding layer tests (normalizer, rules, pack, brain, simulator, cache, router)
         run: npx vitest run tests/fast-layer.test.ts
 
       - name: Corpus + hard-eval determinism
@@ -84,6 +101,8 @@ jobs:
             if (!r.bloom || !r.bloom.enabled) { console.error("bloom prefilter missing"); process.exit(1); }
             if (!(r.bloom.measuredFalsePositiveRate < 0.02)) { console.error("bloom false-positive rate above 2%: " + r.bloom.measuredFalsePositiveRate); process.exit(1); }
             if (r.bloom.storesTextOrMoney !== false) { console.error("bloom must not store text or money"); process.exit(1); }
+            if (!r.cpuBrain || r.cpuBrain.available !== true) { console.error("cpu brain not available"); process.exit(1); }
+            if (!r.simulator || !(r.simulator.samples > 0)) { console.error("processor simulator missing"); process.exit(1); }
             console.log("fast layer gate ok", r.fastLayerClassification.intentAccuracy, "slotExact", r.fastLayerClassification.slotExactMatch, "p95", r.metrics.p95Ms + "ms", "bloomFpr", r.bloom.measuredFalsePositiveRate);
           '
 
@@ -120,4 +139,5 @@ jobs:
             training/data/stats.json
             artifacts/index-bench.json
             eval_report.json
+            training/report.json
           if-no-files-found: warn

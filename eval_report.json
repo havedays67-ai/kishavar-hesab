@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T05:53:13.024Z",
+  "generatedAt": "2026-10-28T07:27:41.844Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
@@ -11,64 +11,65 @@
   "fastLayer": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 99.58,
-    "slotExactMatch": 81.25,
-    "slotPrecision": 77.27,
-    "slotRecall": 87.43,
-    "clarifyRate": 0.42,
-    "avgMs": 0.455,
-    "p50Ms": 0.431,
-    "p95Ms": 0.733,
+    "intentAccuracy": 100,
+    "slotExactMatch": 81.67,
+    "slotPrecision": 77.39,
+    "slotRecall": 88,
+    "clarifyRate": 0,
+    "avgMs": 0.34,
+    "p50Ms": 0.322,
+    "p95Ms": 0.505,
     "layers": {
       "rules": 239,
-      "clarify": 1
+      "brain": 1
     }
   },
   "fastLayerClassification": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 99.58,
-    "slotExactMatch": 81.25,
-    "slotPrecision": 77.27,
-    "slotRecall": 87.43,
-    "clarifyRate": 0.42,
-    "avgMs": 0.455,
-    "p50Ms": 0.431,
-    "p95Ms": 0.733,
+    "intentAccuracy": 100,
+    "slotExactMatch": 81.67,
+    "slotPrecision": 77.39,
+    "slotRecall": 88,
+    "clarifyRate": 0,
+    "avgMs": 0.34,
+    "p50Ms": 0.322,
+    "p95Ms": 0.505,
     "layers": {
       "rules": 239,
-      "clarify": 1
+      "brain": 1
     }
   },
   "rulesOnly": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 99.58,
-    "slotExactMatch": 81.25,
-    "slotPrecision": 77.27,
-    "slotRecall": 87.43,
-    "clarifyRate": 0.42,
-    "avgMs": 0.545,
-    "p50Ms": 0.482,
-    "p95Ms": 0.935,
+    "intentAccuracy": 100,
+    "slotExactMatch": 81.67,
+    "slotPrecision": 77.39,
+    "slotRecall": 88,
+    "clarifyRate": 0,
+    "avgMs": 0.382,
+    "p50Ms": 0.336,
+    "p95Ms": 0.621,
     "layers": {
       "rules": 239,
-      "clarify": 1
+      "brain": 1
     }
   },
   "packOnly": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 0,
-    "slotExactMatch": 44.58,
-    "slotPrecision": 0,
-    "slotRecall": 0,
-    "clarifyRate": 100,
-    "avgMs": 0.03,
-    "p50Ms": 0.027,
-    "p95Ms": 0.05,
+    "intentAccuracy": 60.42,
+    "slotExactMatch": 68.75,
+    "slotPrecision": 78.63,
+    "slotRecall": 52.57,
+    "clarifyRate": 38.33,
+    "avgMs": 0.18,
+    "p50Ms": 0.158,
+    "p95Ms": 0.361,
     "layers": {
-      "clarify": 240
+      "brain": 148,
+      "clarify": 92
     }
   },
   "byScenario": [
@@ -81,9 +82,9 @@
       "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.435,
-      "p50Ms": 0.415,
-      "p95Ms": 0.569,
+      "avgMs": 0.334,
+      "p50Ms": 0.313,
+      "p95Ms": 0.487,
       "layers": {
         "rules": 78
       }
@@ -92,17 +93,17 @@
       "scenario": "colloquial",
       "total": 89,
       "classified": 89,
-      "intentAccuracy": 98.88,
-      "slotExactMatch": 70.79,
-      "slotPrecision": 73.68,
-      "slotRecall": 88.61,
-      "clarifyRate": 1.12,
-      "avgMs": 0.485,
-      "p50Ms": 0.449,
-      "p95Ms": 0.84,
+      "intentAccuracy": 100,
+      "slotExactMatch": 71.91,
+      "slotPrecision": 73.96,
+      "slotRecall": 89.87,
+      "clarifyRate": 0,
+      "avgMs": 0.36,
+      "p50Ms": 0.334,
+      "p95Ms": 0.539,
       "layers": {
         "rules": 88,
-        "clarify": 1
+        "brain": 1
       }
     },
     {
@@ -114,9 +115,9 @@
       "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.439,
-      "p50Ms": 0.407,
-      "p95Ms": 0.639,
+      "avgMs": 0.323,
+      "p50Ms": 0.313,
+      "p95Ms": 0.429,
       "layers": {
         "rules": 73
       }
@@ -125,8 +126,8 @@
   "learnedCache": {
     "simulated": true,
     "beforeCacheLayer": 0,
-    "afterConfirmationCacheHits": 0,
-    "cacheSize": 239,
+    "afterConfirmationCacheHits": 1,
+    "cacheSize": 240,
     "storesMoney": false
   },
   "jsonContract": {
@@ -148,24 +149,117 @@
     "estimatedFalsePositiveRate": 0.008184,
     "measuredFalsePositiveRate": 0.0085,
     "rejectsInHardEval": 238,
-    "avgProbeMs": 0.00013,
+    "avgProbeMs": 0.00012,
     "storesTextOrMoney": false
+  },
+  "cpuBrain": {
+    "available": true,
+    "math": "integer-only",
+    "training": {
+      "version": "1.0.0-cpu",
+      "mode": "ci",
+      "scale": {
+        "labeledTarget": 60000,
+        "labeledGenerated": 60000,
+        "train": 57000,
+        "holdout": 3000,
+        "persianTarget": 120000
+      },
+      "capacity": {
+        "labeledSamplesSupported": 2000000,
+        "persianLinesSupported": 1000000,
+        "note": "--full برای ظرفیت کامل اجرا می‌شود؛ نسخهٔ داخل APK از همان آموزش سبک می‌آید."
+      },
+      "model": {
+        "kind": "multinomial-naive-bayes-int8",
+        "buckets": 4096,
+        "labels": 26,
+        "weightBytes": 106496,
+        "math": "integer only (CPU inference)",
+        "accuracyOnHoldoutPercent": 100
+      },
+      "persian": {
+        "lines": 120000,
+        "uniqueWords": 260,
+        "vocabulary": 260
+      },
+      "perIntentWorst": [
+        {
+          "intent": "legal_contract",
+          "total": 231,
+          "accuracy": 100
+        },
+        {
+          "intent": "report_cash",
+          "total": 231,
+          "accuracy": 100
+        },
+        {
+          "intent": "cheque_received",
+          "total": 231,
+          "accuracy": 100
+        },
+        {
+          "intent": "sale_crop",
+          "total": 231,
+          "accuracy": 100
+        },
+        {
+          "intent": "app_help",
+          "total": 231,
+          "accuracy": 100
+        },
+        {
+          "intent": "report_cheques",
+          "total": 231,
+          "accuracy": 100
+        }
+      ],
+      "hardEval": {
+        "total": 240,
+        "asked": 240,
+        "correct": 184,
+        "accuracy": 76.67,
+        "coverage": 100
+      },
+      "honesty": [
+        "دقت روی hold-out تولیدشده از همان خانوادهٔ قالب‌ها بالاست؛ به همین دلیل accuracy روی مجموعهٔ سختِ مستقل (hardEval) هم جداگانه گزارش می‌شود.",
+        "hardEval هم ترکیبی است، نه گفتار واقعی کاربران.",
+        "هیچ عددی برای «چند برابر شدن هوش» ادعا نمی‌کنیم؛ فقط دقت و پوشش اندازه‌گیری‌شده گزارش می‌شود.",
+        "مدل بزرگ کوانتیزه (LLM) همراه APK نیست؛ مغز CPU سبک و آفلاین است."
+      ]
+    }
+  },
+  "simulator": {
+    "samples": 240,
+    "accepted": {
+      "rules": 239,
+      "brain": 1
+    },
+    "avgIntOps": 636.6,
+    "avgEstimatedMicrosAt1Ghz": 0.21,
+    "brainShare": 0.42,
+    "maxIntOpsSample": {
+      "intOps": 3560,
+      "layer": "brain"
+    }
   },
   "metrics": {
     "total": 480,
-    "avgMs": 0.46,
-    "p50Ms": 0.43,
-    "p95Ms": 0.73,
+    "avgMs": 0.34,
+    "p50Ms": 0.32,
+    "p95Ms": 0.51,
     "layers": {
       "rules": 478,
-      "cache": 0,
+      "cache": 1,
       "pack": 0,
+      "brain": 1,
       "retrieval": 0,
       "model": 0,
-      "clarify": 2
+      "clarify": 0
     },
-    "peakRamBytes": 182293,
-    "batteryEstimateMah": 0.0003,
+    "peakRamBytes": 182533,
+    "batteryEstimateMah": 0.0002,
     "packBytes": 75781,
     "modelCalls": 0,
     "bloomRejects": 714

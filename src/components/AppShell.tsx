@@ -50,10 +50,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="chip">نسخه وب و اندروید ۸+</span>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/knowledge" className="btn btn-sm hidden sm:inline-flex">
-                <Icon name="book" className="h-3.5 w-3.5" />
-                آموزش
-              </Link>
               <Link href="/assistant" className="btn btn-primary btn-sm">
                 <Icon name="sparkles" className="h-3.5 w-3.5" />
                 دستیار

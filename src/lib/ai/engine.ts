@@ -402,7 +402,7 @@ async function answerSupport(question: string): Promise<EngineReply> {
     if (teaching.length) {
       return {
         text: `${teaching.map((h) => `📚 ${h.title} (موضوع: ${h.topic})\n${h.content}`).join("\n\n")}\n\nاگر بخش خاصی از نرم‌افزار را می‌خواهید بگویید تا قدم‌به‌قدم راهنمایی کنم.`,
-        actions: [{ label: "پایگاه دانش کشاورزی", href: "/knowledge", kind: "link" }],
+        actions: [{ label: "پرسش تازه از کشاورزیار", href: "/assistant", kind: "link" }],
         suggestions: ["گزارش هزینه‌ها", "بهای تمام‌شده محصولات من", "مدیریت چک و نقدینگی"],
         kind: "answer",
       };
@@ -418,7 +418,7 @@ async function answerSupport(question: string): Promise<EngineReply> {
     return {
       text:
         "من فقط در حوزه «حسابداری و مدیریت مالی کشاورزی» و همین نرم‌افزار آموزش می‌دهم و درباره موضوعات دیگر اظهارنظر نمی‌کنم. مثلاً می‌توانید بپرسید: بهای تمام‌شده زعفران چطور محاسبه می‌شود؟ استهلاک تراکتور؟ یا نقطه سربه‌سر مزرعه؟",
-      actions: [{ label: "پایگاه دانش", href: "/knowledge", kind: "link" }],
+      actions: [{ label: "پرسش تازه از کشاورزیار", href: "/assistant", kind: "link" }],
       suggestions: ["استهلاک تراکتور چطور محاسبه می‌شود؟", "نقطه سربه‌سر مزرعه چیست؟", "مدیریت موجودی نهاده"],
       kind: "blocked",
     };
@@ -431,7 +431,7 @@ async function answerSupport(question: string): Promise<EngineReply> {
       .join("\n\n");
     return {
       text: `${body}\n\nاگر بخش خاصی از نرم‌افزار را می‌خواهید، بگویید تا قدم‌به‌قدم راهنمایی کنم.`,
-      actions: [{ label: "پایگاه دانش کشاورزی", href: "/knowledge", kind: "link" }],
+      actions: [{ label: "پرسش تازه از کشاورزیار", href: "/assistant", kind: "link" }],
       suggestions: ["بهای تمام‌شده چه فرقی با سود ناخالص دارد؟", "گزارش هزینه‌ها", "چک را چطور مدیریت کنم؟"],
       kind: "answer",
     };

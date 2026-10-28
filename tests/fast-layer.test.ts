@@ -9,6 +9,11 @@ import { buildRetriever, type RetrievalDoc } from "../app-v2/src/lib/nlu/retriev
 import { routeFast, fastLayerMetrics, needsDeterministicAnswer } from "../app-v2/src/lib/nlu/router";
 import { buildBloom, bloomSecondHash, estimatedBloomFpr } from "../app-v2/src/lib/nlu/bloom";
 import { __resetModelForTests, validateModelOutput } from "../app-v2/src/lib/nlu/model";
+import { classifyWithBrain, brainAvailable } from "../app-v2/src/lib/nlu/cpu-brain";
+import { BRAIN_THRESHOLD } from "../app-v2/src/lib/nlu/router";
+import { correctWord, isKnownWord } from "../app-v2/src/lib/nlu/persian-lexicon";
+import { findMarkedQA, markedSuggestions } from "../app-v2/src/lib/ai/qa-bank";
+import { simulatePipeline, simulateBatch } from "../app-v2/src/lib/nlu/processor-sim";
 
 describe("Normalizer", () => {
   it("ورودی‌های معادل یک کلید یکسان می‌سازند", () => {
@@ -238,5 +243,59 @@ describe("Rule engine — رگرسیون باگ‌های واقعی ارزیاب
     const slots = runRules("۲۵۰ میلیون تومان کود برای گندم خریدم")?.slots ?? {};
     expect(slots.direction).toBeUndefined();
     expect(slots.role).toBeUndefined();
+  });
+});
+
+describe("مغز آماری CPU (آموزش‌دیده با سؤال/جواب نشان‌دار)", () => {
+  it("مدل واقعاً بارگذاری می‌شود و قصد را با اطمینان می‌فهمد", () => {
+    expect(brainAvailable()).toBe(true);
+    const prediction = classifyWithBrain("هزینهٔ کود برای گندم پرداخت شد");
+    expect(prediction).not.toBeNull();
+    expect(prediction?.confidence).toBeGreaterThan(0.5);
+    expect(prediction?.intent).not.toBe("unknown");
+  });
+
+  it("هیچ عددی در خروجی مغز نیست و برای ورودی خالی حدس نمی‌زند", () => {
+    const prediction = classifyWithBrain("چک از مهدی گرفتم ۲۵ میلیون تومان");
+    expect(JSON.stringify(prediction?.slots ?? {})).not.toMatch(/[0-9۰-۹]/);
+    expect(classifyWithBrain("")).toBeNull();
+    expect(classifyWithBrain("xyzqwe")).toBeNull();
+  });
+
+  it("آستانهٔ پذیرش مغز بالاست تا حدس اشتباه ثبت نشود", () => {
+    expect(BRAIN_THRESHOLD).toBeGreaterThanOrEqual(0.8);
+  });
+});
+
+describe("واژگان فارسی آموخته‌شده", () => {
+  it("واژه‌های پرتکرار را می‌شناسد و غلط املایی یک‌حرفی را تصحیح می‌کند", () => {
+    expect(isKnownWord("گندم")).toBe(true);
+    expect(correctWord("گندن")).toBe("گندم");
+    expect(correctWord("xyzq")).toBe("xyzq");
+  });
+});
+
+describe("بانک سؤال/جواب نشان‌دار", () => {
+  it("پرسش‌های پرتکرار پاسخ نشان‌دار می‌گیرند", () => {
+    expect(findMarkedQA("آیا چک چاپی معتبر است؟")?.id).toBe("qa-cheque-print");
+    expect(findMarkedQA("چطور از برنامه پشتیبان بگیرم")?.tag).toBe("برنامه");
+    expect(markedSuggestions(12).length).toBe(12);
+  });
+});
+
+describe("شبیه‌ساز پردازنده (مدل شمارش عملیات، نه سخت‌افزار)", () => {
+  it("مسیر پردازش را با پذیرش اولین لایهٔ مطمئن شبیه‌سازی می‌کند", () => {
+    const simulation = simulatePipeline("۲۵ میلیون تومان کود برای گندم خریدم");
+    expect(simulation.acceptedLayer).toBe("rules");
+    expect(simulation.totalIntOps).toBeGreaterThan(0);
+    expect(simulation.steps.map((step) => step.layer)).toContain("rules");
+    expect(simulation.modelCallEstimate.available).toBe(false);
+  });
+
+  it("برای جملهٔ ناشناخته، مغز CPU یا سؤال شفاف انتخاب می‌شود و هزینه گزارش می‌شود", () => {
+    const batch = simulateBatch(["xyzabc", "کود اوره برای گندم", "سلام"]);
+    expect(batch.samples).toBe(3);
+    expect(batch.avgIntOps).toBeGreaterThan(0);
+    expect(Object.keys(batch.accepted).length).toBeGreaterThan(0);
   });
 });

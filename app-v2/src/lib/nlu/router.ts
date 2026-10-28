@@ -18,8 +18,9 @@ import { packKey, type PackIndex } from "./pack";
 import { learnedCache, type LearnedCache } from "./learned-cache";
 import { RETRIEVAL_THRESHOLD, type RetrieverIndex } from "./retriever";
 import { runModelFallback, isModelAvailable } from "./model";
+import { classifyWithBrain, brainAvailable } from "./cpu-brain";
 
-export type FastLayer = "rules" | "cache" | "pack" | "retrieval" | "model" | "clarify";
+export type FastLayer = "rules" | "cache" | "pack" | "brain" | "retrieval" | "model" | "clarify";
 
 export interface SupportSnippet {
   id: string;
@@ -44,6 +45,7 @@ export interface LayerCounters {
   rules: number;
   cache: number;
   pack: number;
+  brain: number;
   retrieval: number;
   model: number;
   clarify: number;
@@ -67,7 +69,7 @@ export interface MetricsSnapshot {
 const MAX_SAMPLES = 400;
 
 class FastLayerMetrics {
-  private counters: LayerCounters = { rules: 0, cache: 0, pack: 0, retrieval: 0, model: 0, clarify: 0 };
+  private counters: LayerCounters = { rules: 0, cache: 0, pack: 0, brain: 0, retrieval: 0, model: 0, clarify: 0 };
   private samples: number[] = [];
   private modelCalls = 0;
   private packBytes = 0;
@@ -107,7 +109,7 @@ class FastLayerMetrics {
   }
 
   reset(): void {
-    this.counters = { rules: 0, cache: 0, pack: 0, retrieval: 0, model: 0, clarify: 0 };
+    this.counters = { rules: 0, cache: 0, pack: 0, brain: 0, retrieval: 0, model: 0, clarify: 0 };
     this.samples = [];
     this.modelCalls = 0;
   }
@@ -119,6 +121,9 @@ class FastLayerMetrics {
 
 export const fastLayerMetrics = new FastLayerMetrics();
 
+/** آستانهٔ پذیرش مغز CPU؛ زیر آن، برنامه صادقانه سؤال می‌پرسد. */
+export const BRAIN_THRESHOLD = 0.86;
+
 export interface RouteOptions {
   mode: "support" | "assistant";
   pack?: PackIndex | null;
@@ -128,6 +133,7 @@ export interface RouteOptions {
   usePack?: boolean;
   useCache?: boolean;
   useRetrieval?: boolean;
+  useBrain?: boolean;
 }
 
 const DATA_INTENTS = new Set<NluIntent>([
@@ -200,6 +206,14 @@ export function routeFast(raw: string, options: RouteOptions): RouteResult {
     const hit = options.pack.lookupByHash(hash);
     if (hit) {
       return finish("pack", { intent: hit.intent, slots: hit.slots, confidence: 0.78, matched: "pack" });
+    }
+  }
+
+  // ۳-ج) مغز آماری CPU — فقط اگر قواعد/کش/بسته جواب نداده باشند
+  if (options.useBrain !== false && brainAvailable()) {
+    const brain = classifyWithBrain(raw, { minConfidence: BRAIN_THRESHOLD });
+    if (brain) {
+      return finish("brain", { intent: brain.intent, slots: brain.slots, confidence: brain.confidence, matched: "cpu-brain" });
     }
   }
 

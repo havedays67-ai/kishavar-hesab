@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BookOpen,
   Bot,
   BrainCircuit,
   Check,
@@ -34,7 +33,6 @@ import { tradeBalance, type CropTrade } from "../lib/trade";
 import type { CropPlot } from "../lib/samples";
 import {
   askKeshavarYar,
-  assistantProfileStats,
   assistantSuggestedQuestions,
   clearAssistantMessages,
   greeting,
@@ -45,6 +43,7 @@ import {
 } from "../lib/ai/engine";
 import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
 import { Toast } from "../components/ui";
+import { GuideCenter } from "../components/GuideCenter";
 
 const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
 const money = (value: number) => `${fa(value)} تومان`;
@@ -103,7 +102,6 @@ export function BackupPage({
   const cheques = chequeTotals(ledger.cheques);
   const saleRemaining = trades.reduce((sum, trade) => sum + tradeBalance(trade).remaining, 0);
   const lowItems = ledger.items.filter((item) => item.stock <= item.min);
-  const assistantStats = useMemo(() => assistantProfileStats(assistantContext), [assistantContext]);
   const suggestions = useMemo(() => assistantSuggestedQuestions(assistantContext), [assistantContext]);
   const lastBot = [...messages].reverse().find((message) => message.role === "bot" && message.meta?.followUps?.length);
 
@@ -182,21 +180,6 @@ export function BackupPage({
     }
   };
 
-  const modules = [
-    { title: "پیشخوان", text: "نمای فروش، بهای تولید، مانده‌ها و اقدام‌های پیش‌رو." },
-    { title: "معامله محصول", text: "ماشین‌حساب قطعی فروش گندم/جو/کلزا/ذرت، معاملات و تسویه، شرایط خرید." },
-    { title: "قرارداد زمین", text: "ساخت قرارداد موجر/مستاجر با طرف‌حساب، تاریخ شمسی، مالی و تعهدات." },
-    { title: "اجاره", text: "جدول اقساط، ثبت پرداخت اجاره، رسید و قرارداد، امضای موجر/مستاجر/شاهد." },
-    { title: "زمین و کشت", text: "هفت سرفصل هزینه، بهای تمام‌شده هر کیلو، سربه‌سر و سود." },
-    { title: "دفتر مالی", text: "درآمد و هزینه با دلیل و تاریخ، چک دریافتی/پرداختی، وام و اقساط." },
-    { title: "بدهکار و بستانکار", text: "دلیل بدهی، تاریخ ایجاد و سررسید، دفتر معین، ثبت پرداخت و صورتحساب." },
-    { title: "انبار، دارایی، بودجه", text: "گردش انبار، حد سفارش، استهلاک خط مستقیم و کنترل بودجه." },
-    { title: "اسناد و چاپ", text: "اسناد A4 با سریال، QR، مبلغ به حروف و دانلود PDF." },
-    { title: "گزارش‌ها", text: "فروش به تفکیک محصول، دفتر معاملات، بهای تمام‌شده و اجاره." },
-    { title: "پشتیبان", text: "خروجی و بازیابی کامل داده‌ها؛ داده نمونه فقط برای آزمایش." },
-    { title: "پروفایل", text: "نام، تلفن، کسب‌وکار، نشانی و مشخصات شما؛ قابل ویرایش و پیشنهاد در فیلدها." },
-  ];
-
   const tabs: { id: Tab; label: string; icon: typeof Bot }[] = [
     { id: "assistant", label: "کشاورزیار", icon: Bot },
     { id: "backup", label: "پشتیبان و بازیابی", icon: Database },
@@ -226,7 +209,7 @@ export function BackupPage({
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/15 bg-mint-300/10 text-mint-300"><BrainCircuit className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1">
                 <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند محلی</span></h2>
-                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">{assistantStats.glossaryLabel} · حافظه روی دستگاه</p>
+                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">کشاورزیار آفلاین · مغز CPU روی دستگاه</p>
               </div>
               <button type="button" onClick={resetMemory} className="flex shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1.5 text-[8px] text-[#93ad9f] transition hover:text-white" aria-label="پاک کردن حافظهٔ گفتگو"><Eraser className="h-3 w-3" /> حافظه</button>
             </div>
@@ -271,17 +254,6 @@ export function BackupPage({
                 {[["مانده طلب", money(totals.receivable)], ["مانده بدهی", money(totals.payable)], ["سود دفتر مالی", money(fin.profit)], ["مانده فروش محصول", money(saleRemaining)], ["چک‌های نزدیک سررسید", `${toPersianDigits(cheques.dueSoon)} فقره`], ["اقلام کم‌موجود", `${toPersianDigits(lowItems.length)} قلم`]].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-white/[0.05] pb-1.5 text-[9px] last:border-0"><span className="text-[#819d90]">{label}</span><span className="font-medium text-[#dcebe2]">{value}</span></div>)}
               </div>
             </section>
-            <section className="glass rounded-[22px] p-4">
-              <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-white"><BookOpen className="h-3.5 w-3.5 text-mint-300" /> مغز و حافظهٔ کشاورزیار</h2>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[[assistantStats.entries, "دانشنامه"], [assistantStats.glossary, "اصطلاح"], [assistantStats.patterns, "الگوی پرسش"]].map(([value, label]) => <div key={label} className="rounded-lg border border-white/[0.05] bg-white/[0.02] px-1.5 py-2 text-center"><div className="text-sm font-bold text-mint-300">{toPersianDigits(Number(value))}</div><div className="mt-0.5 text-[7px] text-[#819d90]">{label}</div></div>)}
-              </div>
-              <p className="mt-2 text-[8px] leading-5 text-[#8ba79a]">پاسخ‌های عددی از {toPersianDigits(assistantStats.records)} رکورد دفتر شما و راهنماها از دانشنامهٔ حقوقی/کشاورزی ساخته می‌شوند. حافظه فقط روی همین دستگاه می‌ماند و هیچ متن یا سندی به اینترنت فرستاده نمی‌شود.</p>
-              <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <a href="#documents" className="rounded-lg border border-mint-300/15 bg-mint-300/[0.05] px-2 py-1.5 text-center text-[8px] text-mint-300">بازبینی حقوقی اسناد</a>
-                <a href="#signatures" className="rounded-lg border border-white/[0.07] px-2 py-1.5 text-center text-[8px] text-[#b9cec3]">امضا و چاپ</a>
-              </div>
-            </section>
             <section className="rounded-2xl border border-sand-300/15 bg-sand-300/[0.04] p-3">
               <h2 className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold text-sand-300"><Lightbulb className="h-3.5 w-3.5" /> پیشنهاد پرسش</h2>
               <div className="flex flex-wrap gap-1.5">{suggestions.slice(0, 4).map((sample) => <button key={sample} type="button" onClick={() => ask(sample)} className="rounded border border-white/[0.06] px-1.5 py-1 text-[7px] text-[#a9c1b5]">{sample}</button>)}</div>
@@ -312,11 +284,7 @@ export function BackupPage({
         </div>
       )}
 
-      {tab === "help" && (
-        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-          {modules.map((module) => <div key={module.title} className="glass rounded-2xl p-3.5"><h3 className="text-[10px] font-semibold text-[#e3f0e8]">{module.title}</h3><p className="mt-1 text-[8px] leading-5 text-[#819d90]">{module.text}</p></div>)}
-        </div>
-      )}
+      {tab === "help" && <GuideCenter />}
 
       {tab === "settings" && (
         <div className="grid items-start gap-4 lg:grid-cols-2">

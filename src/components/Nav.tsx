@@ -17,7 +17,6 @@ export const NAV_ITEMS = [
   { href: "/finance", label: "بدهی و چک", icon: "wallet" },
   { href: "/reports", label: "گزارش‌ها", icon: "chart" },
   { href: "/assistant", label: "دستیار هوشمند", icon: "sparkles" },
-  { href: "/knowledge", label: "پایگاه دانش", icon: "book" },
   { href: "/diagnostics", label: "تست و عیب‌یابی", icon: "alert" },
   { href: "/settings", label: "تنظیمات", icon: "settings" },
 ];

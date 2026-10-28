@@ -3,7 +3,7 @@
  * اجرا: npx tsx tools/build_pack/eval.ts
  * خروجی: eval_report.json + docs/AI-EVAL.md (جدول واقعی، بدون ادعا)
  */
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR, ROOT, readJsonl, type EvalRow } from "./lib";
 import { LearnedCache } from "../../app-v2/src/lib/nlu/learned-cache";
@@ -12,6 +12,8 @@ import { buildRetriever, type RetrievalDoc } from "../../app-v2/src/lib/nlu/retr
 import { fastLayerMetrics, routeFast, type RouteOptions, type RouteResult } from "../../app-v2/src/lib/nlu/router";
 import { validateModelOutput } from "../../app-v2/src/lib/nlu/model";
 import { runRules } from "../../app-v2/src/lib/nlu/rules";
+import { simulateBatch } from "../../app-v2/src/lib/nlu/processor-sim";
+import { brainAvailable } from "../../app-v2/src/lib/nlu/cpu-brain";
 import { hashKey, sentenceKey } from "../../app-v2/src/lib/nlu/normalizer";
 import { KNOWLEDGE } from "../../app-v2/src/lib/ai/knowledge";
 import type { CorpusRow } from "./lib";
@@ -209,6 +211,19 @@ function main(): void {
         storesTextOrMoney: false,
       };
     })(),
+    cpuBrain: {
+      available: brainAvailable(),
+      math: "integer-only",
+      training: (() => {
+        try {
+          const report = JSON.parse(readFileSync(join(ROOT, "training/report.json"), "utf8")) as { model?: { weightBytes?: number; accuracyOnHoldoutPercent?: number }; hardEval?: { accuracy?: number; coverage?: number }; scale?: { labeledTarget?: number; persianTarget?: number } };
+          return report;
+        } catch {
+          return null;
+        }
+      })(),
+    },
+    simulator: simulateBatch(hard.map((row) => row.text), pack),
     metrics: {
       total: metrics.total,
       avgMs: metrics.avgMs,

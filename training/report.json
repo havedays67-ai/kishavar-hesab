@@ -1,0 +1,74 @@
+{
+  "version": "1.0.0-cpu",
+  "mode": "ci",
+  "scale": {
+    "labeledTarget": 60000,
+    "labeledGenerated": 60000,
+    "train": 57000,
+    "holdout": 3000,
+    "persianTarget": 120000
+  },
+  "capacity": {
+    "labeledSamplesSupported": 2000000,
+    "persianLinesSupported": 1000000,
+    "note": "--full برای ظرفیت کامل اجرا می‌شود؛ نسخهٔ داخل APK از همان آموزش سبک می‌آید."
+  },
+  "model": {
+    "kind": "multinomial-naive-bayes-int8",
+    "buckets": 4096,
+    "labels": 26,
+    "weightBytes": 106496,
+    "math": "integer only (CPU inference)",
+    "accuracyOnHoldoutPercent": 100
+  },
+  "persian": {
+    "lines": 120000,
+    "uniqueWords": 260,
+    "vocabulary": 260
+  },
+  "perIntentWorst": [
+    {
+      "intent": "legal_contract",
+      "total": 231,
+      "accuracy": 100
+    },
+    {
+      "intent": "report_cash",
+      "total": 231,
+      "accuracy": 100
+    },
+    {
+      "intent": "cheque_received",
+      "total": 231,
+      "accuracy": 100
+    },
+    {
+      "intent": "sale_crop",
+      "total": 231,
+      "accuracy": 100
+    },
+    {
+      "intent": "app_help",
+      "total": 231,
+      "accuracy": 100
+    },
+    {
+      "intent": "report_cheques",
+      "total": 231,
+      "accuracy": 100
+    }
+  ],
+  "hardEval": {
+    "total": 240,
+    "asked": 240,
+    "correct": 184,
+    "accuracy": 76.67,
+    "coverage": 100
+  },
+  "honesty": [
+    "دقت روی hold-out تولیدشده از همان خانوادهٔ قالب‌ها بالاست؛ به همین دلیل accuracy روی مجموعهٔ سختِ مستقل (hardEval) هم جداگانه گزارش می‌شود.",
+    "hardEval هم ترکیبی است، نه گفتار واقعی کاربران.",
+    "هیچ عددی برای «چند برابر شدن هوش» ادعا نمی‌کنیم؛ فقط دقت و پوشش اندازه‌گیری‌شده گزارش می‌شود.",
+    "مدل بزرگ کوانتیزه (LLM) همراه APK نیست؛ مغز CPU سبک و آفلاین است."
+  ]
+}

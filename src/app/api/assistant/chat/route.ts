@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     if (best && grounded) {
       reply = {
         text: `${best.answer}\n\nمنبع: ${best.source}`,
-        actions: [{ label: `موضوع: ${best.category}`, href: "/knowledge", kind: "knowledge" }],
+        actions: [{ label: `موضوع: ${best.category}`, href: "/assistant", kind: "knowledge" }],
         suggestions: matches.slice(1).map((match) => match.question).slice(0, 3),
         kind: "answer",
       };

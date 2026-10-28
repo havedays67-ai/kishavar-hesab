@@ -140,7 +140,6 @@ export default async function SettingsPage() {
             { href: "/finance", label: "بدهی و چک", desc: "سررسیدها و نقدینگی" },
             { href: "/reports", label: "گزارش‌ها", desc: "سود و زیان، بهای تمام‌شده" },
             { href: "/assistant", label: "هوش مصنوعی", desc: "پشتیبان و دستیار" },
-            { href: "/knowledge", label: "پایگاه دانش", desc: "آموزش حسابداری کشاورزی" },
           ].map((item) => (
             <Link key={item.href} href={item.href} className="rounded-xl border border-[#f0ebdd] p-3 transition hover:bg-farm-50">
               <p className="text-xs font-bold text-farm-900">{item.label}</p>
