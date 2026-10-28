@@ -20,7 +20,8 @@ import { SignatureDialog } from "./SignatureDialog";
 import { Fingerprint } from "lucide-react";
 import type { DocumentSpec } from "../lib/documents";
 import { verificationData } from "../lib/documents";
-import { deliverDocumentPdf, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
+import { deliverDocumentPdf, deliverDocumentPng, deliverHtmlFile, printSheetInPage } from "../lib/pdf";
+import { CHEQUE_PRINT_WARNING, documentCompleteness, reviewFor } from "../lib/legal";
 import {
   formatJalali,
   formatNumber,
@@ -152,6 +153,22 @@ function SignatureBoxes({ roles }: { roles: string[] }) {
   );
 }
 
+function LegalSheetNote({ kind }: { kind: DocumentSpec["kind"] }) {
+  const review = reviewFor(kind);
+  const cheque = review.legalClass === "cheque-note";
+  return (
+    <section className={`mt-4 rounded border p-2.5 ${cheque ? "border-[#b77a6e] bg-[#fbebe7]" : "border-[#cdbf8b] bg-[#faf7ea]"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-1">
+        <h3 className={`text-[9px] font-bold ${cheque ? "text-[#8a3c31]" : "text-[#4b5a3f]"}`}>طبقه‌بندی حقوقی سند: {review.classLabel}</h3>
+        <span className="text-[7px] text-[#7b8278]">نسخهٔ {toPersianDigits("1.0.0")} — بازبینی حقوقی</span>
+      </div>
+      <p className={`mt-1 text-justify text-[8px] leading-4 ${cheque ? "text-[#7d4139]" : "text-[#5a6255]"}`}>{cheque ? CHEQUE_PRINT_WARNING : review.summary}</p>
+      {!cheque && <p className="mt-1 text-[7px] leading-4 text-[#727c73]">{review.wetSignatureValid === "between-parties" ? "نسخهٔ چاپی با امضای دستی طرفین، سند عادی بین آنان است؛ برای آثار ثبتی، ثبت رسمی و بررسی سند مالکیت لازم/توصیه‌شده است." : "نسخهٔ چاپی با امضای دستی طرفین، سند عادی معتبر بین امضاکنندگان است و از سند رسمی/گواهی الکترونیکی مطمئن جدا است."}</p>}
+      <p className="mt-1 font-mono text-[6.5px] leading-3 text-[#8b9288]">مبنا: {review.basis.join(" · ")}</p>
+    </section>
+  );
+}
+
 function Watermark({ text }: { text: string }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
@@ -192,12 +209,16 @@ export function DocumentDialog({
 }) {
   const [copied, setCopied] = useState(false);
   const [zoom, setZoom] = useState<"fit" | "large">("fit");
-  const [busy, setBusy] = useState<"pdf" | "html" | null>(null);
+  const [busy, setBusy] = useState<"pdf" | "png" | "html" | null>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "err" | "info"; text: string } | null>(null);
+  const [directFile, setDirectFile] = useState<{ url: string; filename: string } | null>(null);
   const [signOpen, setSignOpen] = useState(false);
+  const { profile } = useProfile();
   const { audit } = useSignatures();
   const signatureEntity = documentEntity(spec);
   const signatureReport = audit(signatureEntity);
+  const legalReview = reviewFor(spec.kind);
+  const completeness = documentCompleteness(spec, profile);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -221,10 +242,20 @@ export function DocumentDialog({
 
   const downloadPdf = async () => {
     setBusy("pdf");
-    setStatus({ tone: "info", text: "در حال ساخت PDF…" });
+    setStatus({ tone: "info", text: "در حال ساخت PDF… چند لحظه صبر کنید." });
     const result = await deliverDocumentPdf(document.getElementById("print-root"), spec.serial);
     setBusy(null);
+    if (result.url && result.filename) setDirectFile({ url: result.url, filename: result.filename });
     setStatus({ tone: result.ok ? "ok" : "err", text: result.message });
+  };
+
+  const downloadPng = async () => {
+    setBusy("png");
+    setStatus({ tone: "info", text: "در حال ساخت تصویر روشن سند…" });
+    const result = await deliverDocumentPng(document.getElementById("print-root"), spec.serial);
+    setBusy(null);
+    if (result.url && result.filename) setDirectFile({ url: result.url, filename: result.filename });
+    setStatus({ tone: result.ok ? "ok" : "err", text: result.ok ? `${result.message} این مسیر جایگزین قطعی چاپ است.` : result.message });
   };
 
   const copyCode = () => {
@@ -239,8 +270,8 @@ export function DocumentDialog({
     const done = printSheetInPage(document.getElementById("print-root"), `${spec.meta.title} — ${spec.serial}`);
     setStatus(
       done
-        ? { tone: "info", text: "پنجره چاپ باز شد. برای ذخیره، «Save as PDF» را انتخاب کنید. اگر باز نشد از «دانلود PDF» استفاده کنید." }
-        : { tone: "err", text: "چاپ در این دستگاه پشتیبانی نشد؛ از «دانلود PDF» استفاده کنید." }
+        ? { tone: "ok", text: "پنجرهٔ چاپ روشن در حال آماده‌سازی است؛ کاغذ A4 و مقصد «Save as PDF» را انتخاب کنید. اگر باز نشد، «دانلود PNG» مسیر قطعی جایگزین است." }
+        : { tone: "err", text: "چاپ در این دستگاه پشتیبانی نشد؛ از «دانلود PNG» یا «ذخیره HTML» استفاده کنید." }
     );
   };
 
@@ -266,6 +297,10 @@ export function DocumentDialog({
               <Download className="h-3.5 w-3.5" />
               {busy === "pdf" ? "در حال ساخت…" : "دانلود PDF"}
             </button>
+            <button type="button" onClick={downloadPng} disabled={busy !== null} className="flex items-center gap-1.5 rounded-lg border border-[#9fd4ee]/25 bg-[#9fd4ee]/[0.06] px-2.5 py-2 text-[9px] text-[#bfe6f7] transition hover:bg-[#9fd4ee]/15 disabled:opacity-60">
+              <Download className="h-3.5 w-3.5" />
+              {busy === "png" ? "در حال ساخت…" : "دانلود PNG"}
+            </button>
             <button type="button" onClick={printNow} className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[9px] text-[#d4e5db] transition hover:bg-white/[0.08]">
               <Printer className="h-3.5 w-3.5" />
               چاپ
@@ -287,10 +322,22 @@ export function DocumentDialog({
             </button>
           </div>
         </div>
-        {status && (
-          <div className={`flex items-start gap-2 px-3 pb-2 text-[9px] leading-5 sm:px-5 ${status.tone === "err" ? "text-[#f0a99c]" : status.tone === "ok" ? "text-[#a9dfbf]" : "text-[#c9d7cd]"}`}>
+        <div className="no-print flex flex-wrap items-center gap-2 px-3 pb-2 text-[8px] leading-5 sm:px-5">
+          <span className={`flex items-center gap-1 rounded border px-1.5 py-0.5 ${completeness.complete ? "border-mint-300/20 bg-mint-300/[0.06] text-mint-300" : "border-sand-300/20 bg-sand-300/[0.06] text-sand-300"}`}><ShieldCheck className="h-2.5 w-2.5" />کنترل کم‌وکسری: {toPersianDigits(completeness.score)}٪</span>
+          <span className={legalReview.legalClass === "cheque-note" ? "text-[#efad9f]" : "text-[#a8bfb3]"}>{legalReview.classLabel}</span>
+          {!completeness.complete && (
+            <details className="text-[#9fb6aa]">
+              <summary className="cursor-pointer">{toPersianDigits(completeness.missing.length)} فیلد الزامی ناقص — دیدن فهرست</summary>
+              <ul className="mt-1 flex flex-wrap gap-1">{completeness.checks.map((check) => <li key={check.label} className={`rounded px-1.5 py-0.5 ${check.ok ? "bg-mint-300/[0.06] text-mint-300/80" : check.level === "required" ? "bg-[#a25649]/10 text-[#efad9f]" : "bg-white/[0.04] text-[#a8bfb3]"}`}>{check.ok ? "✓" : "•"} {check.label}{check.level === "recommended" ? " (توصیه)" : ""}</li>)}</ul>
+            </details>
+          )}
+          <span className="text-[#78968a]">پیش از امضای نهایی، هویت و مبلغ را با طرف مقابل تطبیق دهید.</span>
+        </div>
+        {(status || directFile) && (
+          <div className={`flex flex-wrap items-center gap-2 px-3 pb-2 text-[9px] leading-5 sm:px-5 ${status?.tone === "err" ? "text-[#f0a99c]" : status?.tone === "ok" ? "text-[#a9dfbf]" : "text-[#c9d7cd]"}`}>
             <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" />
-            <span>{status.text}</span>
+            <span className="flex-1">{status?.text}</span>
+            {directFile && <a href={directFile.url} download={directFile.filename} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-mint-300/30 bg-mint-300/10 px-2.5 py-1 text-[8px] font-bold text-mint-300">ذخیرهٔ مستقیم {directFile.filename.split(".").pop()?.toUpperCase()}</a>}
           </div>
         )}
       </div>
@@ -674,6 +721,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
                 <div className="rounded border border-[#ddd8ca] p-2.5">
                   <Row label="صاحب حساب" value={cheque.accountOwner || cheque.partyName} />
                   <Row label="شناسه ملی" value={cheque.nationalId || "—"} />
+                  <Row label="شبا / حساب" value={[cheque.iban, cheque.accountNo].filter(Boolean).join(" · ") || "—"} />
                   <Row label="طرف‌حساب" value={cheque.partyName} />
                   <Row label="تاریخ صدور" value={cheque.issueDate ? formatJalali(cheque.issueDate, "long") : "—"} />
                   <Row label="تاریخ سررسید" value={formatJalali(cheque.due, "long")} strong />
@@ -688,11 +736,15 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
               {cheque.note && <p className="mt-1 text-[8px] leading-5 text-[#66736a]">یادداشت: {cheque.note}</p>}
             </Section>
             <Section number="۳" title="تعهد و شرایط قانونی">
+              <div className="mb-2 rounded border-2 border-[#b77a6e] bg-[#fbebe7] p-2.5 text-[8px] font-bold leading-5 text-[#8a3c31]">
+                هشدار: این برگهٔ چاپی «چک» نیست و در هیچ بانکی قابل وصول نیست. برای چک قانونی، برگهٔ رسمی دسته‌چک بانک با شناسهٔ ۱۶ رقمی صیاد، ثبت مبلغ/تاریخ/گیرنده در سامانهٔ صیاد، تأیید گیرنده و امضای اصلی صاحب حساب مطابق نمونهٔ بانک لازم است.
+              </div>
               <p className="rounded border border-[#ddd8ca] bg-[#faf8f1] p-2.5 text-justify text-[9px] leading-6 text-[#35433a]">
-                این برگه، صورت‌چک/رسید اطلاعات چک است و جایگزین خود چک کاغذی، ثبت در سامانه صیاد یا ظهرنویسی قانونی نیست.
-                صدور و انتقال چک تابع قانون صدور چک (اصلاحی ۱۳۹۷) و دستورالعمل‌های بانک مرکزی است؛ صادرکننده مکلف است
+                این برگه، صورت‌چک/رسید اطلاعات چک و برای پیگیری داخلی است؛ جایگزین خود چک کاغذی، ثبت در سامانه صیاد یا انتقال قانونی نیست.
+                صدور و انتقال چک تابع قانون صدور چک (اصلاحی ۱۳۹۷)، ماده ۲۱ مکرر و دستورالعمل‌های بانک مرکزی است؛ صادرکننده مکلف است
                 اطلاعات چک را در سامانه صیاد ثبت و امضای صاحب حساب را روی چک کاغذی درج کند. دریافت‌کننده باید پیش از
-                پذیرش، اصالت، شناسه صیاد، هویت صاحب حساب و کفایت موجودی را کنترل کند. مبلغ چک به ریال است.
+                پذیرش، اصالت، شناسه صیاد، هویت صاحب حساب و کفایت موجودی را کنترل و در صیاد تأیید کند. مبلغ چک به ریال است.
+                پشت‌نویسی دستی چک‌های صیادی معتبر نیست؛ انتقال باید در صیاد ثبت شود.
               </p>
             </Section>
             <SignatureBoxes roles={["صادرکننده / صاحب حساب", "دریافت‌کننده چک", "شاهد (اختیاری)"]} />
@@ -703,6 +755,7 @@ function DocumentSheet({ spec }: { spec: DocumentSpec }) {
           <InventoryReportBody spec={spec} />
         )}
 
+        <LegalSheetNote kind={spec.kind} />
         <SignatureStatusBlock spec={spec} />
         <footer className="mt-5 border-t border-[#d4cfc0] pt-3">
           <div className="flex items-start justify-between gap-4">

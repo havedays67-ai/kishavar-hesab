@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  BookOpen,
   Bot,
+  BrainCircuit,
   Check,
   ClipboardCopy,
   Database,
   Download,
+  Eraser,
   HelpCircle,
   History,
-  Info,
+  Lightbulb,
+  Percent,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -23,14 +27,22 @@ import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import {
   chequeTotals,
   financeTotals,
-  inventoryValue,
   ledgerTotals,
-  loanSchedule,
-  partyTotals,
   type LedgerState,
 } from "../lib/ledger";
-import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
-import { plotMetrics, type CropPlot } from "../lib/samples";
+import { tradeBalance, type CropTrade } from "../lib/trade";
+import type { CropPlot } from "../lib/samples";
+import {
+  askKeshavarYar,
+  assistantProfileStats,
+  assistantSuggestedQuestions,
+  clearAssistantMessages,
+  greeting,
+  loadAssistantMessages,
+  makeAssistantMessage,
+  saveAssistantMessages,
+  type AssistantMessage,
+} from "../lib/ai/engine";
 import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
 import { Toast } from "../components/ui";
 
@@ -73,92 +85,54 @@ export function BackupPage({
   onLoadDemo: () => void;
 }) {
   const { profile } = useProfile();
+  const assistantContext = useMemo(() => ({ ledger, trades, plots, contracts }), [ledger, trades, plots, contracts]);
   const [tab, setTab] = useState<Tab>("assistant");
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string }[]>([
-    {
-      role: "bot",
-      text: "سلام! من دستیار محلی مزرعه هستم. اعداد را از دفتر واقعی شما می‌خوانم و چیزی حدس نمی‌زنم. می‌توانید بپرسید: «چقدر طلب دارم؟»، «مانده بدهی‌ها چقدر است؟»، «وضعیت اجاره چطور است؟»، «سود فروش محصول چقدر است؟» یا «چه هشدارهایی دارم؟».",
-    },
-  ]);
+  const [thinking, setThinking] = useState(false);
+  const [messages, setMessages] = useState<AssistantMessage[]>(() => {
+    const saved = loadAssistantMessages();
+    return saved.length ? saved : [makeAssistantMessage("bot", greeting(assistantContext, profile.fullName))];
+  });
   const [copied, setCopied] = useState(false);
   const [payload, setPayload] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const totals = ledgerTotals(ledger);
   const fin = financeTotals(ledger.entries);
   const cheques = chequeTotals(ledger.cheques);
-  const sale = trades.reduce((sum, trade) => sum + trade.result.netReceipt, 0);
   const saleRemaining = trades.reduce((sum, trade) => sum + tradeBalance(trade).remaining, 0);
-  const cost = plots.reduce((sum, plot) => sum + plotMetrics(plot).cost, 0);
-  const rentIncome = contracts.filter((contract) => contract.myRole === "landlord").reduce((sum, contract) => sum + contract.rent, 0);
-  const rentExpense = contracts.filter((contract) => contract.myRole === "tenant").reduce((sum, contract) => sum + contract.rent, 0);
   const lowItems = ledger.items.filter((item) => item.stock <= item.min);
-  const dueLoans = ledger.loans.map((loan) => ({ loan, next: loanSchedule(loan).find((row) => !row.paid) })).filter((row) => row.next);
+  const assistantStats = useMemo(() => assistantProfileStats(assistantContext), [assistantContext]);
+  const suggestions = useMemo(() => assistantSuggestedQuestions(assistantContext), [assistantContext]);
+  const lastBot = [...messages].reverse().find((message) => message.role === "bot" && message.meta?.followUps?.length);
 
-  const answer = (raw: string): string => {
-    const text = raw.replace(/[يى]/g, "ی").replace(/ك/g, "ک");
-    const has = (...words: string[]) => words.some((word) => text.includes(word));
-    if (has("طلب", "بدهکار")) {
-      const top = ledger.parties.filter((party) => party.kind === "debtor").map((party) => ({ party, totals: partyTotals(party, ledger.payments) })).sort((a, b) => b.totals.balance - a.totals.balance);
-      return `کل طلب شما از بدهکاران ${money(totals.receivable)} است. ${top.length ? `بزرگ‌ترین بدهکار: ${top[0].party.name} با ${money(top[0].totals.balance)} — دلیل: ${top[0].party.reason}` : "بدهکاری ثبت نشده است."}${totals.overdue > 0 ? `\nمانده معوق: ${money(totals.overdue)}؛ پیگیری الزامی است.` : ""}`;
-    }
-    if (has("بستانکار", "بدهی")) {
-      const top = ledger.parties.filter((party) => party.kind === "creditor").map((party) => ({ party, totals: partyTotals(party, ledger.payments) })).sort((a, b) => b.totals.balance - a.totals.balance);
-      return `کل بدهی شما به بستانکاران ${money(totals.payable)} است. ${top.length ? `بیشترین بدهی: ${top[0].party.name} با ${money(top[0].totals.balance)} — دلیل: ${top[0].party.reason}` : "بدهی ثبت نشده است."}`;
-    }
-    if (has("اجاره", "موجر", "مستاجر")) {
-      return `اجاره دریافتی (به‌عنوان موجر): ${money(rentIncome)}\nاجاره پرداختی (به‌عنوان مستاجر): ${money(rentExpense)}\nودیعه‌های نزد طرف‌ها: ${money(contracts.reduce((sum, contract) => sum + contract.deposit, 0))}\n${toPersianDigits(contracts.length)} قرارداد زمین ثبت شده است.`;
-    }
-    if (has("فروش", "محصول", "گندم")) {
-      return `خالص فروش محصولات ثبت‌شده ${money(sale)} است؛ مانده دریافتنی ${money(saleRemaining)}.${trades.length ? ` آخرین محموله: ${PRODUCT_PROFILES[trades[0].productId].name} به ${trades[0].buyerName} با وزن قابل پرداخت ${fa(trades[0].result.payableKg)} کیلوگرم.` : ""}`;
-    }
-    if (has("سود", "هزینه", "زیان")) {
-      return `درآمد دفتر مالی ${money(fin.income)}، هزینه ${money(fin.expense)} و ${fin.profit >= 0 ? "سود" : "زیان"} دوره ${money(Math.abs(fin.profit))} است.\nبهای تولید زمین‌ها ${money(cost)} برآورد شده است.`;
-    }
-    if (has("چک", "سررسید")) {
-      return `${toPersianDigits(cheques.pending)} چک در جریان دارید. چک‌های دریافتی ${money(cheques.receivable)} و پرداختی ${money(cheques.payable)}. ${cheques.dueSoon > 0 ? `${toPersianDigits(cheques.dueSoon)} فقره سررسید نزدیک دارد.` : "سررسید نزدیکی ثبت نشده است."}${cheques.bounced > 0 ? ` ${toPersianDigits(cheques.bounced)} چک برگشتی نیاز به پیگیری دارد.` : ""}`;
-    }
-    if (has("قسط", "وام")) {
-      return dueLoans.length
-        ? `شما ${toPersianDigits(ledger.loans.length)} وام دارید. ${dueLoans.map(({ loan, next }) => `${loan.title}: قسط بعدی ${next ? formatJalali(next.due, "long") : "-"} به مبلغ ${money(next?.amount ?? 0)}`).join("\n")}`
-        : "وام فعالی ثبت نشده است.";
-    }
-    if (has("انبار", "موجودی", "کمبود")) {
-      const value = inventoryValue(ledger.items);
-      return `ارزش انبار ${money(value.inputs + value.products)} و ${toPersianDigits(value.low)} قلم کمبود است.${lowItems.length ? `\nاقلام نیازمند خرید: ${lowItems.map((item) => `${item.name} (موجودی ${fa(item.stock)} ${item.unit}، حد ${fa(item.min)})`).join("، ")}` : ""}`;
-    }
-    if (has("زمین", "بهای تمام", "سربه")) {
-      const top = plots.map((plot) => ({ plot, metrics: plotMetrics(plot) })).sort((a, b) => b.metrics.profit - a.metrics.profit);
-      return top.length
-        ? `بهای تولید کل ${money(cost)} است. سود هر زمین:\n${top.map(({ plot, metrics }) => `${plot.title}: سود ${money(metrics.profit)} · هزینه هر کیلو ${money(metrics.costPerKg)} · سربه‌سر ${money(metrics.breakEven)}`).join("\n")}`
-        : "زمینی ثبت نشده است.";
-    }
-    if (has("هشدار", "وضعیت", "تحلیل")) {
-      const alerts = [
-        totals.overdue > 0 ? `مانده معوق ${money(totals.overdue)}` : null,
-        saleRemaining > 0 ? `مانده فروش ${money(saleRemaining)}` : null,
-        cheques.bounced > 0 ? `${toPersianDigits(cheques.bounced)} چک برگشتی` : null,
-        cheques.dueSoon > 0 ? `${toPersianDigits(cheques.dueSoon)} چک نزدیک سررسید` : null,
-        lowItems.length > 0 ? `${toPersianDigits(lowItems.length)} قلم کمبود انبار` : null,
-        fin.profit < 0 ? "هزینه‌ها از درآمد بیشتر است" : null,
-      ].filter(Boolean);
-      return alerts.length ? `تحلیل و هشدارها:\n${alerts.map((alert) => `• ${alert}`).join("\n")}\n\nپیشنهاد: ابتدا مانده‌های معوق را پیگیری و سپس خرید نهاده‌های کم‌موجود را زمان‌بندی کنید.` : "هشدار مهمی پیدا نشد؛ مانده‌ها و موجودی‌ها در وضعیت عادی‌اند.";
-    }
-    if (has("چاپ", "سند", "قرارداد")) {
-      return `برای چاپ: بخش «اسناد و چاپ» را باز کنید، سند را انتخاب و «دانلود PDF» یا «چاپ» را بزنید. برای قرارداد زمین، در صفحه «اجاره» هم دکمه‌های قرارداد، رسید و تحویل وجود دارد.`;
-    }
-    if (has("نرخ", "قیمت گندم")) {
-      return `آخرین نرخ مصوب در برنامه ${money(PRODUCT_PROFILES.wheat.basePrice)} برای هر کیلوگرم با افت ۳٪ مفید و ۱٪ غیرمفید است. نرخ فصل جاری و شرایط خریدار را قبل از امضا تطبیق دهید.`;
-    }
-    return "درباره یکی از این موضوع‌ها بپرسید: طلب و بدهی، اجاره، فروش محصول، سود و هزینه، چک، وام و اقساط، انبار، زمین و بهای تمام‌شده، یا هشدارهای مدیریتی.";
-  };
+  useEffect(() => {
+    saveAssistantMessages(messages);
+  }, [messages]);
+
+  useEffect(() => {
+    const container = chatScrollRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  }, [messages, thinking]);
 
   const ask = (text: string) => {
     const value = text.trim();
-    if (!value) return;
-    setMessages((current) => [...current, { role: "user", text: value }, { role: "bot", text: answer(value) }]);
+    if (!value || thinking) return;
+    setMessages((current) => [...current, makeAssistantMessage("user", value)]);
     setQuestion("");
+    setThinking(true);
+    window.setTimeout(() => {
+      const reply = askKeshavarYar(value, assistantContext);
+      setMessages((current) => [...current, makeAssistantMessage("bot", reply.text, reply.meta)]);
+      setThinking(false);
+    }, 360);
+  };
+
+  const resetMemory = () => {
+    clearAssistantMessages();
+    setMessages([makeAssistantMessage("bot", greeting(assistantContext, profile.fullName))]);
+    setToast("حافظهٔ گفتگو پاک شد؛ دانشنامه و داده‌های دفتر دست‌نخورده‌اند.");
   };
 
   const buildBundle = (): BackupBundle => ({
@@ -224,7 +198,7 @@ export function BackupPage({
   ];
 
   const tabs: { id: Tab; label: string; icon: typeof Bot }[] = [
-    { id: "assistant", label: "دستیار مالی", icon: Bot },
+    { id: "assistant", label: "کشاورزیار", icon: Bot },
     { id: "backup", label: "پشتیبان و بازیابی", icon: Database },
     { id: "help", label: "راهنمای کامل", icon: HelpCircle },
     { id: "settings", label: "تنظیمات و وضعیت", icon: UserRound },
@@ -234,9 +208,9 @@ export function BackupPage({
     <div className="animate-rise">
       <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-[10px] text-[#84a294]"><Sparkles className="h-3.5 w-3.5 text-mint-300" />دستیار، پشتیبان و راهنما</div>
-          <h1 className="text-[22px] font-extrabold tracking-tight text-white sm:text-[26px]">پشتیبان و دستیار مزرعه</h1>
-          <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">پاسخ‌های عددی از همان دفتر و موتور برنامه ساخته می‌شوند؛ نه از تخمین. پشتیبان کامل هم فقط روی دستگاه شماست.</p>
+          <div className="mb-2 flex items-center gap-2 text-[10px] text-[#84a294]"><Sparkles className="h-3.5 w-3.5 text-mint-300" />کشاورزیار، پشتیبان و راهنما</div>
+          <h1 className="text-[22px] font-extrabold tracking-tight text-white sm:text-[26px]">کشاورزیار — دستیار هوشمند مزرعه</h1>
+          <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">حسابدار محلی، دانشنامهٔ حقوقی چک و سند، مشاور کشاورزی و دستیار گزارش‌گیری؛ اعداد از دفتر واقعی شما، بدون ارسال داده به اینترنت. حافظهٔ گفتگو روی دستگاه می‌ماند.</p>
         </div>
         <span className="flex items-center gap-1.5 rounded-xl border border-mint-300/15 bg-mint-300/[0.05] px-3 py-2 text-[9px] text-mint-300"><ShieldCheck className="h-3.5 w-3.5" /> داده‌ها روی دستگاه</span>
       </div>
@@ -247,30 +221,72 @@ export function BackupPage({
 
       {tab === "assistant" && (
         <div className="grid items-start gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <section className="glass flex h-[520px] flex-col overflow-hidden rounded-[22px]">
-            <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-mint-300/10 text-mint-300"><Bot className="h-4 w-4" /></span><div><h2 className="text-[11px] font-semibold text-white">دستیار مالی محلی</h2><p className="text-[8px] text-[#78968a]">بدون ارسال داده به اینترنت · پاسخ عددی</p></div></div>
-            <div className="flex-1 space-y-2.5 overflow-y-auto p-3.5">
-              {messages.map((message, index) => (
-                <div key={index} className={cn("max-w-[92%] whitespace-pre-line rounded-2xl px-3 py-2 text-[9px] leading-6", message.role === "user" ? "mr-auto bg-mint-300/[0.1] text-[#dcebe8]" : "bg-white/[0.03] text-[#bcd2c6]")}>{message.text}</div>
+          <section className="glass flex h-[610px] flex-col overflow-hidden rounded-[22px]">
+            <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/15 bg-mint-300/10 text-mint-300"><BrainCircuit className="h-4 w-4" /></span>
+              <div className="min-w-0 flex-1">
+                <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند محلی</span></h2>
+                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">{assistantStats.glossaryLabel} · حافظه روی دستگاه</p>
+              </div>
+              <button type="button" onClick={resetMemory} className="flex shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1.5 text-[8px] text-[#93ad9f] transition hover:text-white" aria-label="پاک کردن حافظهٔ گفتگو"><Eraser className="h-3 w-3" /> حافظه</button>
+            </div>
+            <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto p-3.5">
+              {messages.map((message) => (
+                <div key={message.id} className={cn("max-w-[94%]", message.role === "user" && "mr-auto")}>
+                  <div className={cn("whitespace-pre-line rounded-2xl px-3 py-2 text-[9px] leading-6", message.role === "user" ? "bg-mint-300/[0.1] text-[#dcebe8]" : "border border-white/[0.04] bg-white/[0.03] text-[#c3d8cc]")}>{message.text}</div>
+                  {message.role === "bot" && message.meta && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[7px]">
+                      <span className={cn("flex items-center gap-1 rounded px-1.5 py-0.5", message.meta.confidence >= 80 ? "bg-mint-300/[0.08] text-mint-300" : message.meta.confidence >= 55 ? "bg-sand-300/[0.08] text-sand-300" : "bg-white/[0.04] text-[#9fb6aa]")}><Percent className="h-2.5 w-2.5" />اطمینان {toPersianDigits(message.meta.confidence)}٪</span>
+                      <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[#9fb6aa]">{message.meta.category}</span>
+                      {message.meta.highStakes && <span className="rounded bg-[#c5b97f]/[0.08] px-1.5 py-0.5 text-[#d8c896]">نیازمند احتیاط حقوقی</span>}
+                      {message.meta.sources.length > 0 && (
+                        <details className="w-full">
+                          <summary className="cursor-pointer text-[#78968a] hover:text-[#a9c1b5]">{toPersianDigits(message.meta.sources.length)} منبع و مبنا — مشاهده</summary>
+                          <ul className="mt-1 space-y-1 rounded-lg border border-white/[0.05] bg-[#071510]/50 px-2 py-1.5 text-[7px] leading-4 text-[#8ba79a]">
+                            {message.meta.sources.map((source, index) => <li key={`${source.label}-${index}`}>• {source.label}{source.note ? <span className="text-[#6f8c7f]"> — {source.note}</span> : null}</li>)}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
+              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>کشاورزیار دفتر و دانشنامه را بررسی می‌کند…</div>}
             </div>
             <div className="border-t border-white/[0.06] p-2.5">
               <div className="mb-2 flex flex-wrap gap-1.5">
-                {["چقدر طلب دارم؟", "مانده بدهی‌ها چقدر است؟", "هشدارهای مزرعه", "وضعیت اجاره", "انبار چه کمبودی دارد؟"].map((sample) => <button key={sample} type="button" onClick={() => ask(sample)} className="rounded-lg border border-white/[0.07] px-2 py-1 text-[8px] text-[#93ad9f] transition hover:text-mint-300">{sample}</button>)}
+                {(lastBot?.meta?.followUps?.length ? lastBot.meta.followUps : suggestions).slice(0, 5).map((sample) => <button key={sample} type="button" onClick={() => ask(sample)} className="rounded-lg border border-white/[0.07] px-2 py-1 text-[8px] text-[#93ad9f] transition hover:border-mint-300/20 hover:text-mint-300">{sample}</button>)}
               </div>
               <form onSubmit={(event) => { event.preventDefault(); ask(question); }} className="flex gap-2">
-                <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="سؤال خود را بنویسید…" className="field flex-1 py-2 text-[10px]" />
-                <button type="submit" className="grid h-9 w-9 place-items-center rounded-xl bg-mint-400 text-[#07110d]" aria-label="ارسال"><Send className="h-4 w-4" /></button>
+                <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="مثلاً: آیا چک چاپی معتبر است؟ / چقدر طلب دارم؟" className="field flex-1 py-2 text-[10px]" aria-label="سؤال از کشاورزیار" />
+                <button type="submit" disabled={thinking || !question.trim()} className="grid h-9 w-9 place-items-center rounded-xl bg-mint-400 text-[#07110d] disabled:opacity-40" aria-label="ارسال"><Send className="h-4 w-4" /></button>
               </form>
+              <p className="mt-1.5 text-[7px] leading-4 text-[#6f8c7f]"><ShieldCheck className="ml-1 inline h-2.5 w-2.5" />پاسخ عددی فقط از دفتر شما؛ پاسخ حقوقی راهنمای عمومی است و جای مشاورهٔ رسمی را نمی‌گیرد.</p>
             </div>
           </section>
-          <section className="glass rounded-[22px] p-4">
-            <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-white"><History className="h-3.5 w-3.5 text-mint-300" /> وضعیت لحظه‌ای</h2>
-            <div className="space-y-2">
-              {[["مانده طلب", money(totals.receivable)], ["مانده بدهی", money(totals.payable)], ["سود دفتر مالی", money(fin.profit)], ["مانده فروش محصول", money(saleRemaining)], ["چک‌های نزدیک سررسید", `${toPersianDigits(cheques.dueSoon)} فقره`], ["اقلام کم‌موجود", `${toPersianDigits(lowItems.length)} قلم`]].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-white/[0.05] pb-1.5 text-[9px] last:border-0"><span className="text-[#819d90]">{label}</span><span className="font-medium text-[#dcebe2]">{value}</span></div>)}
-            </div>
-            <p className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-[8px] leading-5 text-[#78968a]"><Info className="ml-1 inline h-3 w-3" /> دستیار محلی است و به اینترنت متصل نمی‌شود؛ برای پرسش‌های حقوقی، نظر مشاور رسمی را بگیرید.</p>
-          </section>
+          <div className="space-y-3">
+            <section className="glass rounded-[22px] p-4">
+              <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-white"><History className="h-3.5 w-3.5 text-mint-300" /> وضعیت لحظه‌ای دفتر</h2>
+              <div className="space-y-2">
+                {[["مانده طلب", money(totals.receivable)], ["مانده بدهی", money(totals.payable)], ["سود دفتر مالی", money(fin.profit)], ["مانده فروش محصول", money(saleRemaining)], ["چک‌های نزدیک سررسید", `${toPersianDigits(cheques.dueSoon)} فقره`], ["اقلام کم‌موجود", `${toPersianDigits(lowItems.length)} قلم`]].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-white/[0.05] pb-1.5 text-[9px] last:border-0"><span className="text-[#819d90]">{label}</span><span className="font-medium text-[#dcebe2]">{value}</span></div>)}
+              </div>
+            </section>
+            <section className="glass rounded-[22px] p-4">
+              <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-white"><BookOpen className="h-3.5 w-3.5 text-mint-300" /> مغز و حافظهٔ کشاورزیار</h2>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[[assistantStats.entries, "دانشنامه"], [assistantStats.glossary, "اصطلاح"], [assistantStats.patterns, "الگوی پرسش"]].map(([value, label]) => <div key={label} className="rounded-lg border border-white/[0.05] bg-white/[0.02] px-1.5 py-2 text-center"><div className="text-sm font-bold text-mint-300">{toPersianDigits(Number(value))}</div><div className="mt-0.5 text-[7px] text-[#819d90]">{label}</div></div>)}
+              </div>
+              <p className="mt-2 text-[8px] leading-5 text-[#8ba79a]">پاسخ‌های عددی از {toPersianDigits(assistantStats.records)} رکورد دفتر شما و راهنماها از دانشنامهٔ حقوقی/کشاورزی ساخته می‌شوند. حافظه فقط روی همین دستگاه می‌ماند و هیچ متن یا سندی به اینترنت فرستاده نمی‌شود.</p>
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                <a href="#documents" className="rounded-lg border border-mint-300/15 bg-mint-300/[0.05] px-2 py-1.5 text-center text-[8px] text-mint-300">بازبینی حقوقی اسناد</a>
+                <a href="#signatures" className="rounded-lg border border-white/[0.07] px-2 py-1.5 text-center text-[8px] text-[#b9cec3]">امضا و چاپ</a>
+              </div>
+            </section>
+            <section className="rounded-2xl border border-sand-300/15 bg-sand-300/[0.04] p-3">
+              <h2 className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold text-sand-300"><Lightbulb className="h-3.5 w-3.5" /> پیشنهاد پرسش</h2>
+              <div className="flex flex-wrap gap-1.5">{suggestions.slice(0, 4).map((sample) => <button key={sample} type="button" onClick={() => ask(sample)} className="rounded border border-white/[0.06] px-1.5 py-1 text-[7px] text-[#a9c1b5]">{sample}</button>)}</div>
+            </section>
+          </div>
         </div>
       )}
 

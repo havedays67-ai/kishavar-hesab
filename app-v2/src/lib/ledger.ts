@@ -59,6 +59,8 @@ export interface Cheque {
   branch?: string;
   accountOwner?: string;
   nationalId?: string;
+  accountNo?: string;
+  iban?: string;
   due: JDate;
   issueDate?: JDate;
   partyName: string;

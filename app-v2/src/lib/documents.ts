@@ -140,11 +140,11 @@ export const DOCUMENT_TYPES: DocumentMeta[] = [
   {
     kind: "cheque-sheet",
     family: "trade",
-    title: "برگه چک و رسید تعهد",
-    description: "مشخصات کامل چک: شماره، بانک، شعبه، صاحب حساب، مبلغ، سررسید و محل امضا.",
-    legalBasis: "قانون صدور چک (اصلاحی ۱۳۹۷) و دستورالعمل سامانه صیاد بانک مرکزی",
-    copies: "دو نسخه: صادرکننده/دریافت‌کننده و بایگانی",
-    signatureRoles: ["صادرکننده چک", "دریافت‌کننده چک"],
+    title: "فرم اطلاعات چک — چک بانکی نیست",
+    description: "یادداشت اطلاعات چک برای پیگیری: شماره، بانک، شعبه، صیاد، مبلغ و سررسید. برای چک قانونی، برگهٔ رسمی صیاد و ثبت سیستمی لازم است.",
+    legalBasis: "قانون صدور چک (اصلاحی ۱۳۹۷)، ماده ۲۱ مکرر، دستورالعمل‌های صیاد و رأی وحدت رویهٔ ۸۷۰ (۱۴۰۴)",
+    copies: "نسخهٔ داخلی؛ نسخهٔ قانونی باید در صیاد و برگهٔ بانک ثبت شود",
+    signatureRoles: ["صادرکننده / صاحب حساب", "دریافت‌کننده"],
     needsStamp: true,
   },
   {
@@ -195,6 +195,8 @@ export interface DocumentPayload {
     branch?: string;
     accountOwner?: string;
     nationalId?: string;
+    accountNo?: string;
+    iban?: string;
     due: JDate;
     issueDate?: JDate;
     partyName: string;

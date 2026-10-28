@@ -252,6 +252,25 @@
   .print-sheet table { page-break-inside: auto; }
   .print-sheet tr { page-break-inside: avoid; }
   .print-sheet section { page-break-inside: avoid; }
+
+  /* مسیر پشتیبان: اگر مرورگر iframe چاپ را نپذیرد و window.print اجرا شود،
+     فقط سند روی کاغذ می‌رود و پوستهٔ تیره در چاپ دیده نمی‌شود. */
+  body * { visibility: hidden !important; }
+  #print-root, #print-root * { visibility: visible !important; }
+  #print-root {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    color: #18241e !important;
+  }
+  .doc-overlay, .doc-scroll {
+    position: static !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+  html { color-scheme: only light !important; }
 }
 
 

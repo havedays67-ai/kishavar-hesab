@@ -20,7 +20,7 @@ import { MY_BUSINESS } from "../lib/data";
 import { formatFileSize, formatIsoInJalali, todayJalali, formatJalali, toPersianDigits } from "../lib/format";
 
 const APK_URL =
-  "https://github.com/havedays67-ai/kishavar-hesab/releases/latest/download/KishavarHesab-1.0.0.apk";
+  "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk";
 
 type ReleaseInfo = {
   date: string;
@@ -41,7 +41,7 @@ export function DownloadPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("https://api.github.com/repos/havedays67-ai/kishavar-hesab/releases/latest", {
+    fetch("https://api.github.com/repos/havedays67-ai/kishavar-hesab/releases/tags/apk-v1", {
       headers: { Accept: "application/vnd.github+json" },
     })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("release unavailable"))))
@@ -145,9 +145,9 @@ export function DownloadPage() {
                   <BadgeCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-mint-300" />
                   <span>
                     <strong className="font-semibold text-[#e5f6ea]">درباره نسخه‌ها:</strong> بسته APK از آخرین کد اصلاح‌شده در
-                    `main` ساخته شده و رفع باگ طرف قرارداد و تاریخ شمسی را دارد. ماشین‌حساب پیشرفته فروش محصول، مرکز
-                    اسناد چاپی و گزارش‌های مدیریتی، بخش‌های نسخه وب این پیش‌نمایش‌اند. لینک بالا تنها مقصد دانلود رسمی
-                    APK است.
+                    `main` ساخته می‌شود و شمارهٔ نسخه ۱.۰.۰ می‌ماند. در این بسته: چاپ روشن A4 بدون صفحهٔ سیاه،
+                    دانلود مستقیم امضا با پیوند جایگزین، بازبینی حقوقی تک‌به‌تک اسناد و چک (صیاد/امضای بانکی)،
+                    و «کشاورزیار» با دانشنامه و حافظهٔ محلی. لینک بالا تنها مقصد دانلود رسمی APK است.
                   </span>
                 </p>
               </div>
@@ -331,7 +331,7 @@ export function DownloadPage() {
           </div>
           <p className="mt-3 flex items-start gap-1.5 text-[8px] font-light leading-5 text-[#a7a38b]">
             <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-[#d6c68f]" />
-            همین صفحه تنها مسیر دریافت نسخه ۱ است. نسخه‌های قدیمی‌تر را از گوشی حذف نکنید تا داده‌ها حفظ شوند.
+            همین صفحه تنها مسیر دریافت نسخه ۱ است. فایل‌های APK با یک کلید امضای ثابت ساخته می‌شوند؛ برای به‌روزرسانی، نسخهٔ جدید را روی نسخهٔ قبلی نصب کنید و برنامه را حذف نکنید تا داده‌های محلی حفظ شوند. پیش از هر به‌روزرسانی، از بخش کشاورزیار یک فایل پشتیبان هم بگیرید.
           </p>
         </section>
       </div>

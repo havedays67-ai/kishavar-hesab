@@ -51,7 +51,7 @@ const NAV_ITEMS: {
   { id: "signatures", label: "امضا و اعتبار", short: "امضا", icon: Fingerprint, badge: "جدید", group: "ledger" },
   { id: "reports", label: "گزارش‌های مدیریتی", short: "گزارش", icon: BarChart3, group: "ledger" },
   { id: "reminders", label: "یادآوری و هشدار", short: "یادآوری", icon: BellRing, group: "ledger" },
-  { id: "backup", label: "دستیار و پشتیبان", short: "پشتیبان", icon: CreditCard, group: "system" },
+  { id: "backup", label: "کشاورزیار · پشتیبان", short: "کشاورزیار", icon: CreditCard, badge: "هوش", group: "system" },
   { id: "profile", label: "پروفایل من", short: "پروفایل", icon: UserRound, group: "system" },
   { id: "download", label: "دریافت برنامه", short: "دریافت اپ", icon: Smartphone, group: "system" },
 ];
@@ -69,7 +69,7 @@ const PAGE_LABELS: Record<Page, string> = {
   signatures: "امضا و اعتبار",
   reminders: "یادآوری و هشدار",
   reports: "گزارش‌ها",
-  backup: "دستیار و پشتیبان",
+  backup: "کشاورزیار · دستیار و پشتیبان",
   profile: "پروفایل",
   architecture: "معماری",
   download: "دریافت برنامه",

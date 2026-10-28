@@ -336,6 +336,8 @@ function ChequeModal({ open, onClose, onSubmit, initial }: { open: boolean; onCl
   const [branch, setBranch] = useState("");
   const [accountOwner, setAccountOwner] = useState("");
   const [nationalId, setNationalId] = useState("");
+  const [accountNo, setAccountNo] = useState("");
+  const [iban, setIban] = useState("");
   const [sayadId, setSayadId] = useState("");
   const [partyName, setPartyName] = useState("");
   const [reason, setReason] = useState("");
@@ -349,11 +351,12 @@ function ChequeModal({ open, onClose, onSubmit, initial }: { open: boolean; onCl
     if (initial) {
       setDirection(initial.direction); setAmount(initial.amount); setSerial(initial.serial); setBank(initial.bank);
       setBranch(initial.branch ?? ""); setAccountOwner(initial.accountOwner ?? ""); setNationalId(initial.nationalId ?? "");
+      setAccountNo(initial.accountNo ?? ""); setIban(initial.iban ?? "");
       setSayadId(initial.sayadId ?? ""); setPartyName(initial.partyName); setReason(initial.reason); setNote(initial.note ?? "");
       setDue(initial.due); setIssueDate(initial.issueDate ?? todayJalali()); setError("");
       return;
     }
-    setDirection("received"); setAmount(0); setSerial(""); setBank(""); setBranch(""); setAccountOwner(""); setNationalId(""); setSayadId(""); setPartyName(""); setReason(""); setNote(""); setDue(todayJalali()); setIssueDate(todayJalali()); setError("");
+    setDirection("received"); setAmount(0); setSerial(""); setBank(""); setBranch(""); setAccountOwner(""); setNationalId(""); setAccountNo(""); setIban(""); setSayadId(""); setPartyName(""); setReason(""); setNote(""); setDue(todayJalali()); setIssueDate(todayJalali()); setError("");
   }, [open, initial]);
 
   const submit = () => {
@@ -363,13 +366,18 @@ function ChequeModal({ open, onClose, onSubmit, initial }: { open: boolean; onCl
     if (!bank.trim()) return setError("نام بانک را وارد کنید.");
     if (!reason.trim()) return setError("بابت چک را بنویسید.");
     if (new Date(due.jy, due.jm - 1, due.jd).getTime() < new Date(issueDate.jy, issueDate.jm - 1, issueDate.jd).getTime()) return setError("سررسید نمی‌تواند قبل از تاریخ صدور باشد.");
-    onSubmit({ id: initial?.id ?? `chq-${Date.now()}`, direction, amount, serial: serial.trim(), bank: bank.trim(), branch: branch.trim(), accountOwner: accountOwner.trim() || partyName.trim(), nationalId: nationalId.trim(), sayadId: sayadId.trim(), partyName: partyName.trim(), reason: reason.trim(), due, issueDate, status: initial?.status ?? "pending", note: note.trim(), settledDate: initial?.settledDate ?? null });
+    const cleanSayad = sayadId.replace(/\D/g, "");
+    if (cleanSayad && cleanSayad.length !== 16) return setError("شناسهٔ صیاد باید دقیقاً ۱۶ رقم باشد؛ آن را از برگهٔ رسمی چک بخوانید.");
+    onSubmit({ id: initial?.id ?? `chq-${Date.now()}`, direction, amount, serial: serial.trim(), bank: bank.trim(), branch: branch.trim(), accountOwner: accountOwner.trim() || partyName.trim(), nationalId: nationalId.trim(), accountNo: accountNo.trim(), iban: iban.trim(), sayadId: cleanSayad, partyName: partyName.trim(), reason: reason.trim(), due, issueDate, status: initial?.status ?? "pending", note: note.trim(), settledDate: initial?.settledDate ?? null });
     setError("");
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={initial ? "ویرایش چک" : "ثبت چک"} description="مشخصات کامل چک را وارد کنید تا برگه چک قابل چاپ و سند مالی درست ساخته شود." size="md">
+    <Modal open={open} onClose={onClose} title={initial ? "ویرایش چک" : "ثبت اطلاعات چک"} description="این فرم فقط اطلاعات چک را در دفتر ثبت می‌کند؛ چک قانونی باید برگهٔ رسمی بانک داشته باشد و در سامانهٔ صیاد ثبت شود." size="md">
       <div className="space-y-3.5 p-5">
+        <div className="rounded-xl border border-[#c5b97f]/25 bg-[#c5b97f]/[0.05] p-2.5 text-[8px] leading-5 text-[#d7cba1]">
+          <b>چک چاپی A4 = چک بانکی نیست.</b> برای وصول و پیگیری قانونی، برگهٔ رسمی دسته‌چک، شناسهٔ ۱۶ رقمی صیاد، ثبت مبلغ/تاریخ/گیرنده در صیاد، تأیید گیرنده و امضای اصلی صاحب حساب مطابق نمونهٔ بانک لازم است. اطلاعات این فرم برای مدیریت داخلی است.
+        </div>
         <div className="grid grid-cols-2 gap-2">
           {([["received", "چک دریافتی", "از طرف‌حساب به نفع ما"], ["paid", "چک پرداختی", "از سوی ما به طرف‌حساب"]] as ["received" | "paid", string, string][]).map(([value, label, hint]) => (
             <button key={value} type="button" onClick={() => setDirection(value)} className={cn("rounded-xl border p-3 text-right transition", direction === value ? "border-mint-300/40 bg-mint-300/[0.08]" : "border-[#2b483a]")}><div className="text-[11px] font-medium text-[#e7f3ec]">{label}</div><p className="mt-0.5 text-[8px] text-[#78968a]">{hint}</p></button>
@@ -382,7 +390,9 @@ function ChequeModal({ open, onClose, onSubmit, initial }: { open: boolean; onCl
           <TextField label="شعبه" value={branch} onChange={setBranch} placeholder="شعبه مرکزی" />
           <TextField label="نام صاحب حساب" value={accountOwner} onChange={setAccountOwner} suggestions={[partyName]} placeholder="نام صاحب حساب" />
           <TextField label="شناسه ملی صاحب حساب" value={nationalId} onChange={setNationalId} numeric placeholder="۱۰ رقم" />
-          <TextField label="شناسه صیاد (اختیاری)" value={sayadId} onChange={setSayadId} numeric placeholder="۱۶ رقم" />
+          <TextField label="شماره حساب / شبا" value={iban} onChange={setIban} placeholder="IR… (اختیاری، برای هماهنگی با بانک)" />
+          <TextField label="شماره حساب" value={accountNo} onChange={setAccountNo} numeric placeholder="اختیاری" />
+          <TextField label="شناسهٔ یکتای صیاد (۱۶ رقم)" value={sayadId} onChange={setSayadId} numeric placeholder="از برگهٔ رسمی چک" />
           <TextField label="طرف‌حساب" value={partyName} onChange={setPartyName} placeholder="نام خریدار یا فروشنده" required />
           <TextField label="بابت" value={reason} onChange={setReason} placeholder="مانده فروش گندم" required />
           <JalaliDatePicker label="تاریخ صدور" value={issueDate} onChange={setIssueDate} />

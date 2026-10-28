@@ -28,6 +28,7 @@ import {
 import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
 import { PRODUCT_PROFILES, type CropTrade } from "../lib/trade";
 import { type CropPlot, plotMetrics } from "../lib/samples";
+import { LegalReviewPanel } from "../components/LegalReviewPanel";
 
 const familyTone: Record<DocumentFamily, string> = {
   trade: "mint",
@@ -186,6 +187,8 @@ export function DocumentsPage({
           </div>
         </div>
       </div>
+
+      <LegalReviewPanel />
 
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
         <div className="relative flex-1">

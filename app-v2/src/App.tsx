@@ -152,7 +152,7 @@ export default function App() {
   }, [ledger, trades, documents, plots, contracts, audit]);
 
   useEffect(() => {
-    document.title = `${PAGE_TITLES[page]} | کسب‌وکار من`;
+    document.title = `${PAGE_TITLES[page]} | کشاورزحساب`;
     setActiveDocument(null);
   }, [page]);
 
