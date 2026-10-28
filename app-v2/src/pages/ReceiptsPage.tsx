@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Camera, Database, Info, ShieldCheck } from "lucide-react";
 import { cn } from "../utils/cn";
-import { loadReceipts, receiptsStats } from "../lib/receipts";
+import { loadReceipts, receiptsStats, RECEIPTS_CHANGED_EVENT } from "../lib/receipts";
+import { formatTomanAmount } from "../lib/money-format";
 import { RECEIPT_SECTIONS } from "../lib/receipt-sections";
 import { RECEIPT_NOTE, VALIDITY_DISCLAIMER } from "../lib/document-validity";
 import { formatJalali } from "../lib/format";
@@ -26,7 +27,11 @@ export function ReceiptsPage() {
   useEffect(() => {
     const onStorage = () => setTick((value) => value + 1);
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener(RECEIPTS_CHANGED_EVENT, onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(RECEIPTS_CHANGED_EVENT, onStorage);
+    };
   }, []);
 
   return (
@@ -91,14 +96,27 @@ export function ReceiptsPage() {
           {rows.filter((row) => filter === "all" || row.section === filter).map((row) => (
             <li key={row.id} className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
               <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white/[0.05] text-mint-300">
-                {row.mimeType.startsWith("image/") ? <img src={row.dataUrl} alt={row.title} className="h-full w-full object-cover" /> : <ShieldCheck className="h-4 w-4" />}
+                {row.mimeType.startsWith("image/") ? (
+                  <img
+                    src={row.thumbnailDataUrl ?? row.dataUrl}
+                    alt={row.title}
+                    className="h-full w-full object-cover"
+                    width={36}
+                    height={36}
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                  />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[10px] text-[#e4f1e9]">{row.title}</p>
                 <p className="truncate text-[8px] text-[#88a496]">
                   {RECEIPT_SECTIONS.find((section) => section.id === row.section)?.label ?? "سایر"}
                   {row.refType ? ` · پیوست رکورد (${RECEIPT_REF_LABELS[row.refType] ?? row.refType})` : ""} · {formatJalali(row.date, "long")}
-                  {row.amount !== null ? ` · ${Math.round(row.amount).toLocaleString("fa-IR")} تومان` : ""}
+                  {row.amount !== null ? ` · ${formatTomanAmount(row.amount)}` : ""}
                   {row.reference ? ` · پیگیری ${row.reference}` : ""}
                 </p>
               </div>

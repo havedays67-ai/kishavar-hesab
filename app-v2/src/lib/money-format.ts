@@ -63,9 +63,23 @@ export function formatAmountInput(raw: string): string {
   const latin = toLatinDigits(normalizeSeparators(raw)).replace(/[^\d-]/g, "");
   if (!latin || latin === "-") return "";
   const negative = latin.startsWith("-");
-  const digits = latin.replace(/-/g, "").replace(/^0+(?=\d)/, "");
+  const digits = latin.replace(/-/g, "").replace(/^0+(?=\d)/, "").slice(0, 18);
   const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, MONEY_GROUP_SEPARATOR);
   return negative ? `-${grouped}` : grouped;
+}
+
+/**
+ * ورودی قالب‌بندی‌شده (`100,000,000`) یا خام (`۱۰۰۰۰۰۰۰۰`) را به عدد امن
+ * تبدیل می‌کند. برای مبلغ رسید/پرداخت که فقط عدد صحیح و نامنفی است.
+ * ورودی نامعتبر یا بزرگ‌تر از `Number.MAX_SAFE_INTEGER` → null.
+ */
+export function parseAmountInput(raw: string): number | null {
+  const latin = toLatinDigits(normalizeSeparators(raw)).replace(/[^\d]/g, "");
+  if (!latin) return null;
+  const normalized = latin.replace(/^0+(?=\d)/, "");
+  if (normalized.length > 15) return null;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 /** نمایش وزن اعشاری بدون صفر اضافی: «2,500»، «2.5»، «0.25» */

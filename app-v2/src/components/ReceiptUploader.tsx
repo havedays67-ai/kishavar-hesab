@@ -5,8 +5,9 @@ import { formatJalali, todayJalali } from "../lib/format";
 import { RECEIPT_NOTE } from "../lib/document-validity";
 import { RECEIPT_SECTIONS, RECEIPT_ACCEPT, isReceiptSection, receiptSection, type ReceiptSectionId } from "../lib/receipt-sections";
 import { addReceipt, loadReceipts, readReceiptFile, receiptsStats, removeReceipt, type StoredReceipt } from "../lib/receipts";
+import { formatAmountInput, formatTomanAmount, parseAmountInput } from "../lib/money-format";
 
-const money = (value: number) => `${Math.round(value).toLocaleString("fa-IR")} تومان`;
+const money = (value: number) => formatTomanAmount(value);
 const bytes = (value: number) => (value > 1024 * 1024 ? `${(value / 1048576).toFixed(1)} مگابایت` : `${Math.max(1, Math.round(value / 1024))} کیلوبایت`);
 
 export function ReceiptUploader({
@@ -57,7 +58,7 @@ export function ReceiptUploader({
     const result = addReceipt({
       section: selected,
       title: title.trim().slice(0, 160),
-      amount: amount.trim() ? Number(amount.replace(/[,٬\s]/g, "").replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))) : null,
+      amount: parseAmountInput(amount),
       date: todayJalali(),
       reference: reference.trim().slice(0, 100),
       note: note.trim().slice(0, 600),
@@ -95,7 +96,7 @@ export function ReceiptUploader({
       <form onSubmit={submit} className="mt-3 space-y-2.5">
         <div className={cn("grid gap-2.5", compact ? "grid-cols-1" : "sm:grid-cols-2")}>
           <input className="field text-[11px]" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="عنوان رسید: فیش واریز، قبض باسکول…" required />
-          <input className="field text-[11px]" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="مبلغ (تومان، اختیاری)" inputMode="numeric" />
+          <input className="field text-[11px] tabular-nums" value={amount} onChange={(event) => setAmount(formatAmountInput(event.target.value))} placeholder="مبلغ (تومان، اختیاری)" inputMode="numeric" maxLength={20} />
           <input className="field text-[11px]" value={reference} onChange={(event) => setReference(event.target.value)} placeholder="شمارهٔ پیگیری / شمارهٔ قرارداد" />
           {showSection && (
             <select className="field text-[11px]" value={selected} onChange={(event) => setSelected(isReceiptSection(event.target.value) ? event.target.value : "other")}>

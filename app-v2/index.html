@@ -2,7 +2,15 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      قفل مقیاس دیداری: در WebView اندروید و مرورگر موبایل، فوکوس روی فیلدها،
+      بازشدن دوربین/انتخاب فایل و تغییر ارتفاع صفحه نباید کل برنامه را زوم کند.
+      interactive-widget=resizes-content فقط ناحیهٔ دید را با کیبورد تنظیم می‌کند.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="theme-color" content="#08130f" />
     <meta
       name="description"

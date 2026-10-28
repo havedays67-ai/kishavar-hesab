@@ -27,6 +27,7 @@ import {
   type PartyPayment,
 } from "./lib/ledger";
 import { todayJalali } from "./lib/format";
+import { removeReceiptsForRecord, replaceReceipts } from "./lib/receipts";
 import { makeDocument, type DocumentSpec } from "./lib/documents";
 import type { CropTrade } from "./lib/trade";
 
@@ -220,16 +221,22 @@ export default function App() {
 
   const addPartyAccount = (party: DebtParty) => updateLedger({ parties: [party, ...ledger.parties] });
   const updatePartyAccount = (party: DebtParty) => updateLedger({ parties: ledger.parties.map((row) => (row.id === party.id ? party : row)) });
-  const deletePartyAccount = (id: string) => updateLedger({
-    parties: ledger.parties.filter((party) => party.id !== id),
-    payments: ledger.payments.filter((payment) => payment.partyId !== id),
-  });
+  const deletePartyAccount = (id: string) => {
+    removeReceiptsForRecord("party", id);
+    updateLedger({
+      parties: ledger.parties.filter((party) => party.id !== id),
+      payments: ledger.payments.filter((payment) => payment.partyId !== id),
+    });
+  };
   const addPartyPayment = (payment: PartyPayment) => updateLedger({ payments: [payment, ...ledger.payments] });
   const deletePartyPayment = (id: string) => updateLedger({ payments: ledger.payments.filter((payment) => payment.id !== id) });
 
   const addEntry = (entry: FinanceEntry) => updateLedger({ entries: [entry, ...ledger.entries] });
   const updateEntry = (entry: FinanceEntry) => updateLedger({ entries: ledger.entries.map((row) => (row.id === entry.id ? entry : row)) });
-  const deleteEntry = (id: string) => updateLedger({ entries: ledger.entries.filter((entry) => entry.id !== id) });
+  const deleteEntry = (id: string) => {
+    removeReceiptsForRecord("debt", id);
+    updateLedger({ entries: ledger.entries.filter((entry) => entry.id !== id) });
+  };
   const addCheque = (cheque: Cheque) => updateLedger({ cheques: [cheque, ...ledger.cheques] });
   const setChequeStatus = (id: string, status: Cheque["status"]) => updateLedger({ cheques: ledger.cheques.map((cheque) => (cheque.id === id ? { ...cheque, status } : cheque)) });
   const updateCheque = (cheque: Cheque) => updateLedger({ cheques: ledger.cheques.map((row) => (row.id === cheque.id ? cheque : row)) });
@@ -241,14 +248,23 @@ export default function App() {
       entries: cheque.status === "pending" ? [{ id: `fin-${Date.now()}`, kind: cheque.direction === "received" ? "income" : "expense", date, amount: cheque.amount, reason: `${cheque.direction === "received" ? "وصول چک دریافتی" : "پرداخت چک"} — ${cheque.serial}`, category: cheque.direction === "received" ? "فروش محصول" : "سایر هزینه", method: "cheque", partyId: null, note: cheque.bank }, ...ledger.entries] : ledger.entries,
     });
   };
-  const deleteCheque = (id: string) => updateLedger({ cheques: ledger.cheques.filter((cheque) => cheque.id !== id) });
+  const deleteCheque = (id: string) => {
+    removeReceiptsForRecord("cheque", id);
+    updateLedger({ cheques: ledger.cheques.filter((cheque) => cheque.id !== id) });
+  };
   const addLoan = (loan: Loan) => updateLedger({ loans: [loan, ...ledger.loans] });
   const payLoan = (id: string) => updateLedger({ loans: ledger.loans.map((loan) => (loan.id === id ? { ...loan, paidInstallments: Math.min(loan.months, loan.paidInstallments + 1) } : loan)) });
-  const deleteLoan = (id: string) => updateLedger({ loans: ledger.loans.filter((loan) => loan.id !== id) });
+  const deleteLoan = (id: string) => {
+    removeReceiptsForRecord("loan", id);
+    updateLedger({ loans: ledger.loans.filter((loan) => loan.id !== id) });
+  };
 
   const addItem = (item: InventoryItem) => updateLedger({ items: [item, ...ledger.items] });
   const updateItem = (item: InventoryItem) => updateLedger({ items: ledger.items.map((row) => (row.id === item.id ? item : row)) });
-  const deleteItem = (id: string) => updateLedger({ items: ledger.items.filter((item) => item.id !== id), moves: ledger.moves.filter((move) => move.itemId !== id) });
+  const deleteItem = (id: string) => {
+    removeReceiptsForRecord("inventory-item", id);
+    updateLedger({ items: ledger.items.filter((item) => item.id !== id), moves: ledger.moves.filter((move) => move.itemId !== id) });
+  };
   const addMove = (move: InventoryMove) => updateLedger({
     moves: [move, ...ledger.moves],
     items: ledger.items.map((item) => (item.id === move.itemId ? { ...item, stock: Math.max(0, item.stock + (move.kind === "in" ? move.qty : -move.qty)) } : item)),
@@ -277,6 +293,7 @@ export default function App() {
     setLedger(emptyLedger());
     setRentPayments([]);
     setSignatures([]);
+    replaceReceipts([]);
   };
 
   const loadDemo = () => {
@@ -299,7 +316,10 @@ export default function App() {
             trades={trades}
             contacts={ledger.parties.map((party) => ({ name: party.name, phone: party.phone }))}
             onSaveTrade={(trade) => setTrades((current) => [trade, ...current])}
-            onDeleteTrade={(id) => setTrades((current) => current.filter((trade) => trade.id !== id))}
+            onDeleteTrade={(id) => {
+              removeReceiptsForRecord("trade", id);
+              setTrades((current) => current.filter((trade) => trade.id !== id));
+            }}
             onUpdateTrade={(id, patch) => setTrades((current) => current.map((trade) => (trade.id === id ? { ...trade, ...patch } : trade)))}
             onOpenDocument={setActiveDocument}
           />
@@ -316,7 +336,10 @@ export default function App() {
             onAddPayment={(payment) => setRentPayments((current) => [payment, ...current])}
             onDeletePayment={(id) => setRentPayments((current) => current.filter((payment) => payment.id !== id))}
             onAddSignature={(signature) => setSignatures((current) => [signature, ...current])}
-            onDeleteContract={(id) => setContracts((current) => current.filter((contract) => contract.id !== id))}
+            onDeleteContract={(id) => {
+              removeReceiptsForRecord("contract", id);
+              setContracts((current) => current.filter((contract) => contract.id !== id));
+            }}
             onDeleteSignature={(id) => setSignatures((current) => current.filter((signature) => signature.id !== id))}
             onOpenDocument={setActiveDocument}
           />
@@ -325,7 +348,10 @@ export default function App() {
           <CropsPage
             plots={plots}
             onAddPlot={(plot) => setPlots((current) => [plot, ...current])}
-            onDeletePlot={(id) => setPlots((current) => current.filter((plot) => plot.id !== id))}
+            onDeletePlot={(id) => {
+              removeReceiptsForRecord("crop", id);
+              setPlots((current) => current.filter((plot) => plot.id !== id));
+            }}
             onUpdatePlot={(plot) => setPlots((current) => current.map((row) => (row.id === plot.id ? plot : row)))}
             onOpenDocument={setActiveDocument}
           />

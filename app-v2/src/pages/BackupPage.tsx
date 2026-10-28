@@ -43,6 +43,7 @@ import {
   type AssistantMessage,
 } from "../lib/ai/engine";
 import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
+import { loadReceipts, replaceReceipts, type StoredReceipt } from "../lib/receipts";
 import { Toast } from "../components/ui";
 import { GuideCenter } from "../components/GuideCenter";
 
@@ -62,6 +63,8 @@ export interface BackupBundle {
   ledger: unknown;
   rentPayments: unknown;
   signatures: unknown;
+  /** رسیدها و تصاویر base64 هم باید در پشتیبان بیایند؛ در نسخهٔ قبل جا افتاده بودند. */
+  receipts?: StoredReceipt[];
 }
 
 export function BackupPage({
@@ -145,6 +148,7 @@ export function BackupPage({
     ledger,
     rentPayments,
     signatures,
+    receipts: loadReceipts(),
   });
 
   const exportBackup = () => {
@@ -175,8 +179,14 @@ export function BackupPage({
     try {
       const parsed = JSON.parse(payload) as BackupBundle;
       if (!parsed || parsed.version !== 1) throw new Error("نسخه پشتیبان پشتیبانی نمی‌شود.");
+      let restoredReceipts = 0;
+      if (Array.isArray(parsed.receipts)) {
+        const receiptResult = replaceReceipts(parsed.receipts);
+        if (!receiptResult.ok) throw new Error(receiptResult.error ?? "بازیابی رسیدها ممکن نشد.");
+        restoredReceipts = receiptResult.count;
+      }
       onRestore(parsed);
-      setToast("پشتیبان بازیابی شد.");
+      setToast(`پشتیبان بازیابی شد${restoredReceipts > 0 ? `؛ ${toPersianDigits(restoredReceipts)} رسید هم بازگردانده شد` : ""}.`);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "فایل پشتیبان معتبر نیست.");
     }

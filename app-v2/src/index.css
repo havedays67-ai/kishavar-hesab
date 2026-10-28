@@ -23,6 +23,10 @@
   html {
     scroll-behavior: smooth;
     background: #07110d;
+    /* Android WebView با «Font Boosting» بعد از تغییر DOM فونت‌ها را بزرگ
+       می‌کرد و اپ زوم‌شده دیده می‌شد؛ این دو خط آن رفتار را خنثی می‌کند. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -46,8 +50,10 @@
   }
 
   button,
-  a {
+  a,
+  label {
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   ::selection {

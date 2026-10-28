@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Camera,
@@ -23,23 +24,33 @@ import {
   receiptSection,
   type ReceiptSectionId,
 } from "../lib/receipt-sections";
-import { addReceipt, loadRecordReceipts, readReceiptFile, removeReceipt, type StoredReceipt } from "../lib/receipts";
+import {
+  addReceipt,
+  loadRecordReceipts,
+  readReceiptFile,
+  removeReceipt,
+  RECEIPTS_CHANGED_EVENT,
+  type StoredReceipt,
+} from "../lib/receipts";
 import { downloadReceiptFile, openReceiptExternally, receiptFileName, receiptIsPdf } from "../lib/receipt-download";
+import { formatAmountInput, formatTomanAmount, parseAmountInput } from "../lib/money-format";
 
-const money = (value: number) => `${Math.round(value).toLocaleString("fa-IR")} تومان`;
-const SYNC_EVENT = "kishavar:receipts-changed";
+const money = (value: number) => formatTomanAmount(value);
+const SYNC_EVENT = RECEIPTS_CHANGED_EVENT;
 
 function notifyChange() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(SYNC_EVENT));
 }
 
-function cleanAmount(value: string): number | null {
-  const digits = value
-    .replace(/[,٬\s]/g, "")
-    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
-  if (!digits) return null;
-  const parsed = Number(digits);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+/**
+ * بعد از بستن دوربین/انتخاب فایل، فوکوس روی input مخفی در بعضی WebViewها
+ * می‌ماند و مرورگر برای دیدن فیلد کوچک، صفحه را زوم می‌کند. فوکوس را آزاد
+ * می‌کنیم؛ ظاهر هیچ بخشی تغییر نمی‌کند.
+ */
+function releaseFilePickerFocus() {
+  if (typeof document === "undefined") return;
+  const active = document.activeElement;
+  if (active instanceof HTMLElement) active.blur();
 }
 
 /**
@@ -93,6 +104,27 @@ export function RecordReceipts({
     };
   }, [reload]);
 
+  // پنجرهٔ رسید پیش‌تر داخل کارتِ صفحه رندر می‌شد و backdrop-filter پدر،
+  // fixed را به همان کارت محدود می‌کرد؛ نتیجه «به‌هم‌ریختن و بزرگ‌شدن کل برنامه».
+  // اکنون در body پورتال می‌شود و اسکرول پس‌زمینه هم قفل/بازگردانی می‌شود.
+  useEffect(() => {
+    if (!viewing) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbar = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+    document.body.style.overflow = "hidden";
+    if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setViewing(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [viewing]);
+
   const totals = useMemo(
     () => ({
       count: rows.length,
@@ -115,6 +147,7 @@ export function RecordReceipts({
     }
     setFiles(next.slice(0, 12));
     setMessage(null);
+    releaseFilePickerFocus();
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -139,7 +172,7 @@ export function RecordReceipts({
         refId,
         section,
         title: receiptTitle.slice(0, 160),
-        amount: cleanAmount(amount),
+        amount: parseAmountInput(amount),
         date: todayJalali(),
         reference: reference.trim().slice(0, 80),
         note: note.trim().slice(0, 500),
@@ -147,6 +180,7 @@ export function RecordReceipts({
         mimeType: read.mimeType ?? file.type ?? "image/jpeg",
         sizeBytes: read.sizeBytes ?? file.size,
         dataUrl: read.dataUrl,
+        thumbnailDataUrl: read.thumbnailDataUrl,
       });
       if (result.ok) saved += 1;
       else lastError = result.error ?? "ذخیرهٔ رسید ممکن نشد.";
@@ -285,11 +319,14 @@ export function RecordReceipts({
                 placeholder={`عنوان رسید (پیش‌فرض: ${label})`}
               />
               <input
-                className="field py-1.5 text-[10px]"
+                className="field py-1.5 text-[10px] tabular-nums"
                 value={amount}
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={(event) => setAmount(formatAmountInput(event.target.value))}
                 placeholder="مبلغ (تومان، اختیاری)"
                 inputMode="numeric"
+                autoComplete="off"
+                maxLength={20}
+                aria-label="مبلغ رسید به تومان"
               />
               <input
                 className="field py-1.5 text-[10px]"
@@ -360,7 +397,16 @@ export function RecordReceipts({
                       aria-label={`مشاهدهٔ ${row.title}`}
                     >
                       {row.mimeType.startsWith("image/") ? (
-                        <img src={row.dataUrl} alt={row.title} className="h-full w-full object-cover" />
+                        <img
+                          src={row.thumbnailDataUrl ?? row.dataUrl}
+                          alt={row.title}
+                          className="h-full w-full object-cover"
+                          width={40}
+                          height={40}
+                          loading="lazy"
+                          decoding="async"
+                          draggable={false}
+                        />
                       ) : (
                         <FileText className="h-4 w-4" />
                       )}
@@ -409,8 +455,9 @@ export function RecordReceipts({
         </div>
       )}
 
-      {viewing && (
-        <div className="fixed inset-0 z-[95] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={viewing.title}>
+      {viewing &&
+        createPortal(
+          <div className="fixed inset-0 z-[95] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={viewing.title}>
           <button
             type="button"
             className="absolute inset-0 bg-[#020806]/85 backdrop-blur-sm"
@@ -460,6 +507,9 @@ export function RecordReceipts({
                   src={viewing.dataUrl}
                   alt={viewing.title}
                   className="mx-auto max-h-[62dvh] w-auto max-w-full rounded-lg object-contain"
+                  loading="eager"
+                  decoding="async"
+                  draggable={false}
                 />
               )}
               {viewing.note && (
@@ -491,8 +541,9 @@ export function RecordReceipts({
               </p>
             )}
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </div>
   );
 }
