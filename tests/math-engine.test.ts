@@ -5,6 +5,7 @@ import {
   ratio,
   roundRatio,
   solveMath,
+  serializeMathResult,
   verbalToDigits,
   expandDigitScales,
 } from "../app-v2/src/lib/ai/math-engine";
@@ -138,5 +139,19 @@ describe("عدد به حروف فارسی (بدون وابستگی خارجی)",
     expect(numberToPersianWords(2500000)).toBe("دو میلیون و پانصد هزار");
     expect(numberToPersianWords(4500000)).toBe("چهار میلیون و پانصد هزار");
     expect(numberToPersianWords(-1200)).toContain("منفی");
+  });
+});
+
+describe("سریال‌سازی JSON (باگ BigInt در API)", () => {
+  it("نتیجهٔ ریاضی بدون استثنا به JSON تبدیل می‌شود", () => {
+    const solved = solveMath("۱۸ درصد از ۲۵,۰۰۰,۰۰۰ تومان");
+    expect(solved).not.toBeNull();
+    expect(() => JSON.stringify(solved)).toThrow(); // BigInt خام قابل‌سریال‌سازی نیست
+    const serialized = serializeMathResult(solved!);
+    const json = JSON.stringify(serialized);
+    expect(json).toContain("4500000");
+    expect(serialized.value.d).toBe("1");
+    expect(serialized.value.text).toBe("4500000");
+    expect(json).not.toContain("BigInt");
   });
 });

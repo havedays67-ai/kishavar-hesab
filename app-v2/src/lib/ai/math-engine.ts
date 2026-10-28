@@ -610,5 +610,21 @@ function withPersian(result: MathResult): MathResult {
   return result;
 }
 
+/**
+ * نسخهٔ قابل‌سریال‌سازی (JSON) از نتیجهٔ ریاضی.
+ * JSON.stringify روی BigInt استثنا می‌دهد؛ این تابع مقدار گویا را به رشته
+ * تبدیل می‌کند تا پاسخ API هرگز ۵۰۰ نشود.
+ */
+export interface SerializableMathResult extends Omit<MathResult, "value"> {
+  value: { n: string; d: string; text: string };
+}
+
+export function serializeMathResult(result: MathResult): SerializableMathResult {
+  return {
+    ...result,
+    value: { n: result.value.n.toString(), d: result.value.d.toString(), text: ratioToString(result.value) },
+  };
+}
+
 export const MATH_ENGINE_VERSION = "1.0.0";
 export const MATH_MAX_LENGTH = MAX_LENGTH;
