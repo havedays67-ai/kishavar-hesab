@@ -20,7 +20,8 @@ import {
 import { cn } from "../utils/cn";
 import type { SavedContract } from "../lib/data";
 import { CONTRACT_TYPES } from "../lib/data";
-import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
+import { formatJalali,  toPersianDigits, todayJalali } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotCost, plotMetrics, type CropPlot } from "../lib/samples";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
@@ -30,7 +31,8 @@ import type { LedgerState } from "../lib/ledger";
 
 type Tab = "overview" | "trades" | "crops" | "lease" | "risk";
 
-const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 
 export function ReportsPage({

@@ -25,6 +25,7 @@ import {
   todayJalali,
   type JDate,
 } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import { PAYMENT_METHODS, type PaymentMethod } from "../lib/ledger";
 import { makeDocument, type DocumentKind, type DocumentSpec } from "../lib/documents";
 import { AmountField, SelectField, TextField } from "../components/FormControls";
@@ -32,7 +33,8 @@ import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Modal, Toast } from "../components/ui";
 import { useProfile } from "../lib/profile";
 
-const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 
 export interface RentPaymentRecord {

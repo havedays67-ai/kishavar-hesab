@@ -8,6 +8,7 @@
  * هیچ ورودی نامعتبری حدس زده نمی‌شود: مقدار منفی/غیرعددی → null.
  */
 import { numberToPersianWords, toPersianDigits } from "./fa-number";
+import { formatTomanAmount } from "./money-format";
 
 export type WeightUnit = "kg" | "ton";
 
@@ -149,9 +150,10 @@ export function moneyWords(toman: number): string {
   return words ? `${words} تومان` : "";
 }
 
+/** نمایش مبلغ با جداکنندهٔ هزارگان لاتین: «100,000,000 تومان» */
 export function formatTomanLabel(toman: number): string {
   if (!Number.isFinite(toman)) return "—";
-  return `${toPersianDigits(Math.round(toman).toLocaleString("en-US"))} تومان`;
+  return formatTomanAmount(toman, true);
 }
 
 /** اعتبارسنجی مقدار وزن؛ پیام خطای شفاف برمی‌گرداند (نه حدس). */

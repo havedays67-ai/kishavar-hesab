@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import {
   EXPENSE_CATEGORIES,
   assetRows,
@@ -28,7 +29,8 @@ import { AmountField, SelectField, TextField } from "../components/FormControls"
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { Modal, Toast } from "../components/ui";
 
-const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 type Tab = "stock" | "assets" | "budget";
 

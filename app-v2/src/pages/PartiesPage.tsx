@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatJalali, numberToPersianWords, toPersianDigits, todayJalali, type JDate } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import {
   PAYMENT_METHODS,
   buildLedgerAccountText,
@@ -40,7 +41,8 @@ import { partyEntity } from "../lib/signable";
 import { SignatureDialog } from "../components/SignatureDialog";
 import { useSignatures } from "../lib/signatureContext";
 
-const fa = (value: number) => toPersianDigits(value.toLocaleString("en-US"));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(Math.round(value))} تومان`;
 
 type Filter = "all" | PartyKind;

@@ -24,6 +24,7 @@ import { SignatureDialog } from "../components/SignatureDialog";
 import { useSignatures } from "../lib/signatureContext";
 
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -43,7 +44,8 @@ import { Modal, Toast } from "../components/ui";
 import { makeDocument } from "../lib/documents";
 import { DocumentDialog } from "../components/PrintSheet";
 
-const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 type Tab = "entries" | "cheques" | "loans";
 

@@ -304,6 +304,9 @@ export function generateLabeled(count: number, seed = 20261116): LabeledSample[]
     ][Math.floor(random() * 3)];
     const percent = String(5 + Math.floor(random() * 25));
     const people = String(2 + Math.floor(random() * 10));
+    // قیمت با شکل‌های مختلف: خام و جداکننده‌دار (100,000,000)
+    const rawRate = [35000, 45000, 60000, 85000, 120000][Math.floor(random() * 5)];
+    const priceGrouped = rawRate.toLocaleString("en-US");
     const base = pick(random, template.texts)
       .replace("{cat}", slots.category ?? pick(random, EXPENSE_CATEGORIES).label)
       .replace("{crop}", slots.crop ?? pick(random, CROPS))
@@ -316,7 +319,8 @@ export function generateLabeled(count: number, seed = 20261116): LabeledSample[]
       .replace(/{p}/g, percent)
       .replace(/{people}/g, people)
       .replace(/{qty}/g, String([1, 2, 5, 10, 20, 50][Math.floor(random() * 6)]))
-      .replace(/{rate}/g, String([35, 45, 60, 85, 120][Math.floor(random() * 5)] * 1000))
+      .replace(/{rate}/g, String(rawRate))
+      .replace(/{rateGrouped}/g, priceGrouped)
       .replace(/{qty}/g, String([1, 1.5, 2, 2.5, 5, 10, 250, 500][Math.floor(random() * 8)]))
       .replace(/{rate2}/g, String([18000, 25000, 32000, 45000, 68000][Math.floor(random() * 5)]))
       .replace(/{weightUnit}/g, ["تن", "کیلوگرم", "کیلو", "خروار"][Math.floor(random() * 4)]);

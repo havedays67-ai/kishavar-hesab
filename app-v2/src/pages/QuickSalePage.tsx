@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import { toPersianDigits } from "../lib/format";
+import { formatAmountInput, formatTomanAmount } from "../lib/money-format";
+import { ProductPicker } from "../components/ProductPicker";
 import { MAX_KG, describeWeight, parseNumericInput, validateWeight, type WeightUnit } from "../lib/units";
 import { computeQuickSale, moistureDeductionPct, quickSaleSummary, sumLoadsKg, weighbridgeNetKg, QUICK_SALE_PRODUCTS, type QuickSaleResult } from "../lib/quick-sale";
 import { useProfile, profileDisplayName } from "../lib/profile";
@@ -49,7 +51,7 @@ export function QuickSalePage() {
   const [buyer, setBuyer] = useState("");
   const [unit, setUnit] = useState<WeightUnit>("kg");
   const [quantity, setQuantity] = useState("1000");
-  const [pricePerKg, setPricePerKg] = useState("45000");
+  const [pricePerKg, setPricePerKg] = useState("45,000");
   const [priceUnit, setPriceUnit] = useState<"kg" | "ton">("kg");
   const [gross, setGross] = useState("");
   const [tare, setTare] = useState("");
@@ -73,6 +75,7 @@ export function QuickSalePage() {
   }, []);
 
   const quantityNumber = useMemo(() => parseNumericInput(quantity), [quantity]);
+  const priceNumber = useMemo(() => parseNumericInput(pricePerKg), [pricePerKg]);
   const weightHint = useMemo(() => {
     if (quantityNumber === null) return null;
     const error = validateWeight(quantityNumber, unit);
@@ -196,7 +199,7 @@ export function QuickSalePage() {
     setBuyer("");
     setUnit("kg");
     setQuantity("1000");
-    setPricePerKg("45000");
+    setPricePerKg("45,000");
     setPriceUnit("kg");
     setGross("");
     setTare("");
@@ -230,14 +233,10 @@ export function QuickSalePage() {
         <section className="glass rounded-[22px] p-4">
           <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-white"><Calculator className="h-3.5 w-3.5 text-mint-300" /> ورودی فروش</h2>
           <div className="space-y-3">
-            <div>
-              <div className="label">محصول</div>
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_SALE_PRODUCTS.map((item) => (
-                  <button key={item} type="button" onClick={() => setProduct(item)} className={cn("rounded-lg border px-2.5 py-1.5 text-[9px]", product === item ? "border-mint-300/35 bg-mint-300/[0.08] text-mint-300" : "border-white/[0.08] text-[#9db5a8]")}>{item}</button>
-                ))}
-              </div>
-            </div>
+            <ProductPicker value={product} onChange={setProduct} label="محصول" required />
+            {!QUICK_SALE_PRODUCTS.includes(product) && product.trim() && (
+              <p className="-mt-1 text-[8px] text-mint-300">محصول دلخواه «{product}» ثبت شد.</p>
+            )}
 
             <label className="block">
               <span className="label">خریدار / شرکت</span>
@@ -263,14 +262,26 @@ export function QuickSalePage() {
               <label className="block">
                 <span className="label">قیمت (تومان)</span>
                 <div className="mt-1 flex gap-2">
-                  <input value={pricePerKg} onChange={(event) => setPricePerKg(event.target.value)} inputMode="numeric" placeholder="۴۵٬۰۰۰" className="field py-2 text-[11px]" aria-label="قیمت" />
+                  <input
+                    value={pricePerKg}
+                    onChange={(event) => setPricePerKg(formatAmountInput(event.target.value))}
+                    inputMode="numeric"
+                    dir="ltr"
+                    placeholder="100,000,000"
+                    className="field py-2 text-right text-[11px] tabular-nums"
+                    aria-label="قیمت"
+                  />
                   <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-black/25 p-1">
                     {([["kg", "هر کیلو"], ["ton", "هر تن"]] as const).map(([id, label]) => (
                       <button key={id} type="button" onClick={() => setPriceUnit(id)} className={cn("rounded-lg px-2 py-1 text-[9px]", priceUnit === id ? "bg-mint-300/15 text-mint-200" : "text-[#8ba79a]")}>{label}</button>
                     ))}
                   </div>
                 </div>
-                <p className="mt-1 text-[8px] text-[#8ba79a]">قیمت هر کیلو و هر تن، هر دو محاسبه و نمایش داده می‌شوند.</p>
+                <p className="mt-1 text-[8px] text-[#8ba79a]">
+                  {priceNumber !== null && priceNumber > 0
+                    ? `${formatTomanAmount(priceUnit === "ton" ? priceNumber : priceNumber * 1000)} هر تن · ${formatTomanAmount(priceUnit === "ton" ? priceNumber / 1000 : priceNumber)} هر کیلو`
+                    : "قیمت را با جداکنندهٔ هزارگان بنویسید؛ مثلاً 100,000,000"}
+                </p>
               </label>
             </div>
 
@@ -335,13 +346,20 @@ export function QuickSalePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: "افت/کسورات (٪)", value: deductionPct, set: setDeductionPct, hint: "مثلاً رطوبت یا ناخالصی" },
-                  { label: "کرایهٔ حمل (تومان)", value: transport, set: setTransport, hint: "در مبلغ نهایی اضافه می‌شود" },
+                  { label: "کرایهٔ حمل (تومان)", value: transport, set: setTransport, hint: "در مبلغ نهایی اضافه می‌شود", money: true },
                   { label: "مالیات/عوارض (٪)", value: taxPct, set: setTaxPct, hint: "محصول خام معمولاً معاف است" },
-                  { label: "پیش‌پرداخت (تومان)", value: prepaid, set: setPrepaid, hint: "از مبلغ نهایی کم می‌شود" },
+                  { label: "پیش‌پرداخت (تومان)", value: prepaid, set: setPrepaid, hint: "از مبلغ نهایی کم می‌شود", money: true },
                 ].map((field) => (
                   <label key={field.label} className="block">
                     <span className="label">{field.label}</span>
-                    <input value={field.value} onChange={(event) => field.set(event.target.value)} inputMode="decimal" className="field mt-1 py-2 text-[10px]" />
+                    <input
+                      value={field.value}
+                      onChange={(event) => field.set("money" in field && field.money ? formatAmountInput(event.target.value) : event.target.value)}
+                      inputMode="decimal"
+                      dir={"money" in field && field.money ? "ltr" : undefined}
+                      placeholder={"money" in field && field.money ? "100,000,000" : undefined}
+                      className="field mt-1 py-2 text-right text-[10px] tabular-nums"
+                    />
                     <span className="mt-0.5 block text-[8px] text-[#78968a]">{field.hint}</span>
                   </label>
                 ))}
@@ -372,7 +390,7 @@ export function QuickSalePage() {
               <div className="space-y-2.5">
                 <div className="rounded-xl border border-mint-300/25 bg-mint-300/[0.06] p-3">
                   <p className="text-[9px] text-[#a9c5b8]">مبلغ قابل پرداخت{result.buyer ? ` از ${result.buyer}` : ""}</p>
-                  <p className="mt-1 text-[18px] font-extrabold text-mint-200">{toPersianDigits(result.payableToman.toLocaleString("en-US"))} تومان</p>
+                  <p className="mt-1 text-[18px] font-extrabold text-mint-200 tabular-nums" dir="ltr">{formatTomanAmount(result.payableToman, false)} تومان</p>
                   <p className="mt-1 text-[8px] leading-5 text-[#c3d8cc]">{result.payableWords}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[9px]">
@@ -383,12 +401,12 @@ export function QuickSalePage() {
                     ["مقدار با حروف (تن)", result.quantity.tonWords],
                     ["وزن خالص", result.netWeight.both],
                     ["وزن خالص با حروف", result.netWeight.tonWords],
-                    ["قیمت هر کیلو", `${toPersianDigits(result.pricePerKg.toLocaleString("en-US"))} تومان`],
-                    ["قیمت هر تن", `${toPersianDigits(result.pricePerTon.toLocaleString("en-US"))} تومان`],
-                    ["مبلغ ناخالص", `${toPersianDigits(result.grossToman.toLocaleString("en-US"))} تومان`],
+                    ["قیمت هر کیلو", `${formatTomanAmount(result.pricePerKg, false)} تومان`],
+                    ["قیمت هر تن", `${formatTomanAmount(result.pricePerTon, false)} تومان`],
+                    ["مبلغ ناخالص", `${formatTomanAmount(result.grossToman, false)} تومان`],
                     ["کسورات + مالیات", `${toPersianDigits((result.deductionToman + result.taxToman).toLocaleString("en-US"))} تومان`],
-                    ["کرایهٔ حمل", `${toPersianDigits(result.transportToman.toLocaleString("en-US"))} تومان`],
-                    ["قیمت مؤثر هر کیلو", `${toPersianDigits(result.effectivePricePerKg.toLocaleString("en-US"))} تومان`],
+                    ["کرایهٔ حمل", `${formatTomanAmount(result.transportToman, false)} تومان`],
+                    ["قیمت مؤثر هر کیلو", `${formatTomanAmount(result.effectivePricePerKg, false)} تومان`],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg border border-white/[0.05] bg-white/[0.02] px-2 py-1.5">
                       <div className="text-[7px] text-[#78968a]">{label}</div>
@@ -428,7 +446,7 @@ export function QuickSalePage() {
                   <li key={entry.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.05] bg-white/[0.02] px-2 py-1.5">
                     <div className="min-w-0">
                       <p className="truncate text-[9px] text-[#dcebe2]">{entry.product}{entry.buyer ? ` — ${entry.buyer}` : ""}</p>
-                      <p className="text-[8px] text-[#78968a]">{toPersianDigits(entry.payableToman.toLocaleString("en-US"))} تومان</p>
+                      <p className="text-[8px] text-[#78968a]">{formatTomanAmount(entry.payableToman, false)} تومان</p>
                     </div>
                     <button type="button" onClick={() => removeEntry(entry.id)} className="shrink-0 text-[#8a6a63] transition hover:text-[#e0a097]" aria-label="حذف از تاریخچه"><Trash2 className="h-3 w-3" /></button>
                   </li>

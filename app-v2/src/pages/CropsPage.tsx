@@ -14,14 +14,16 @@ import {
   Wheat,
 } from "lucide-react";
 import { cn } from "../utils/cn";
-import { formatNumber, numberToPersianWords, toEnglishDigits, toPersianDigits } from "../lib/format";
+import { numberToPersianWords, toEnglishDigits, toPersianDigits } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import { CROP_COST_LABELS, type CropPlot, plotCost, plotMetrics } from "../lib/samples";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
 import { AmountField, SelectField, TextField } from "../components/FormControls";
 import { Modal } from "../components/ui";
 import { CROPS } from "../lib/data";
 
-const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 
 const newPlotTemplate: Omit<CropPlot, "id"> = {

@@ -11,6 +11,7 @@
  * `eval_report.json` ثبت می‌شود؛ هیچ درصدی در کامنت ادعا نمی‌شود.
  */
 import { hashKey, normalizePersian, normalizeUnits, sentenceKey } from "./normalizer";
+import { findProductName } from "../products";
 
 export type NluIntent =
   | "add_expense"
@@ -288,7 +289,16 @@ function matcher(text: string): (word: string) => boolean {
 
 export function detectCrop(text: string): string | undefined {
   const has = matcher(normalizePersian(text));
-  return CROPS.find((crop) => has(crop));
+  const known = CROPS.find((crop) => has(crop));
+  if (known) return known;
+  // کاتالوگ کامل محصولات (شامل تخم آفتابگردان، شلتوک، کنجد و ...)
+  try {
+    const product = findProductName(text);
+    if (product) return product;
+  } catch {
+    /* کاتالوگ در دسترس نبود → نتیجهٔ قبلی */
+  }
+  return undefined;
 }
 
 export function detectCategory(text: string): string | undefined {

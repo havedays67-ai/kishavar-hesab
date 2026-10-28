@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T10:14:59.317Z",
+  "generatedAt": "2026-10-28T10:41:57.082Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
@@ -16,9 +16,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.465,
-    "p50Ms": 0.446,
-    "p95Ms": 0.618,
+    "avgMs": 0.81,
+    "p50Ms": 0.492,
+    "p95Ms": 1.683,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -32,9 +32,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.465,
-    "p50Ms": 0.446,
-    "p95Ms": 0.618,
+    "avgMs": 0.81,
+    "p50Ms": 0.492,
+    "p95Ms": 1.683,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -48,9 +48,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.547,
-    "p50Ms": 0.504,
-    "p95Ms": 0.834,
+    "avgMs": 0.852,
+    "p50Ms": 0.485,
+    "p95Ms": 1.81,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -60,16 +60,16 @@
     "total": 240,
     "classified": 240,
     "intentAccuracy": 57.92,
-    "slotExactMatch": 67.08,
-    "slotPrecision": 75.44,
-    "slotRecall": 49.14,
-    "clarifyRate": 40.42,
-    "avgMs": 0.256,
-    "p50Ms": 0.23,
-    "p95Ms": 0.511,
+    "slotExactMatch": 67.5,
+    "slotPrecision": 75.89,
+    "slotRecall": 48.57,
+    "clarifyRate": 40,
+    "avgMs": 0.52,
+    "p50Ms": 0.255,
+    "p95Ms": 1.572,
     "layers": {
-      "brain": 143,
-      "clarify": 97
+      "brain": 144,
+      "clarify": 96
     }
   },
   "byScenario": [
@@ -82,9 +82,9 @@
       "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.454,
-      "p50Ms": 0.443,
-      "p95Ms": 0.597,
+      "avgMs": 0.856,
+      "p50Ms": 1.054,
+      "p95Ms": 1.54,
       "layers": {
         "rules": 78
       }
@@ -98,9 +98,9 @@
       "slotPrecision": 73.96,
       "slotRecall": 89.87,
       "clarifyRate": 0,
-      "avgMs": 0.479,
-      "p50Ms": 0.466,
-      "p95Ms": 0.618,
+      "avgMs": 0.885,
+      "p50Ms": 0.505,
+      "p95Ms": 1.762,
       "layers": {
         "rules": 88,
         "brain": 1
@@ -115,9 +115,9 @@
       "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.458,
-      "p50Ms": 0.432,
-      "p95Ms": 0.631,
+      "avgMs": 0.671,
+      "p50Ms": 0.447,
+      "p95Ms": 1.681,
       "layers": {
         "rules": 73
       }
@@ -149,14 +149,14 @@
     "estimatedFalsePositiveRate": 0.008184,
     "measuredFalsePositiveRate": 0.0095,
     "rejectsInHardEval": 237,
-    "avgProbeMs": 0.00014,
+    "avgProbeMs": 0.00181,
     "storesTextOrMoney": false
   },
   "math": {
     "referenceCases": 15,
     "exactMatches": 15,
     "accuracyPercent": 100,
-    "avgMs": 1.116,
+    "avgMs": 0.941,
     "mismatches": [],
     "safetyGuardsPassed": 5,
     "safetyGuardsTotal": 5,
@@ -253,9 +253,9 @@
   },
   "metrics": {
     "total": 480,
-    "avgMs": 0.46,
-    "p50Ms": 0.45,
-    "p95Ms": 0.62,
+    "avgMs": 0.81,
+    "p50Ms": 0.48,
+    "p95Ms": 1.68,
     "layers": {
       "math": 0,
       "rules": 478,
@@ -267,7 +267,7 @@
       "clarify": 0
     },
     "peakRamBytes": 182533,
-    "batteryEstimateMah": 0.0003,
+    "batteryEstimateMah": 0.0005,
     "packBytes": 75781,
     "modelCalls": 0,
     "bloomRejects": 711

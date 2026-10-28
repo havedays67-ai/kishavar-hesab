@@ -12,9 +12,11 @@
  */
 import { MAX_KG, describeWeight, moneyWords, roundKg, toKg, toTon, validateWeight, type WeightDisplay, type WeightUnit } from "./units";
 import { toPersianDigits } from "./fa-number";
+import { formatTomanAmount } from "./money-format";
 
 /** عدد تومان با ارقام فارسی و جداکنندهٔ هزارگان — یکدست با بقیهٔ برنامه. */
-const fa = (value: number): string => toPersianDigits(Math.round(value).toLocaleString("en-US"));
+/** مبلغ تومان با جداکنندهٔ هزارگان لاتین: 100,000,000 */
+const fa = (value: number): string => formatTomanAmount(value, false);
 
 export interface QuickSaleInput {
   product: string;
@@ -191,8 +193,8 @@ export function quickSaleSummary(result: QuickSaleResult): string {
     `مقدار: ${result.quantity.both} — ${result.quantity.bothWords}`,
     `وزن خالص پس از کسورات: ${result.netWeight.both} — ${result.netWeight.bothWords}`,
     result.priceInput.unit === "ton"
-      ? `قیمت هر تن: ${toPersianDigits(result.priceInput.value.toLocaleString("en-US"))} تومان (هر کیلو ${toPersianDigits(result.pricePerKg.toLocaleString("en-US"))} تومان)`
-      : `قیمت هر کیلو: ${toPersianDigits(result.priceInput.value.toLocaleString("en-US"))} تومان · هر تن: ${toPersianDigits(result.pricePerTon.toLocaleString("en-US"))} تومان`,
+      ? `قیمت هر تن: ${fa(result.priceInput.value)} تومان (هر کیلو ${fa(result.pricePerKg)} تومان)`
+      : `قیمت هر کیلو: ${fa(result.priceInput.value)} تومان · هر تن: ${fa(result.pricePerTon)} تومان`,
     `مبلغ ناخالص: ${fa(result.grossToman)} تومان (${result.grossWords})`,
     `کسورات: ${fa(result.deductionToman)} تومان · مالیات: ${fa(result.taxToman)} تومان · حمل: ${fa(result.transportToman)} تومان`,
     `مبلغ قابل پرداخت: ${fa(result.payableToman)} تومان (${result.payableWords})`,

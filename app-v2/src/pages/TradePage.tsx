@@ -37,6 +37,7 @@ import {
   todayJalali,
   type JDate,
 } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import {
   PAYMENT_METHOD_LABELS,
   PRODUCT_PROFILES,
@@ -160,7 +161,8 @@ const initialForm: FormState = {
   weighbridgeNo: "",
 };
 
-const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 const mass = (value: number) => `${toPersianDigits(formatNumber(Math.round(value * 100) / 100))} کیلو`;
 

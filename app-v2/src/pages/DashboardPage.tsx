@@ -27,13 +27,15 @@ import clsx from "clsx";
 import { CONTRACT_TYPES, type Page, type SavedContract } from "../lib/data";
 import { useProfile } from "../lib/profile";
 import type { HealthReport } from "../lib/insights";
-import { formatJalali, formatNumber, toPersianDigits, todayJalali } from "../lib/format";
+import { formatJalali,  toPersianDigits, todayJalali } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import { PRODUCT_PROFILES, tradeBalance, type CropTrade } from "../lib/trade";
 import { plotMetrics, type CropPlot } from "../lib/samples";
 import { Avatar } from "../components/ui";
 import { makeDocument, type DocumentSpec } from "../lib/documents";
 
-const fa = (value: number) => toPersianDigits(formatNumber(Math.round(value)));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 
 export function DashboardPage({

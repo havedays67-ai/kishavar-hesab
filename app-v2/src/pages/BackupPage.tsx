@@ -23,6 +23,7 @@ import { cn } from "../utils/cn";
 import type { SavedContract } from "../lib/data";
 import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
+import { formatAmount } from "../lib/money-format";
 import {
   chequeTotals,
   financeTotals,
@@ -45,7 +46,8 @@ import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
 import { Toast } from "../components/ui";
 import { GuideCenter } from "../components/GuideCenter";
 
-const fa = (value: number) => toPersianDigits(Math.round(value).toLocaleString("en-US"));
+// مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
+const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
 
 type Tab = "assistant" | "backup" | "help" | "settings";
