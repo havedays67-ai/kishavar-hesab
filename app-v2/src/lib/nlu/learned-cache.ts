@@ -12,7 +12,7 @@ import type { NluIntent, NluSlots } from "./rules";
 
 const STORAGE_KEY = "kishavar.nlu.learned.v1";
 export const DEFAULT_CACHE_LIMIT = 500;
-const ALLOWED_SLOTS = new Set(["crop", "category", "unit", "docType", "direction", "role"]);
+const ALLOWED_SLOTS = new Set(["crop", "category", "unit", "docType", "topic", "direction", "role"]);
 
 export interface CacheRecord extends PackEntry {
   key: string;

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T05:06:48.315Z",
+  "generatedAt": "2026-10-28T05:10:39.467Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
@@ -16,9 +16,9 @@
     "slotPrecision": 51.34,
     "slotRecall": 87.43,
     "clarifyRate": 1.67,
-    "avgMs": 0.291,
-    "p50Ms": 0.281,
-    "p95Ms": 0.453,
+    "avgMs": 0.287,
+    "p50Ms": 0.271,
+    "p95Ms": 0.399,
     "layers": {
       "rules": 236,
       "clarify": 4
@@ -32,9 +32,9 @@
     "slotPrecision": 51.34,
     "slotRecall": 87.43,
     "clarifyRate": 1.67,
-    "avgMs": 0.291,
-    "p50Ms": 0.281,
-    "p95Ms": 0.453,
+    "avgMs": 0.287,
+    "p50Ms": 0.271,
+    "p95Ms": 0.399,
     "layers": {
       "rules": 236,
       "clarify": 4
@@ -48,9 +48,9 @@
     "slotPrecision": 51.34,
     "slotRecall": 87.43,
     "clarifyRate": 1.67,
-    "avgMs": 0.324,
-    "p50Ms": 0.301,
-    "p95Ms": 0.501,
+    "avgMs": 0.341,
+    "p50Ms": 0.31,
+    "p95Ms": 0.504,
     "layers": {
       "rules": 236,
       "clarify": 4
@@ -64,9 +64,9 @@
     "slotPrecision": 0,
     "slotRecall": 0,
     "clarifyRate": 100,
-    "avgMs": 0.039,
-    "p50Ms": 0.034,
-    "p95Ms": 0.05,
+    "avgMs": 0.038,
+    "p50Ms": 0.033,
+    "p95Ms": 0.064,
     "layers": {
       "clarify": 240
     }
@@ -81,9 +81,9 @@
       "slotPrecision": 47.06,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.275,
-      "p50Ms": 0.267,
-      "p95Ms": 0.365,
+      "avgMs": 0.277,
+      "p50Ms": 0.257,
+      "p95Ms": 0.352,
       "layers": {
         "rules": 78
       }
@@ -97,9 +97,9 @@
       "slotPrecision": 50.72,
       "slotRecall": 88.61,
       "clarifyRate": 4.49,
-      "avgMs": 0.321,
-      "p50Ms": 0.296,
-      "p95Ms": 0.546,
+      "avgMs": 0.298,
+      "p50Ms": 0.289,
+      "p95Ms": 0.466,
       "layers": {
         "rules": 85,
         "clarify": 4
@@ -114,9 +114,9 @@
       "slotPrecision": 55.43,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.273,
-      "p50Ms": 0.263,
-      "p95Ms": 0.389,
+      "avgMs": 0.285,
+      "p50Ms": 0.281,
+      "p95Ms": 0.399,
       "layers": {
         "rules": 73
       }
@@ -126,11 +126,11 @@
     "simulated": true,
     "beforeCacheLayer": 0,
     "afterConfirmationCacheHits": 0,
-    "cacheSize": 228,
+    "cacheSize": 234,
     "storesMoney": false
   },
   "jsonContract": {
-    "acceptedValidJson": 117,
+    "acceptedValidJson": 120,
     "sampleSize": 120,
     "rejectedCorruptedJson": 120,
     "note": "اعتبارسنج سخت؛ مدل روی دستگاه در این نسخه همراه APK نیست، بنابراین نرخ JSON مدل واقعی اندازه‌گیری نشده است."
@@ -144,7 +144,7 @@
     "total": 480,
     "avgMs": 0.28,
     "p50Ms": 0.27,
-    "p95Ms": 0.41,
+    "p95Ms": 0.4,
     "layers": {
       "rules": 472,
       "cache": 0,
@@ -153,7 +153,7 @@
       "model": 0,
       "clarify": 8
     },
-    "peakRamBytes": 174927,
+    "peakRamBytes": 176367,
     "batteryEstimateMah": 0.0002,
     "packBytes": 71055,
     "modelCalls": 0
