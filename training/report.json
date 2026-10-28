@@ -2,11 +2,11 @@
   "version": "1.0.0-cpu",
   "mode": "ci",
   "scale": {
-    "labeledTarget": 60000,
-    "labeledGenerated": 60000,
-    "train": 57000,
-    "holdout": 3000,
-    "persianTarget": 120000
+    "labeledTarget": 150000,
+    "labeledGenerated": 150000,
+    "train": 142500,
+    "holdout": 7500,
+    "persianTarget": 250000
   },
   "capacity": {
     "labeledSamplesSupported": 2000000,
@@ -16,53 +16,60 @@
   "model": {
     "kind": "multinomial-naive-bayes-int8",
     "buckets": 4096,
-    "labels": 26,
-    "weightBytes": 106496,
+    "labels": 28,
+    "weightBytes": 114688,
     "math": "integer only (CPU inference)",
     "accuracyOnHoldoutPercent": 100
   },
   "persian": {
-    "lines": 120000,
+    "lines": 250000,
     "uniqueWords": 260,
     "vocabulary": 260
   },
   "perIntentWorst": [
     {
       "intent": "legal_contract",
-      "total": 231,
+      "total": 1072,
       "accuracy": 100
     },
     {
-      "intent": "report_cash",
-      "total": 231,
+      "intent": "report_receivable",
+      "total": 1072,
       "accuracy": 100
     },
     {
-      "intent": "cheque_received",
-      "total": 231,
+      "intent": "harvest_record",
+      "total": 1072,
       "accuracy": 100
     },
     {
-      "intent": "sale_crop",
-      "total": 231,
-      "accuracy": 100
-    },
-    {
-      "intent": "app_help",
-      "total": 231,
+      "intent": "trade_help",
+      "total": 1071,
       "accuracy": 100
     },
     {
       "intent": "report_cheques",
-      "total": 231,
+      "total": 1071,
+      "accuracy": 100
+    },
+    {
+      "intent": "cheque_received",
+      "total": 1071,
       "accuracy": 100
     }
   ],
+  "math": {
+    "labeledSamples": 5357,
+    "checked": 2000,
+    "solvedByEnginePercent": 100,
+    "exactArithmetic": "rational-bigint",
+    "note": "جواب نمونه‌های ریاضی با موتور قطعی همان اپ بازبینی می‌شود؛ هیچ مبلغی در نمونه‌ها ذخیره نمی‌شود."
+  },
   "hardEval": {
     "total": 240,
     "asked": 240,
-    "correct": 184,
-    "accuracy": 76.67,
+    "correct": 183,
+    "accuracy": 76.25,
     "coverage": 100
   },
   "honesty": [

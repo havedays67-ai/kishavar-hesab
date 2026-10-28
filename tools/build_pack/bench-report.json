@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T07:27:40.801Z",
+  "generatedAt": "2026-10-28T08:18:43.556Z",
   "corpus": {
     "rows": 1610,
     "uniqueKeys": 1610,
@@ -14,7 +14,7 @@
     "version": "1.0.0",
     "count": 6122,
     "bytes": 286951,
-    "checksum": "952f3bc1",
+    "checksum": "c182d3a3",
     "builtFrom": "corpus.jsonl (dataset + synthetic)",
     "syntheticShare": 0.924,
     "keysAreMasked": true,

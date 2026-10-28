@@ -13,6 +13,7 @@ import { fastLayerMetrics, routeFast, type RouteOptions, type RouteResult } from
 import { validateModelOutput } from "../../app-v2/src/lib/nlu/model";
 import { runRules } from "../../app-v2/src/lib/nlu/rules";
 import { simulateBatch } from "../../app-v2/src/lib/nlu/processor-sim";
+import { solveMath } from "../../app-v2/src/lib/ai/math-engine";
 import { brainAvailable } from "../../app-v2/src/lib/nlu/cpu-brain";
 import { hashKey, sentenceKey } from "../../app-v2/src/lib/nlu/normalizer";
 import { KNOWLEDGE } from "../../app-v2/src/lib/ai/knowledge";
@@ -209,6 +210,51 @@ function main(): void {
         rejectsInHardEval: bloomRejects,
         avgProbeMs: probeMs,
         storesTextOrMoney: false,
+      };
+    })(),
+    math: (() => {
+      // پاسخ‌های مرجع، دستی محاسبه‌شده و مستقل از موتور (تا آزمون واقعی باشد)
+      const reference: { q: string; expected: string; note: string }[] = [
+        { q: "۰.۱ + ۰.۲", expected: "0.3", note: "خطای ممیز شناور صفر است" },
+        { q: "۲ + ۳ × ۴", expected: "14", note: "اولویت عملگرها" },
+        { q: "(۲ + ۳) × ۴", expected: "20", note: "پرانتز" },
+        { q: "۱۰۰ ÷ ۳", expected: "33.333333", note: "کسر دقیق، گرد شدن فقط در نمایش" },
+        { q: "۲ به توان ۱۰", expected: "1024", note: "توان" },
+        { q: "۱۸ درصد از ۲۵,۰۰۰,۰۰۰ تومان", expected: "4500000", note: "درصد از مبلغ" },
+        { q: "۲۵ میلیون تومان با ۱۰ درصد تخفیف", expected: "22500000", note: "تخفیف" },
+        { q: "۲ تن به کیلوگرم", expected: "2000", note: "تبدیل واحد" },
+        { q: "۵۰۰ کیلو چند تن", expected: "0.5", note: "تبدیل واحد معکوس" },
+        { q: "۴۰ در ۶۰ متر", expected: "2400", note: "مساحت" },
+        { q: "۱۲۰ میلیون بین ۳ نفر", expected: "40000000", note: "تقسیم سهم" },
+        { q: "۱۰۰۰ کیلو گندم رطوبت ۱۶ پایه ۱۴", expected: "23.255814", note: "افت رطوبت" },
+        { q: "فروش ۱۲۰ میلیون هزینه ۹۰ میلیون", expected: "30000000", note: "سود" },
+        { q: "میانگین ۱۰ و ۲۰ و ۳۰", expected: "20", note: "میانگین" },
+        { q: "دو میلیون و پانصد هزار + ۵۰۰ هزار", expected: "3000000", note: "عدد حرفی + مقیاس" },
+      ];
+      let exact = 0;
+      const mismatches: { q: string; expected: string; actual: string | null }[] = [];
+      const started = performance.now();
+      for (const item of reference) {
+        const solved = solveMath(item.q);
+        const actual = solved ? (solved.value.d === 1n ? solved.value.n.toString() : solved.display) : null;
+        if (actual === item.expected) exact += 1;
+        else mismatches.push({ q: item.q, expected: item.expected, actual });
+      }
+      const elapsed = performance.now() - started;
+      // گیت ایمنی: ورودی‌های خطرناک/بی‌ربط نباید حل شوند و نباید استثنا بدهند
+      const guardCases = ["۱۰۰ تقسیم بر صفر", "alert(1)", "۲۵ میلیون تومان کود خریدم", "سلام", ""];
+      let guarded = 0;
+      for (const item of guardCases) if (solveMath(item) === null) guarded += 1;
+      return {
+        referenceCases: reference.length,
+        exactMatches: exact,
+        accuracyPercent: Number(((exact / reference.length) * 100).toFixed(2)),
+        avgMs: Number((elapsed / reference.length).toFixed(3)),
+        mismatches,
+        safetyGuardsPassed: guarded,
+        safetyGuardsTotal: guardCases.length,
+        storesMoney: false,
+        engine: "rational-bigint (no float, no eval)",
       };
     })(),
     cpuBrain: {

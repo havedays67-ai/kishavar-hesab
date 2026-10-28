@@ -22,6 +22,7 @@ import { BRAIN_BUCKETS, fnv1a } from "../../app-v2/src/lib/nlu/brain-features";
 import { brainFeatures } from "../../app-v2/src/lib/nlu/brain-features";
 import { sentenceKey } from "../../app-v2/src/lib/nlu/normalizer";
 import { LABELS, generateLabeled, generatePersian, wordFrequencies, type LabeledSample } from "./lib";
+import { solveMath } from "../../app-v2/src/lib/ai/math-engine";
 
 const args = process.argv.slice(2);
 const full = args.includes("--full");
@@ -32,8 +33,8 @@ const argValue = (name: string, fallback: number): number => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 };
 
-const LABELED = argValue("--labeled", full ? 2_000_000 : 60_000);
-const PERSIAN = argValue("--persian", full ? 1_000_000 : 120_000);
+const LABELED = argValue("--labeled", full ? 2_000_000 : 150_000);
+const PERSIAN = argValue("--persian", full ? 1_000_000 : 250_000);
 const HOLDOUT_EVERY = 20; // ۵٪ انتهای هر بلوک، هرگز در آموزش نیست
 const SMOOTHING = 0.2;
 const LABELS_ORDER = LABELS;
@@ -52,6 +53,16 @@ function main(): void {
     if (index % HOLDOUT_EVERY === HOLDOUT_EVERY - 1) dev.push(labeled[index]);
     else train.push(labeled[index]);
   }
+
+  /* -------- ۱-ب) دروازهٔ صحت: جواب نمونه‌های ریاضی از قبل معلوم و بررسی‌شده -------- */
+  const mathSamples = labeled.filter((row) => row.intent === "math_query");
+  let mathChecked = 0;
+  let mathSolvable = 0;
+  for (const row of mathSamples.slice(0, 2000)) {
+    mathChecked += 1;
+    if (solveMath(row.q)) mathSolvable += 1;
+  }
+  const mathCoverage = Number(((mathSolvable / Math.max(1, mathChecked)) * 100).toFixed(2));
 
   /* ---------------- ۲) آموزش Naive Bayes با سطل هش ---------------- */
   const labelIndex = new Map<string, number>();
@@ -222,6 +233,13 @@ export const PERSIAN_VOCAB = ${JSON.stringify(vocabulary.join(" "))};
       vocabulary: vocabulary.length,
     },
     perIntentWorst: perIntentReport.slice(0, 6),
+    math: {
+      labeledSamples: mathSamples.length,
+      checked: mathChecked,
+      solvedByEnginePercent: mathCoverage,
+      exactArithmetic: "rational-bigint",
+      note: "جواب نمونه‌های ریاضی با موتور قطعی همان اپ بازبینی می‌شود؛ هیچ مبلغی در نمونه‌ها ذخیره نمی‌شود.",
+    },
     hardEval,
     honesty: [
       "دقت روی hold-out تولیدشده از همان خانوادهٔ قالب‌ها بالاست؛ به همین دلیل accuracy روی مجموعهٔ سختِ مستقل (hardEval) هم جداگانه گزارش می‌شود.",

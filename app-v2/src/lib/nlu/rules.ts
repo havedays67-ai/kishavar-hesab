@@ -36,6 +36,8 @@ export type NluIntent =
   | "legal_contract"
   | "contract_help"
   | "app_help"
+  | "math_query"
+  | "trade_help"
   | "weather"
   | "greeting"
   | "thanks"
@@ -243,6 +245,19 @@ const RULES: Rule[] = [
     block: ["مبلغ", "هزینه"],
     score: 2.8,
     matched: "weather",
+  },
+  {
+    intent: "math_query",
+    groups: [["محاسبه", "حساب کن", "حسابش کن", "چند میشه", "چقدر میشه", "درصد", "تقسیم بر", "ضربدر", "ضرب در", "جمع کن", "تفریق", "میانگین", "سهم هر نفر", "تبدیل کن"]],
+    block: ["خریدم", "فروختم", "پرداخت کردم", "ثبت کن"],
+    score: 2.7,
+    matched: "math-query",
+  },
+  {
+    intent: "trade_help",
+    groups: [["افت", "رطوبت", "افت مفید", "افت غیرمفید", "هکتولیتر", "پروتئین", "درجه", "ناخالصی", "باسکول"], ["چند", "چقدر", "چطور", "چیست", "چیه", "حساب", "فرمول", "معنی"]],
+    score: 2.65,
+    matched: "trade-help",
   },
   { intent: "greeting", groups: [["سلام", "درود", "وقت بخیر", "صبح بخیر", "شب بخیر", "سلام علیکم"]], score: 3.5, matched: "greeting" },
   { intent: "thanks", groups: [["ممنون", "متشکرم", "مرسی", "خداحافظ", "دستت درد نکنه", "عالی بود"]], score: 3.5, matched: "thanks" },

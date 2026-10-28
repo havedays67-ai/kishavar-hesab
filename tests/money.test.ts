@@ -3,6 +3,7 @@ import {
   normalizeDigits,
   normalizePersian,
   parseAmount,
+  collapseGroupedDigits,
   parsePersianWords,
   applyShare,
   rialToToman,
@@ -157,5 +158,22 @@ describe("تبدیل ریال/تومان", () => {
     [2, 20],
   ])("%s تومان → %s ریال", (toman, rial) => {
     expect(tomanToRial(toman)).toBe(rial);
+  });
+});
+
+describe("جداکنندهٔ هزارگان (باگ واقعی بازگردانی‌شده)", () => {
+  it("کامای ASCII و فارسی را به‌عنوان جداکنندهٔ هزارگان می‌شناسد", () => {
+    expect(parseAmount("۲۵,۰۰۰,۰۰۰ تومان")?.amount).toBe(25_000_000);
+    expect(parseAmount("25,000,000 تومان")?.amount).toBe(25_000_000);
+    expect(parseAmount("۲۵،۰۰۰،۰۰۰ تومان")?.amount).toBe(25_000_000);
+    expect(parseAmount("۱,۲۵۰,۰۰۰ ریال")?.amount).toBe(125_000);
+    expect(parseAmount("۲,۵۰۰,۰۰۰,۰۰۰ ریال")?.amount).toBe(250_000_000);
+  });
+
+  it("کاما یا نقطهٔ اعشار را با عدد غیرسه‌رقمی اشتباه نمی‌گیرد", () => {
+    expect(parseAmount("۱۲,۵ میلیون تومان")?.amount).toBe(12_500_000);
+    expect(parseAmount("۲.۵ میلیون تومان")?.amount).toBe(2_500_000);
+    expect(collapseGroupedDigits("۱,۲۵۰,۰۰۰")).toBe("۱۲۵۰۰۰۰");
+    expect(collapseGroupedDigits("۱۲,۵")).toBe("۱۲,۵");
   });
 });

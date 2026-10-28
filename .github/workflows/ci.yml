@@ -65,6 +65,7 @@ jobs:
             if (!(r.model.accuracyOnHoldoutPercent >= 90)) { console.error("brain hold-out accuracy below 90: " + r.model.accuracyOnHoldoutPercent); process.exit(1); }
             if (!(r.hardEval && r.hardEval.total >= 200)) { console.error("brain hard-eval missing"); process.exit(1); }
             if (!(r.persian.vocabulary >= 200)) { console.error("persian vocabulary too small"); process.exit(1); }
+            if (!(r.math && r.math.solvedByEnginePercent >= 95)) { console.error("math training coverage below 95%"); process.exit(1); }
             console.log("brain gate ok", "holdout", r.model.accuracyOnHoldoutPercent, "hardEval", r.hardEval.accuracy, "vocab", r.persian.vocabulary);
           '
 
@@ -102,6 +103,9 @@ jobs:
             if (!(r.bloom.measuredFalsePositiveRate < 0.02)) { console.error("bloom false-positive rate above 2%: " + r.bloom.measuredFalsePositiveRate); process.exit(1); }
             if (r.bloom.storesTextOrMoney !== false) { console.error("bloom must not store text or money"); process.exit(1); }
             if (!r.cpuBrain || r.cpuBrain.available !== true) { console.error("cpu brain not available"); process.exit(1); }
+            if (!r.math) { console.error("math benchmark missing"); process.exit(1); }
+            if (r.math.exactMatches !== r.math.referenceCases) { console.error("math reference mismatch: " + JSON.stringify(r.math.mismatches)); process.exit(1); }
+            if (r.math.safetyGuardsPassed !== r.math.safetyGuardsTotal) { console.error("math safety guard failed"); process.exit(1); }
             if (!r.simulator || !(r.simulator.samples > 0)) { console.error("processor simulator missing"); process.exit(1); }
             console.log("fast layer gate ok", r.fastLayerClassification.intentAccuracy, "slotExact", r.fastLayerClassification.slotExactMatch, "p95", r.metrics.p95Ms + "ms", "bloomFpr", r.bloom.measuredFalsePositiveRate);
           '

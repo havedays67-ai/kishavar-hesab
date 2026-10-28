@@ -13,3 +13,4 @@ export * from "./cpu-brain";
 export * from "./persian-lexicon";
 export * from "./brain-features";
 export * from "./processor-sim";
+export * from "../ai/math-engine";

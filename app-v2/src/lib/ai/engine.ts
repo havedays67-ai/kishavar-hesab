@@ -24,6 +24,7 @@ import { LearnedCache } from "../nlu/learned-cache";
 import { smallPack } from "../nlu/generated/pack-small";
 import { routeFast, fastLayerMetrics, type RouteResult } from "../nlu/router";
 import { findMarkedQA, markedSuggestions } from "./qa-bank";
+import { solveMath } from "./math-engine";
 import {
   ASSISTANT_GLOSSARY,
   KNOWLEDGE,
@@ -415,6 +416,27 @@ export function askKeshavarYar(raw: string, context: AssistantContext): Assistan
       text: "من به اینترنت یا سرویس هواشناسی وصل نیستم و پیش‌بینی هوا را از خودم نمی‌سازم. برای تصمیم آبیاری/سم‌پاشی، پیش‌بینی رسمی هواشناسی استان و ایستگاه نزدیک مزرعه را ببینید.\nدر برنامه می‌توانید بارندگی و دمای هر روز را در یادداشت آبیاری ثبت کنید؛ همین سابقه به شما کمک می‌کند الگوی مصرف آب مزرعه را بهتر بفهمید. اگر بخواهید، برنامهٔ ثبت آبیاری و کاهش هزینهٔ پمپ را با هم مرور می‌کنیم.",
       meta: signatureMeta(95, "کشاورزی", [{ label: "دانشنامهٔ محلی کشاورزیار — بدون دسترسی به دادهٔ زندهٔ هوا" }], ["کاهش هزینه پمپ آب", "کارت آبیاری چه چیزهایی ثبت کند؟", "آبیاری را چطور بهینه کنم؟"], "weather-offline", "knowledge"),
     };
+  }
+
+  // ۰) ریاضی قطعی: اگر جمله یک مسئلهٔ حساب‌وکتاب باشد، با موتور BigInt حل می‌شود.
+  //    هیچ مبلغی در حافظهٔ فهم ذخیره نمی‌شود؛ نتیجه فقط در همین پاسخ می‌آید.
+  const math = solveMath(raw);
+  if (math) {
+    const steps = math.steps.map((step, index) => `${index + 1}) ${step.title}: ${step.detail}`).join("\n");
+    const persianLine = math.persian ? `\nبه حروف: ${math.persian}` : "";
+    const warning = math.warnings.length ? `\nتوجه: ${math.warnings.join("؛ ")}` : "";
+    const reply: AssistantReply = {
+      text: `نتیجهٔ قطعی: ${toPersianDigits(math.display)}${persianLine}\n\n${steps}${warning}\n\nمحاسبه با اعداد گویا و BigInt انجام شد؛ بدون خطای ممیز شناور.`,
+      meta: {
+        confidence: 99,
+        category: "مالی و حسابداری",
+        sources: [{ label: "موتور ریاضی قطعی (BigInt)", note: `نوع: ${math.kind}` }],
+        followUps: ["۱۸ درصد از ۲۵ میلیون چقدر است؟", "۲ تن به کیلوگرم", "افت رطوبت ۱۰۰۰ کیلو با رطوبت ۱۶ و پایه ۱۴"],
+        matchedId: `math-${math.kind}`,
+        kind: "knowledge",
+      },
+    };
+    return withFast(reply, fastUnderstand(raw));
   }
 
   // ۱) سؤال عددی/مالی: اول دفتر واقعی، مگر اینکه سؤال صریحاً حقوقی باشد.

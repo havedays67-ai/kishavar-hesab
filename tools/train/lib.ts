@@ -22,7 +22,7 @@ export const LABELS: NluIntent[] = [
   "fertilizer_pesticide", "irrigation_log", "cheque_received", "cheque_paid", "loan_installment",
   "inventory_out", "report_receivable", "report_payable", "report_cash", "report_profit",
   "report_cheques", "report_inventory", "legal_cheque", "legal_signature", "legal_contract",
-  "contract_help", "app_help", "weather", "greeting", "thanks",
+  "contract_help", "app_help", "math_query", "trade_help", "weather", "greeting", "thanks",
 ];
 
 const PARTIES = ["مهدی", "حسین", "رضا", "اکبر", "سیلو گندم", "تعاونی روستا", "کشاورز همسایه", "خریدار جو", "کارخانه قند", "آقای محمدی", "شرکت دانه طلایی"];
@@ -224,6 +224,28 @@ const TEMPLATES: Template[] = [
     answer: () => "راهنمای کامل در تب «راهنمای کامل» با گام‌های عملی و پرسش/پاسخ باز می‌شود؛ همه‌چیز آفلاین است.",
   },
   {
+    intent: "math_query",
+    texts: [
+      "محاسبه کن {p} درصد از {amount} تومان", "حساب کن {amount} تومان با {p} درصد تخفیف",
+      "چند می‌شود {p} درصد مالیات روی {amount}", "سهم هر نفر را حساب کن {amount} بین {people} نفر",
+      "تقسیم بر کن {amount} تقسیم بر {people}", "میانگین را حساب کن {amount} و {p}",
+      "ضربدر کن {amount} ضربدر {people}", "جمع کن {amount} به‌علاوه {p}",
+      "تبدیل کن {amount} تن به کیلوگرم", "مساحت را حساب کن {amount} در {p} متر",
+      "محاسبه افت رطوبت {amount} کیلو رطوبت {p} پایه ۱۴", "نتیجهٔ این محاسبه چند می‌شود {amount} منهای {p}",
+    ],
+    slots: () => ({}),
+    answer: () => "با موتور ریاضی قطعی (اعداد گویا و BigInt) محاسبه می‌شود.",
+  },
+  {
+    intent: "trade_help",
+    texts: [
+      "افت رطوبت چطور حساب می‌شود", "افت مفید و غیرمفید چند درصد است", "درجهٔ گندم با هکتولیتر چطور تعیین می‌شود",
+      "ناخالصی مازاد چطور کسر می‌شود", "فرمول افت رطوبت چیست", "باسکول چطور وزن خالص را می‌دهد",
+    ],
+    slots: () => ({}),
+    answer: () => "فرمول افت رطوبت وزنی است: (رطوبت اندازه‌گیری‌شده − پایه) ÷ (۱۰۰ − پایه) × ۱۰۰؛ بقیهٔ افت‌ها در ماشین‌حساب معامله قابل تنظیم‌اند.",
+  },
+  {
     intent: "weather",
     texts: ["هوا فردا چطوره", "باران می‌آید", "پیش‌بینی هوا برای سمپاشی", "سرما می‌رسد"],
     slots: () => ({}),
@@ -253,12 +275,24 @@ export function generateLabeled(count: number, seed = 20261115): LabeledSample[]
     guard += 1;
     const template = TEMPLATES[guard % TEMPLATES.length];
     const slots = template.slots(random);
+    // اعداد نمونه: سه شکل رایج (رقم خام، جداکنندهٔ هزارگان، مقیاس واژه‌ای)
+    const amountValue = [12, 25, 18, 40, 90, 120, 250][Math.floor(random() * 7)] * 1_000_000;
+    const amount = [
+      String(amountValue),
+      amountValue.toLocaleString("en-US"),
+      `${amountValue / 1_000_000} میلیون`,
+    ][Math.floor(random() * 3)];
+    const percent = String(5 + Math.floor(random() * 25));
+    const people = String(2 + Math.floor(random() * 10));
     const base = pick(random, template.texts)
       .replace("{cat}", slots.category ?? pick(random, EXPENSE_CATEGORIES).label)
       .replace("{crop}", slots.crop ?? pick(random, CROPS))
       .replace("{party}", pick(random, PARTIES))
       .replace("{unit}", slots.unit ?? pick(random, UNITS))
-      .replace("{month}", pick(random, MONTHS));
+      .replace("{month}", pick(random, MONTHS))
+      .replace(/{amount}/g, amount)
+      .replace(/{p}/g, percent)
+      .replace(/{people}/g, people);
     const withAmount = `${Math.floor(random() * 90 + 1)} میلیون تومان ${base}`;
     const text = mutate(`${pick(random, PREFIXES)}${random() % 2 === 0 ? withAmount : base}${pick(random, SUFFIXES)}`, guard + 3);
     const q = text.replace(/\s+/g, " ").trim();

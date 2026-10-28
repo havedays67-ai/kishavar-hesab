@@ -47,13 +47,35 @@ export const MARKED_QA: MarkedQA[] = [
   { id: "qa-undo", q: "ثبت اشتباه را چطور برگردانم؟", a: "هر ثبتی که کشاورزیار پیشنهاد می‌دهد فقط پس از تأیید انجام می‌شود و گزینهٔ بازگردانی دارد؛ از صفحهٔ مربوطه هم قابل ویرایش/حذف است.", intent: "app_help", tag: "برنامه" },
   { id: "qa-loan", q: "اقساط وام را کجا ببینم؟", a: "در دفتر مالی جدول اقساط و ماندهٔ وام نمایش داده می‌شود؛ هر پرداخت قسط را علامت‌دار می‌کند.", intent: "loan_installment", tag: "مالی" },
   { id: "qa-weather", q: "هوا فردا چطور است؟", a: "این نسخه آفلاین است و پیش‌بینی هوا ندارد؛ برای سمپاشی سرعت باد و هواشناسی محلی را بررسی کنید.", intent: "weather", tag: "برنامه" },
+  { id: "qa-math-percent", q: "۱۸ درصد از ۲۵ میلیون چقدر است؟", a: "موتور ریاضی قطعی: ۲۵٬۰۰۰٬۰۰۰ × ۱۸ ÷ ۱۰۰ = ۴٬۵۰۰٬۰۰۰ تومان. محاسبه با کسر دقیق و بدون خطای ممیز شناور انجام می‌شود.", intent: "math_query", tag: "مالی" },
+  { id: "qa-math-vat", q: "مالیات ۱۰ درصد روی ۳۰ میلیون چقدر می‌شود؟", a: "۳۰٬۰۰۰٬۰۰۰ × ۱۰٪ = ۳٬۰۰۰٬۰۰۰ تومان مالیات و مبلغ نهایی ۳۳٬۰۰۰٬۰۰۰ تومان. محصولات کشاورزی فرآوری‌نشده معمولاً معاف‌اند؛ نرخ را با شرایط خودتان تنظیم کنید.", intent: "math_query", tag: "مالی" },
+  { id: "qa-math-unit", q: "۲ تن گندم چند کیلوگرم است؟", a: "۲ × ۱٬۰۰۰ = ۲٬۰۰۰ کیلوگرم. تبدیل تن/کیلوگرم/خروار/من در موتور ریاضی دقیق و قطعی انجام می‌شود.", intent: "math_query", tag: "کشت" },
+  { id: "qa-math-share", q: "۱۲۰ میلیون بین ۳ شریک مساوی چقدر می‌شود؟", a: "۱۲۰٬۰۰۰٬۰۰۰ ÷ ۳ = ۴۰٬۰۰۰٬۰۰۰ تومان برای هر شریک. اگر تقسیم مساوی نباشد، سهم هر نفر با درصد مشخص محاسبه می‌شود.", intent: "math_query", tag: "مالی" },
+  { id: "qa-math-moisture", q: "افت رطوبت ۱۰۰۰ کیلو گندم با رطوبت ۱۶ و پایه ۱۴ چقدر است؟", a: "فرمول وزنی: (۱۶−۱۴) ÷ (۱۰۰−۱۴) × ۱۰۰ = ۲.۳۲۶٪ و افت = ۱٬۰۰۰ × ۲.۳۲۶٪ ≈ ۲۳.۲۶ کیلوگرم.", intent: "math_query", tag: "کشت" },
+  { id: "qa-math-average", q: "میانگین ۱۰ و ۲۰ و ۳۰ چقدر است؟", a: "جمع = ۶۰، تعداد = ۳، میانگین = ۲۰. نتیجه دقیق است و در نمایش گرد می‌شود.", intent: "math_query", tag: "مالی" },
+  { id: "qa-math-profit", q: "فروش ۱۲۰ میلیون با هزینه ۹۰ میلیون چقدر سود دارد؟", a: "سود = ۳۰٬۰۰۰٬۰۰۰ تومان و حاشیهٔ سود = ۳۰ ÷ ۱۲۰ = ۲۵٪. هر دو با موتور قطعی محاسبه می‌شوند.", intent: "math_query", tag: "مالی" },
+  { id: "qa-math-exact", q: "چرا ۰.۱ + ۰.۲ در برنامه دقیقاً ۰.۳ است؟", a: "محاسبات با اعداد گویا و BigInt انجام می‌شود، نه float؛ بنابراین خطای معروف ۰.۳۰۰۰۰۰۰۰۰۰۰۰۰۰۰۰۴ رخ نمی‌دهد و نتیجه فقط در نمایش نهایی گرد می‌شود.", intent: "math_query", tag: "برنامه" },
+  { id: "qa-trade-moisture-help", q: "افت مفید و غیرمفید چند درصد است؟", a: "افت مفید پیش‌فرض ۳٪ و غیرمفید ۱٪ است و در ماشین‌حساب معامله قابل تغییر است؛ ناخالصی مازاد هم جدا کسر می‌شود.", intent: "trade_help", tag: "کشت" },
+  { id: "qa-trade-grade-help", q: "درجهٔ گندم با هکتولیتر چطور تعیین می‌شود؟", a: "هکتولیتر ≥۷۸ درجه ۱، ≥۷۵ درجه ۲ و ≥۷۲ درجه ۳ است؛ پروتئین و افت هم بررسی می‌شوند و ضعیف‌ترین شاخص تعیین‌کننده است.", intent: "trade_help", tag: "کشت" },
+  { id: "qa-insurance", q: "بیمهٔ محصولات کشاورزی چطور حساب می‌شود؟", a: "حق بیمه بر اساس سطح زیر کشت، نوع محصول و نرخ صندوق بیمه محاسبه می‌شود. این برنامه فقط مبلغ بیمه را به‌عنوان هزینه در سرفصل خودش ثبت می‌کند.", intent: "add_expense", tag: "مالی" },
+  { id: "qa-labour-day", q: "نفر-روز کارگر را چطور حساب کنم؟", a: "تعداد کارگر × روز کار = نفر-روز؛ سپس × دستمزد روزانه. مثال: ۳ کارگر × ۴ روز = ۱۲ نفر-روز.", intent: "wage_payment", tag: "مالی" },
+  { id: "qa-hectare", q: "یک هکتار چند مترمربع است؟", a: "۱ هکتار = ۱۰٬۰۰۰ مترمربع. تبدیل هکتار/مترمربع در موتور ریاضی قطعی است.", intent: "math_query", tag: "کشت" },
+  { id: "qa-loss-percent", q: "چند درصد محصول از دست رفته؟", a: "افت را به درصد بگویید (مثلاً ۳٪ از ۱۰ تن) یا مقدار اولیه و باقی‌مانده را بدهید تا درصد افت دقیق محاسبه شود.", intent: "math_query", tag: "کشت" },
   { id: "qa-start", q: "از کجا شروع کنم؟", a: "پروفایل را کامل کنید، یک زمین و یک طرف‌حساب بسازید، سپس هزینه/درآمد را ثبت کنید. نصب تازه کاملاً خالی است.", intent: "app_help", tag: "برنامه" },
 ];
 
+import { answerCache } from "./answer-cache";
+
 const QA_INDEX = MARKED_QA.map((item) => ({ item, tokens: new Set(item.q.replace(/[؟?.,،]/g, " ").split(/\s+/).filter((word) => word.length > 2)) }));
 
-/** جستجوی سبک و قطعی در بانک نشان‌دار؛ برای پرسش‌های پرتکرار. */
+/** جستجوی سبک و قطعی در بانک نشان‌دار؛ برای پرسش‌های پرتکرار (با کش امن). */
 export function findMarkedQA(question: string): MarkedQA | null {
+  const cache = answerCache();
+  const cached = cache.get(question);
+  if (cached) {
+    const hit = MARKED_QA.find((item) => item.id === cached.id);
+    if (hit) return hit;
+  }
   const tokens = question.replace(/[؟?.,،]/g, " ").split(/\s+/).filter((word) => word.length > 2);
   if (!tokens.length) return null;
   let best: { item: MarkedQA; score: number } | null = null;
@@ -64,7 +86,12 @@ export function findMarkedQA(question: string): MarkedQA | null {
   }
   if (!best) return null;
   const ratio = best.score / tokens.length;
-  return best.score >= 2 && ratio >= 0.5 ? best.item : null;
+  if (best.score >= 2 && ratio >= 0.5) {
+    // فقط شناسه ذخیره می‌شود؛ متن جواب همیشه از بانک ثابت خوانده می‌شود
+    cache.put(question, { id: best.item.id, tag: best.item.tag, createdAt: Date.now() });
+    return best.item;
+  }
+  return null;
 }
 
 export function markedSuggestions(limit = 12): string[] {

@@ -299,3 +299,17 @@ describe("شبیه‌ساز پردازنده (مدل شمارش عملیات، �
     expect(Object.keys(batch.accepted).length).toBeGreaterThan(0);
   });
 });
+
+describe("یکسان‌سازی واحدها با مرز واژهٔ فارسی", () => {
+  it("«کیلو» و «تن» تنها هم به واحد استاندارد تبدیل می‌شوند", () => {
+    expect(normalizeUnits(normalizePersian("۵ کیلو گندم"))).toContain("کیلوگرم");
+    expect(normalizeUnits(normalizePersian("۵ تن گندم"))).toContain("تن");
+    expect(sentenceKey("۵ کیلو گندم")).toBe(sentenceKey("۵ کیلوگرم گندم"));
+    expect(sentenceKey("۵ تن جو")).toBe(sentenceKey("۵ تنه جو"));
+  });
+
+  it("واژه‌های فارسی که با «تن» شروع می‌شوند خراب نمی‌شوند", () => {
+    expect(normalizeUnits(normalizePersian("تنها یک روز"))).toContain("تنها");
+    expect(normalizeUnits(normalizePersian("کیلومتر راه"))).toContain("کیلومتر");
+  });
+});

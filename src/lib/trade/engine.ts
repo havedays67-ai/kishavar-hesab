@@ -417,10 +417,18 @@ export function defaultQuality(crop: CropSpec): TradeQuality {
 
 /* ------------------------------ ابزار عددی ------------------------------- */
 
+/**
+ * گرد کردن «نیم به بالا» بر اساس قدر مطلق (نشانه‌دار و متقارن).
+ * باگ قبلی: round(-1.005, 2) = -1 ولی round(1.005, 2) = 1.01؛ در مبالغ
+ * منفی (تعدیل/تخفیف) نتیجه یک تومان با نسخهٔ مثبت اختلاف داشت.
+ */
 export function round(value: number, digits = 0): number {
   if (!Number.isFinite(value)) return 0;
   const factor = Math.pow(10, digits);
-  return Math.round((value + Number.EPSILON) * factor) / factor;
+  const scaled = Math.abs(value) * factor;
+  const rounded = Math.round(scaled + Number.EPSILON * (scaled >= 1 ? scaled : 1));
+  const result = (Math.sign(value) || 0) * (rounded / factor);
+  return Object.is(result, -0) ? 0 : result;
 }
 
 export function roundTo(value: number, step: number): number {

@@ -1,3 +1,4 @@
+import { round } from "../src/lib/trade/engine";
 import { describe, expect, it } from "vitest";
 import {
   computeTrade,
@@ -124,5 +125,17 @@ describe("آزمون‌های خودکار سامانه", () => {
     const results = runSelfTests();
     const failed = results.filter((result) => !result.passed);
     expect(failed.map((item) => `${item.id}: ${item.actual}`).join(" | ")).toBe("");
+  });
+});
+
+describe("ثبات گرد کردن مالی (باگ متقارن‌نبودن)", () => {
+  it("گرد کردن منفی دقیقاً متقارن مثبت است", () => {
+    expect(round(-1.005, 2)).toBe(-round(1.005, 2));
+    expect(round(-2.675, 2)).toBe(-round(2.675, 2));
+    expect(round(-1234.5)).toBe(-1235);
+    expect(round(-0.4)).toBe(0);
+    expect(Object.is(round(-0.4), -0)).toBe(false);
+    expect(round(2.5)).toBe(3);
+    expect(round(-2.5)).toBe(-3);
   });
 });

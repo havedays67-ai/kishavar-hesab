@@ -19,8 +19,9 @@ import { learnedCache, type LearnedCache } from "./learned-cache";
 import { RETRIEVAL_THRESHOLD, type RetrieverIndex } from "./retriever";
 import { runModelFallback, isModelAvailable } from "./model";
 import { classifyWithBrain, brainAvailable } from "./cpu-brain";
+import { solveMath, type MathResult } from "../ai/math-engine";
 
-export type FastLayer = "rules" | "cache" | "pack" | "brain" | "retrieval" | "model" | "clarify";
+export type FastLayer = "math" | "rules" | "cache" | "pack" | "brain" | "retrieval" | "model" | "clarify";
 
 export interface SupportSnippet {
   id: string;
@@ -39,9 +40,12 @@ export interface RouteResult {
   support?: SupportSnippet;
   clarifyingQuestion?: string;
   matched?: string;
+  /** پاسخ قطعی ریاضی با گام‌های محاسبه (هیچ مبلغی ذخیره نمی‌شود) */
+  math?: MathResult;
 }
 
 export interface LayerCounters {
+  math: number;
   rules: number;
   cache: number;
   pack: number;
@@ -69,7 +73,7 @@ export interface MetricsSnapshot {
 const MAX_SAMPLES = 400;
 
 class FastLayerMetrics {
-  private counters: LayerCounters = { rules: 0, cache: 0, pack: 0, brain: 0, retrieval: 0, model: 0, clarify: 0 };
+  private counters: LayerCounters = { math: 0, rules: 0, cache: 0, pack: 0, brain: 0, retrieval: 0, model: 0, clarify: 0 };
   private samples: number[] = [];
   private modelCalls = 0;
   private packBytes = 0;
@@ -109,7 +113,7 @@ class FastLayerMetrics {
   }
 
   reset(): void {
-    this.counters = { rules: 0, cache: 0, pack: 0, brain: 0, retrieval: 0, model: 0, clarify: 0 };
+    this.counters = { math: 0, rules: 0, cache: 0, pack: 0, brain: 0, retrieval: 0, model: 0, clarify: 0 };
     this.samples = [];
     this.modelCalls = 0;
   }
@@ -134,6 +138,7 @@ export interface RouteOptions {
   useCache?: boolean;
   useRetrieval?: boolean;
   useBrain?: boolean;
+  useMath?: boolean;
 }
 
 const DATA_INTENTS = new Set<NluIntent>([
@@ -178,6 +183,20 @@ export function routeFast(raw: string, options: RouteOptions): RouteResult {
     return { ...result, layer, latencyMs, normalized: text };
   };
 
+  // ۱-ب) موتور ریاضی قطعی (BigInt، بدون float و بدون eval) — پیش از هر حدسی
+  if (options.useMath !== false) {
+    const math = solveMath(raw);
+    if (math) {
+      return finish("math", {
+        intent: "math_query",
+        slots: {},
+        confidence: math.confidence,
+        matched: `math:${math.kind}`,
+        math,
+      });
+    }
+  }
+
   // ۲) قواعد قطعی
   if (options.useRules !== false) {
     const rule = runRules(raw);
@@ -212,6 +231,19 @@ export function routeFast(raw: string, options: RouteOptions): RouteResult {
   // ۳-ج) مغز آماری CPU — فقط اگر قواعد/کش/بسته جواب نداده باشند
   if (options.useBrain !== false && brainAvailable()) {
     const brain = classifyWithBrain(raw, { minConfidence: BRAIN_THRESHOLD });
+    if (brain && (brain.intent === "math_query" || brain.intent === "trade_help")) {
+      // مغز ریاضی را تشخیص داد ولی عبارت کامل نبود → سؤال روشن‌کننده، بدون حدس
+      return finish("clarify", {
+        intent: brain.intent,
+        slots: {},
+        confidence: brain.confidence,
+        clarifyingQuestion:
+          brain.intent === "math_query"
+            ? "عبارت را کامل بنویسید؛ مثلاً «۱۸ درصد از ۲۵ میلیون» یا «۲ تن به کیلوگرم». محاسبه با موتور قطعی انجام می‌شود."
+            : "برای افت و درجه‌بندی، وزن خالص، رطوبت اندازه‌گیری‌شده و رطوبت پایه را بگویید.",
+        matched: `brain:${brain.intent}`,
+      });
+    }
     if (brain) {
       return finish("brain", { intent: brain.intent, slots: brain.slots, confidence: brain.confidence, matched: "cpu-brain" });
     }

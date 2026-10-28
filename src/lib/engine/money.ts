@@ -110,15 +110,35 @@ export interface AmountParse {
  * پشتیبانی: «۲۵ میلیون»، «دو میلیون و پانصد هزار»، «۱.۵ میلیارد»، «۲ میلیارد و ۳۰۰ میلیون»،
  * «نیم میلیون»، «۵٬۰۰۰٬۰۰۰»، «۲۵۰۰۰۰۰۰ ریال».
  */
+/**
+ * جداکنندهٔ هزارگان را قبل از تحلیل حذف می‌کند.
+ * باگ قبلی: کامای ASCII به فاصله تبدیل می‌شد و «۱,۲۵۰,۰۰۰» به ۱+۲۵۰+۰ تجزیه
+ * می‌شد (۲۵ تومان به‌جای ۱۲۵٬۰۰۰ تومان). حالا فقط گروه‌های دقیقاً سه‌رقمی
+ * جداکنندهٔ هزارگان‌اند؛ سایر حالت‌ها اعشار (به نقطه تبدیل می‌شوند).
+ */
+export function collapseGroupedDigits(input: string): string {
+  const digit = "[0-9۰-۹٠-٩]";
+  const sep = "[٬,\\u066c،]";
+  // یک‌گذر: سر گروه + هر تعداد گروه دقیقاً سه‌رقمی. «۱۲,۵» (اعشار) دست‌نخورده می‌ماند.
+  const pattern = new RegExp(`(${digit}{1,3})((?:${sep}${digit}{3})+)`, "g");
+  return input.replace(pattern, (_match, head: string, groups: string) => head + groups.replace(new RegExp(sep, "g"), ""));
+}
+
 export function parseAmount(input: string): AmountParse | null {
   const raw = normalizePersian(input);
   if (!raw) return null;
 
   const currency: "toman" | "rial" = /ریال/.test(raw) ? "rial" : "toman";
-  const cleaned = raw
+  let cleaned = raw
     .replace(/تومان|تومن|ریال|هزارتومان|هزارتومن/g, " ")
-    .replace(/[()،,]/g, " ")
-    .replace(/[٬\u066c]/g, "");
+    .replace(/[()]/g, " ");
+  // گروه‌های سه‌رقمی هزارگان به هم می‌چسبند (یک‌گذر کافی است)
+  cleaned = collapseGroupedDigits(cleaned);
+  // باقیماندهٔ کاما/ویرگول فارسی: اگر بین دو رقم بود اعشار است، وگرنه فاصله
+  cleaned = cleaned
+    .replace(/(\d)[,،٬\u066c](\d)/g, "$1.$2")
+    .replace(/[٬\u066c]/g, "")
+    .replace(/[،,]/g, " ");
 
   const tokenRe = /(\d+(?:[.,/]\d+)?)|(نیم)|(تریلیون|میلیارد|ملیارد|میلیون|ملیون|هزار)|([\p{L}]+)/gu;
   let total = 0;

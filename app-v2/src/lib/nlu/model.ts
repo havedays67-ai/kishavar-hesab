@@ -18,7 +18,7 @@ const ALLOWED_INTENTS: NluIntent[] = [
   "fertilizer_pesticide", "irrigation_log", "cheque_received", "cheque_paid", "loan_installment",
   "inventory_out", "report_receivable", "report_payable", "report_cash", "report_profit",
   "report_cheques", "report_inventory", "legal_cheque", "legal_signature", "legal_contract",
-  "contract_help", "app_help", "weather", "greeting", "thanks", "unknown",
+  "contract_help", "app_help", "math_query", "trade_help", "weather", "greeting", "thanks", "unknown",
 ];
 
 export const ALLOWED_SLOT_KEYS = ["crop", "category", "unit", "docType", "topic", "direction", "role"] as const;

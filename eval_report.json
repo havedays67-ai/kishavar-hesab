@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-28T07:27:41.844Z",
+  "generatedAt": "2026-10-28T08:18:44.375Z",
   "architectureVersion": "1.0.0",
   "dataset": {
     "hardEval": 240,
     "source": "synthetic-held-out (never in pack/cache/training corpus)",
     "packEntries": 1610,
     "packBytes": 75781,
-    "packChecksum": "8207bf46"
+    "packChecksum": "3ffd8cbd"
   },
   "fastLayer": {
     "total": 240,
@@ -16,9 +16,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.34,
-    "p50Ms": 0.322,
-    "p95Ms": 0.505,
+    "avgMs": 0.295,
+    "p50Ms": 0.286,
+    "p95Ms": 0.414,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -32,9 +32,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.34,
-    "p50Ms": 0.322,
-    "p95Ms": 0.505,
+    "avgMs": 0.295,
+    "p50Ms": 0.286,
+    "p95Ms": 0.414,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -48,9 +48,9 @@
     "slotPrecision": 77.39,
     "slotRecall": 88,
     "clarifyRate": 0,
-    "avgMs": 0.382,
-    "p50Ms": 0.336,
-    "p95Ms": 0.621,
+    "avgMs": 0.346,
+    "p50Ms": 0.301,
+    "p95Ms": 0.552,
     "layers": {
       "rules": 239,
       "brain": 1
@@ -59,17 +59,17 @@
   "packOnly": {
     "total": 240,
     "classified": 240,
-    "intentAccuracy": 60.42,
-    "slotExactMatch": 68.75,
-    "slotPrecision": 78.63,
-    "slotRecall": 52.57,
-    "clarifyRate": 38.33,
-    "avgMs": 0.18,
-    "p50Ms": 0.158,
-    "p95Ms": 0.361,
+    "intentAccuracy": 61.67,
+    "slotExactMatch": 69.58,
+    "slotPrecision": 79.17,
+    "slotRecall": 54.29,
+    "clarifyRate": 37.08,
+    "avgMs": 0.165,
+    "p50Ms": 0.143,
+    "p95Ms": 0.303,
     "layers": {
-      "brain": 148,
-      "clarify": 92
+      "brain": 151,
+      "clarify": 89
     }
   },
   "byScenario": [
@@ -82,9 +82,9 @@
       "slotPrecision": 80,
       "slotRecall": 94.12,
       "clarifyRate": 0,
-      "avgMs": 0.334,
-      "p50Ms": 0.313,
-      "p95Ms": 0.487,
+      "avgMs": 0.294,
+      "p50Ms": 0.282,
+      "p95Ms": 0.402,
       "layers": {
         "rules": 78
       }
@@ -98,9 +98,9 @@
       "slotPrecision": 73.96,
       "slotRecall": 89.87,
       "clarifyRate": 0,
-      "avgMs": 0.36,
-      "p50Ms": 0.334,
-      "p95Ms": 0.539,
+      "avgMs": 0.302,
+      "p50Ms": 0.292,
+      "p95Ms": 0.472,
       "layers": {
         "rules": 88,
         "brain": 1
@@ -115,9 +115,9 @@
       "slotPrecision": 80.95,
       "slotRecall": 82.26,
       "clarifyRate": 0,
-      "avgMs": 0.323,
-      "p50Ms": 0.313,
-      "p95Ms": 0.429,
+      "avgMs": 0.287,
+      "p50Ms": 0.281,
+      "p95Ms": 0.406,
       "layers": {
         "rules": 73
       }
@@ -147,10 +147,21 @@
     "bitsPerKey": 10,
     "hashCount": 7,
     "estimatedFalsePositiveRate": 0.008184,
-    "measuredFalsePositiveRate": 0.0085,
-    "rejectsInHardEval": 238,
-    "avgProbeMs": 0.00012,
+    "measuredFalsePositiveRate": 0.0095,
+    "rejectsInHardEval": 237,
+    "avgProbeMs": 0.00009,
     "storesTextOrMoney": false
+  },
+  "math": {
+    "referenceCases": 15,
+    "exactMatches": 15,
+    "accuracyPercent": 100,
+    "avgMs": 0.721,
+    "mismatches": [],
+    "safetyGuardsPassed": 5,
+    "safetyGuardsTotal": 5,
+    "storesMoney": false,
+    "engine": "rational-bigint (no float, no eval)"
   },
   "cpuBrain": {
     "available": true,
@@ -159,11 +170,11 @@
       "version": "1.0.0-cpu",
       "mode": "ci",
       "scale": {
-        "labeledTarget": 60000,
-        "labeledGenerated": 60000,
-        "train": 57000,
-        "holdout": 3000,
-        "persianTarget": 120000
+        "labeledTarget": 150000,
+        "labeledGenerated": 150000,
+        "train": 142500,
+        "holdout": 7500,
+        "persianTarget": 250000
       },
       "capacity": {
         "labeledSamplesSupported": 2000000,
@@ -173,53 +184,60 @@
       "model": {
         "kind": "multinomial-naive-bayes-int8",
         "buckets": 4096,
-        "labels": 26,
-        "weightBytes": 106496,
+        "labels": 28,
+        "weightBytes": 114688,
         "math": "integer only (CPU inference)",
         "accuracyOnHoldoutPercent": 100
       },
       "persian": {
-        "lines": 120000,
+        "lines": 250000,
         "uniqueWords": 260,
         "vocabulary": 260
       },
       "perIntentWorst": [
         {
           "intent": "legal_contract",
-          "total": 231,
+          "total": 1072,
           "accuracy": 100
         },
         {
-          "intent": "report_cash",
-          "total": 231,
+          "intent": "report_receivable",
+          "total": 1072,
           "accuracy": 100
         },
         {
-          "intent": "cheque_received",
-          "total": 231,
+          "intent": "harvest_record",
+          "total": 1072,
           "accuracy": 100
         },
         {
-          "intent": "sale_crop",
-          "total": 231,
-          "accuracy": 100
-        },
-        {
-          "intent": "app_help",
-          "total": 231,
+          "intent": "trade_help",
+          "total": 1071,
           "accuracy": 100
         },
         {
           "intent": "report_cheques",
-          "total": 231,
+          "total": 1071,
+          "accuracy": 100
+        },
+        {
+          "intent": "cheque_received",
+          "total": 1071,
           "accuracy": 100
         }
       ],
+      "math": {
+        "labeledSamples": 5357,
+        "checked": 2000,
+        "solvedByEnginePercent": 100,
+        "exactArithmetic": "rational-bigint",
+        "note": "جواب نمونه‌های ریاضی با موتور قطعی همان اپ بازبینی می‌شود؛ هیچ مبلغی در نمونه‌ها ذخیره نمی‌شود."
+      },
       "hardEval": {
         "total": 240,
         "asked": 240,
-        "correct": 184,
-        "accuracy": 76.67,
+        "correct": 183,
+        "accuracy": 76.25,
         "coverage": 100
       },
       "honesty": [
@@ -236,20 +254,21 @@
       "rules": 239,
       "brain": 1
     },
-    "avgIntOps": 636.6,
+    "avgIntOps": 637.2,
     "avgEstimatedMicrosAt1Ghz": 0.21,
     "brainShare": 0.42,
     "maxIntOpsSample": {
-      "intOps": 3560,
+      "intOps": 3556,
       "layer": "brain"
     }
   },
   "metrics": {
     "total": 480,
-    "avgMs": 0.34,
-    "p50Ms": 0.32,
-    "p95Ms": 0.51,
+    "avgMs": 0.29,
+    "p50Ms": 0.28,
+    "p95Ms": 0.4,
     "layers": {
+      "math": 0,
       "rules": 478,
       "cache": 1,
       "pack": 0,
@@ -262,7 +281,7 @@
     "batteryEstimateMah": 0.0002,
     "packBytes": 75781,
     "modelCalls": 0,
-    "bloomRejects": 714
+    "bloomRejects": 711
   },
   "targets": {
     "intentAccuracyTarget": 98,
