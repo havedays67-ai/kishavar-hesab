@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   BrainCircuit,
+  CalendarDays,
   Check,
   ClipboardCopy,
   Database,
@@ -337,7 +338,7 @@ export function BackupPage({
         <div>
           <div className="mb-2 flex items-center gap-2 text-[10px] text-[#84a294]"><Sparkles className="h-3.5 w-3.5 text-mint-300" />کشاورزیار، پشتیبان و راهنما</div>
           <h1 className="text-[22px] font-extrabold tracking-tight text-white sm:text-[26px]">کشاورزیار — دستیار هوشمند مزرعه</h1>
-          <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">حسابدار محلی، دانشنامهٔ حقوقی چک و سند، مشاور کشاورزی و دستیار گزارش‌گیری؛ اعداد از دفتر واقعی شما، بدون ارسال داده به اینترنت. حافظهٔ گفتگو روی دستگاه می‌ماند.</p>
+          <p className="mt-1.5 max-w-2xl text-[11px] font-light leading-6 text-[#89a598]">کشاورزیار: ثبت در دفتر، مشاور کشت و نهاده، خواندن تصویر و پاسخ به پرسش‌های دفتری؛ تحلیل‌ها از مغز زنده می‌آید و اعداد دفتر از خود برنامه. حافظهٔ گفتگو روی دستگاه می‌ماند.</p>
         </div>
         <span className="flex items-center gap-1.5 rounded-xl border border-mint-300/15 bg-mint-300/[0.05] px-3 py-2 text-[9px] text-mint-300"><ShieldCheck className="h-3.5 w-3.5" /> داده‌ها روی دستگاه</span>
       </div>
@@ -355,6 +356,7 @@ export function BackupPage({
                 <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند</span></h2>
                 <p className="mt-0.5 truncate text-[8px] text-[#78968a]">کشاورزیار · ثبت مستقیم در دفتر · تحلیل تصویر</p>
               </div>
+              <button type="button" onClick={() => { window.location.hash = "#crop-plan"; }} className="flex shrink-0 items-center gap-1 rounded-lg border border-mint-300/25 bg-mint-300/[0.08] px-2 py-1.5 text-[8px] text-mint-300 transition hover:bg-mint-300/15" aria-label="رفتن به تقویم کشت و نهاده"><CalendarDays className="h-3 w-3" /> تقویم کشت</button>
               <button type="button" onClick={resetMemory} className="flex shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1.5 text-[8px] text-[#93ad9f] transition hover:text-white" aria-label="پاک کردن حافظهٔ گفتگو"><Eraser className="h-3 w-3" /> حافظه</button>
             </div>
             <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto p-3.5">
@@ -379,7 +381,7 @@ export function BackupPage({
                   )}
                 </div>
               ))}
-              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>GLM 5.3 Flash در حال فکر کردن…</div>}
+              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>کشاورزیار در حال تفکر است…</div>}
             </div>
             <div className="border-t border-white/[0.06] p-2.5">
               <div className="mb-2 flex flex-wrap items-center gap-1">

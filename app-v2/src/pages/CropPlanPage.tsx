@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Droplets, FlaskConical, Leaf, ShieldAlert, Sprout, Sun, TrendingUp } from "lucide-react";
+import { CalendarDays, CircleCheck, Droplets, FlaskConical, Leaf, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatAmount } from "../lib/money-format";
-import { formatJalali, toPersianDigits, todayJalali, type JDate } from "../lib/format";
+import { formatJalali, JALALI_MONTHS, toPersianDigits, todayJalali, type JDate } from "../lib/format";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { useProfile } from "../lib/profile";
 import {
   CROPS,
   planCrop,
+  rankCrops,
   type ClimateZone,
   type CropId,
   type FarmProfile,
@@ -43,6 +44,16 @@ const TASK_STYLE: Record<TaskKind, { chip: string; dot: string }> = {
   irrigation: { chip: "bg-[#60a5fa]/10 text-[#9cc4f5]", dot: "#93c5fd" },
   harvest: { chip: "bg-mint-400/15 text-[#a7f3d0]", dot: "#34d399" },
 };
+
+/** فاصلهٔ تقریبی تا پنجرهٔ کاشت از متن پنجره (اولین ماه شمسی که نام برده شده). */
+function monthsUntilWindow(windowText: string, today: JDate): { months: number | null; label: string } {
+  const index = JALALI_MONTHS.findIndex((month) => windowText.includes(month));
+  if (index === -1) return { months: null, label: "پنجرهٔ کاشت را از جدول محصول ببین" };
+  const targetMonth = index + 1;
+  const months = (targetMonth - today.jm + 12) % 12;
+  if (months === 0) return { months: 0, label: "همین الان داخل پنجرهٔ کاشت هستی" };
+  return { months, label: `${toPersianDigits(months)} ماه دیگر` };
+}
 
 function ScoreRing({ score }: { score: number }) {
   const radius = 34;
@@ -149,6 +160,9 @@ export function CropPlanPage() {
     });
   }, [cropId, crop, areaHa, planting]);
 
+  const ranked = useMemo(() => rankCrops(farm), [climate, soil, waterSource, areaHa, profile.city]);
+  const bestWindow = useMemo(() => monthsUntilWindow(crop.windows[climate], todayJalali()), [crop, climate]);
+
   const groups = useMemo(() => {
     const fertilizer = season.tasks.filter((task) => task.kind === "fertilizer");
     const spray = season.tasks.filter((task) => task.kind === "spray");
@@ -198,6 +212,42 @@ export function CropPlanPage() {
         </div>
         <div className="mt-2 max-w-[240px]">
           <JalaliDatePicker label="تاریخ کاشت" value={planting} onChange={setPlanting} />
+        </div>
+      </section>
+
+      <section className="glass rounded-[22px] p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> چه بکارم؟ — ۳ پیشنهاد برتر زمین شما</h2>
+            <p className="mt-0.5 text-[8px] text-[#78968a]">بر پایهٔ اقلیم {CLIMATE_LABELS[climate]}، خاک {SOIL_LABELS[soil]}، منبع {WATER_LABELS[waterSource]} و {toPersianDigits(areaHa)} هکتار.</p>
+          </div>
+          <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">کِی بکارم؟ {bestWindow.label}</span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-3">
+          {ranked.map((item, index) => (
+            <button
+              key={item.crop.id}
+              type="button"
+              onClick={() => setCropId(item.crop.id)}
+              className={cn("rounded-xl border p-2.5 text-right transition", item.crop.id === cropId ? "border-mint-300/40 bg-mint-300/[0.07]" : "border-white/[0.06] hover:border-white/15")}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-semibold text-white">{toPersianDigits(index + 1)}. {item.crop.name}</span>
+                <span className={cn("rounded px-1.5 py-0.5 text-[7px]", item.score >= 75 ? "bg-mint-300/10 text-mint-300" : item.score >= 50 ? "bg-sand-300/10 text-sand-300" : "bg-[#f87171]/10 text-[#f0a59a]")}>{toPersianDigits(item.score)}</span>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
+                <div className={cn("h-full rounded-full", item.score >= 75 ? "bg-mint-400" : item.score >= 50 ? "bg-sand-300" : "bg-[#f0a59a]")} style={{ width: `${Math.max(4, item.score)}%` }} />
+              </div>
+              <p className="mt-1.5 text-[7px] leading-4 text-[#93ad9f]">کاشت: {item.window}</p>
+              <p className="text-[7px] leading-4 text-[#93ad9f]">آب: {toPersianDigits(item.water.needM3.toLocaleString("en-US"))} م³</p>
+              <p className="mt-1 text-[7px] text-[#6f8c7f]">{item.crop.id === cropId ? <span className="text-mint-300">همین حالا انتخاب شده</span> : "برای دیدن تقویم کامل، بزن"}</p>
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
+          {ranked.map((item) => (
+            <p key={`why-${item.crop.id}`} className="flex items-start gap-1 text-[7px] leading-4 text-[#78968a]"><CircleCheck className="mt-0.5 h-2.5 w-2.5 shrink-0 text-mint-300/70" />{item.crop.name}: {item.verdict} — {item.factors[0]?.detail ?? ""}</p>
+          ))}
         </div>
       </section>
 
