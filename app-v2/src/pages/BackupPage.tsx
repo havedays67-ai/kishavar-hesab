@@ -33,7 +33,6 @@ import {
 import { tradeBalance, type CropTrade } from "../lib/trade";
 import type { CropPlot } from "../lib/samples";
 import {
-  askKeshavarYar,
   assistantSuggestedQuestions,
   clearAssistantMessages,
   greeting,
@@ -120,6 +119,7 @@ export function BackupPage({
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages, thinking]);
 
+  // فعلاً موتور محلی در چت خاموش است؛ پاسخ فقط از GLM 5.3 Flash می‌آید.
   const ask = async (text: string) => {
     const value = text.trim();
     if (!value || thinking) return;
@@ -128,20 +128,31 @@ export function BackupPage({
     setQuestion("");
     setThinking(true);
 
-    // پاسخ دفتری/عددی فقط از دفتر خودمان؛ هرگز به ابر نمی‌رود.
-    const local = askKeshavarYar(value, assistantContext);
-    const offlineFirst = local.meta?.kind === "data" || local.meta?.kind === "social";
-
-    if (!offlineFirst) {
-      const cloud = await askCloud(value, history);
-      if (cloud) {
-        setMessages((current) => [...current, makeAssistantMessage("bot", cloud.text, { ...local.meta, engine: "cloud", model: cloud.label, confidence: Math.max(local.meta?.confidence ?? 0, 86) })]);
-        setThinking(false);
-        return;
-      }
+    const result = await askCloud(value, history);
+    if (result.ok) {
+      setMessages((current) => [
+        ...current,
+        makeAssistantMessage("bot", result.text, {
+          confidence: 86,
+          category: "کشاورزی",
+          sources: [],
+          followUps: [],
+          matchedId: "glm-5.3-flash",
+          kind: "knowledge",
+          engine: "cloud",
+          model: result.label,
+        }),
+      ]);
+    } else {
+      setMessages((current) => [
+        ...current,
+        makeAssistantMessage(
+          "bot",
+          `پاسخ از مدل نیامد (موتور محلی فعلاً خاموش است).\n${result.error}\n\nاینترنت یا VPN را بررسی کنید و دوباره بفرستید.`,
+          { confidence: 0, category: "برنامه", sources: [], followUps: [], matchedId: "cloud-error", kind: "fallback", engine: "cloud-error" }
+        ),
+      ]);
     }
-
-    setMessages((current) => [...current, makeAssistantMessage("bot", local.text, { ...local.meta, engine: "local" })]);
     setThinking(false);
   };
 
@@ -234,7 +245,7 @@ export function BackupPage({
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/15 bg-mint-300/10 text-mint-300"><BrainCircuit className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1">
                 <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند</span></h2>
-                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">مدل زنده وقتی اینترنت هست · موتور محلی وقتی قطع است</p>
+                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">پاسخ‌ها از GLM 5.3 Flash · موتور محلی فعلاً خاموش</p>
               </div>
               <button type="button" onClick={resetMemory} className="flex shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1.5 text-[8px] text-[#93ad9f] transition hover:text-white" aria-label="پاک کردن حافظهٔ گفتگو"><Eraser className="h-3 w-3" /> حافظه</button>
             </div>
@@ -246,7 +257,7 @@ export function BackupPage({
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[7px]">
                       <span className={cn("flex items-center gap-1 rounded px-1.5 py-0.5", message.meta.confidence >= 80 ? "bg-mint-300/[0.08] text-mint-300" : message.meta.confidence >= 55 ? "bg-sand-300/[0.08] text-sand-300" : "bg-white/[0.04] text-[#9fb6aa]")}><Percent className="h-2.5 w-2.5" />اطمینان {toPersianDigits(message.meta.confidence)}٪</span>
                       <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[#9fb6aa]">{message.meta.category}</span>
-                      <span className={cn("rounded px-1.5 py-0.5", message.meta.engine === "cloud" ? "bg-[#60a5fa]/[0.1] text-[#9cc4f5]" : "bg-white/[0.04] text-[#93ad9f]")}>{message.meta.engine === "cloud" ? `مدل زنده · ${message.meta.model ?? ""}` : "آفلاین · محلی"}</span>
+                      <span className={cn("rounded px-1.5 py-0.5", message.meta.engine === "cloud" ? "bg-[#60a5fa]/[0.1] text-[#9cc4f5]" : message.meta.engine === "cloud-error" ? "bg-[#f87171]/[0.1] text-[#f0a59a]" : "bg-white/[0.04] text-[#93ad9f]")}>{message.meta.engine === "cloud" ? `مدل زنده · ${message.meta.model ?? ""}` : message.meta.engine === "cloud-error" ? "بدون پاسخ مدل" : "آفلاین · محلی"}</span>
                       {message.meta.highStakes && <span className="rounded bg-[#c5b97f]/[0.08] px-1.5 py-0.5 text-[#d8c896]">نیازمند احتیاط حقوقی</span>}
                       {message.meta.sources.length > 0 && (
                         <details className="w-full">
@@ -260,7 +271,7 @@ export function BackupPage({
                   )}
                 </div>
               ))}
-              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>کشاورزیار در حال بررسی است (مدل زنده یا موتور محلی)…</div>}
+              {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>GLM 5.3 Flash در حال فکر کردن…</div>}
             </div>
             <div className="border-t border-white/[0.06] p-2.5">
               <div className="mb-2 flex flex-wrap gap-1.5">

@@ -55,7 +55,7 @@ export interface AssistantMeta {
   kind: "data" | "knowledge" | "fallback" | "social";
   highStakes?: boolean;
   /** از کدام موتور آمده: مدل زندهٔ ابری یا موتور محلی. */
-  engine?: "cloud" | "local";
+  engine?: "cloud" | "local" | "cloud-error";
   /** نام مدل زنده (وقتی engine === "cloud"). */
   model?: string;
   /** لایهٔ فهم سریع که این پاسخ را مسیریابی کرد (قواعد/بسته/کش/بازیابی/مدل) */
