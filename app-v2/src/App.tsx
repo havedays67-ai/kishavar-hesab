@@ -34,6 +34,7 @@ import type { CropTrade } from "./lib/trade";
 import { BackupPage, type BackupBundle } from "./pages/BackupPage";
 import { ContractsPage } from "./pages/ContractsPage";
 import { CropsPage } from "./pages/CropsPage";
+import { CropPlanPage } from "./pages/CropPlanPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { DownloadPage } from "./pages/DownloadPage";
@@ -62,6 +63,7 @@ const AVAILABLE_PAGES: Page[] = [
   "contracts",
   "rentals",
   "crops",
+  "crop-plan",
   "finance",
   "parties",
   "inventory",
@@ -105,6 +107,7 @@ const PAGE_TITLES: Record<Page, string> = {
   contracts: "قرارداد زمین کشاورزی",
   rentals: "اجاره و اقساط",
   crops: "زمین و کشت",
+  "crop-plan": "تقویم کشت و نهاده",
   finance: "دفتر مالی",
   parties: "بدهکار و بستانکار",
   inventory: "انبار، دارایی و بودجه",
@@ -349,6 +352,7 @@ export default function App() {
             onOpenDocument={setActiveDocument}
           />
         )}
+        {page === "crop-plan" && <CropPlanPage />}
         {page === "crops" && (
           <CropsPage
             plots={plots}
@@ -414,6 +418,9 @@ export default function App() {
         )}
         {page === "backup" && (
           <BackupPage
+            onAddParty={addPartyAccount}
+            onAddPayment={addPartyPayment}
+            onAddEntry={addEntry}
             onLoadDemo={loadDemo}
             ledger={ledger}
             trades={trades}

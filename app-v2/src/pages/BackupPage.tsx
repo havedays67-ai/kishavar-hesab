@@ -9,6 +9,7 @@ import {
   Eraser,
   HelpCircle,
   History,
+  ImagePlus,
   Lightbulb,
   Percent,
   RefreshCw,
@@ -18,6 +19,7 @@ import {
   Trash2,
   Upload,
   UserRound,
+  X,
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import type { SavedContract } from "../lib/data";
@@ -28,7 +30,11 @@ import {
   chequeTotals,
   financeTotals,
   ledgerTotals,
+  partyTotals,
+  type DebtParty,
+  type FinanceEntry,
   type LedgerState,
+  type PartyPayment,
 } from "../lib/ledger";
 import { tradeBalance, type CropTrade } from "../lib/trade";
 import type { CropPlot } from "../lib/samples";
@@ -41,7 +47,8 @@ import {
   saveAssistantMessages,
   type AssistantMessage,
 } from "../lib/ai/engine";
-import { askCloud } from "../lib/ai/cloud-chat";
+import { askCloud, type CloudSection } from "../lib/ai/cloud-chat";
+import { parseActionPlan } from "../lib/ai/actions";
 import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
 import { loadReceipts, replaceReceipts, type StoredReceipt } from "../lib/receipts";
 import { Toast } from "../components/ui";
@@ -77,6 +84,9 @@ export function BackupPage({
   onRestore,
   onReset,
   onLoadDemo,
+  onAddParty,
+  onAddPayment,
+  onAddEntry,
 }: {
   ledger: LedgerState;
   trades: CropTrade[];
@@ -87,6 +97,9 @@ export function BackupPage({
   onRestore: (bundle: BackupBundle) => void;
   onReset: () => void;
   onLoadDemo: () => void;
+  onAddParty: (party: DebtParty) => void;
+  onAddPayment: (payment: PartyPayment) => void;
+  onAddEntry: (entry: FinanceEntry) => void;
 }) {
   const { profile } = useProfile();
   const assistantContext = useMemo(() => ({ ledger, trades, plots, contracts }), [ledger, trades, plots, contracts]);
@@ -119,40 +132,135 @@ export function BackupPage({
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages, thinking]);
 
-  // فعلاً موتور محلی در چت خاموش است؛ پاسخ فقط از GLM 5.3 Flash می‌آید.
+  // کشاورزیار: پاسخ متنی یا ثبت واقعی در دفتر — موتور محلی در چت خاموش است.
+  const [section, setSection] = useState<CloudSection>("assistant");
+  const [attachment, setAttachment] = useState<{ dataUrl: string; name: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const partyFacts = useMemo(
+    () => ledger.parties.slice(0, 40).map((party) => ({ id: party.id, name: party.name, kind: party.kind, balance: partyTotals(party, ledger.payments).balance })),
+    [ledger]
+  );
+
+  const pickImage = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setToast("فقط فایل تصویری مجاز است."); return; }
+    if (file.size > 3_500_000) { setToast("حجم تصویر زیاد است؛ حداکثر ۳.۵ مگابایت."); return; }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("read-failed"));
+      reader.readAsDataURL(file);
+    }).catch(() => "");
+    if (dataUrl) setAttachment({ dataUrl, name: file.name });
+  };
+
+  /** اجرای برنامهٔ کنش؛ فقط کنش‌های مجاز و اعتبارسنجی‌شده. */
+  const runPlan = (raw: unknown): { say: string; done: string[]; question?: string } => {
+    const validation = parseActionPlan(JSON.stringify(raw));
+    if (!validation.ok || !validation.plan) {
+      return { say: "نتوانستم این درخواست را به ثبت امن تبدیل کنم.", done: [], question: validation.errors.join("، ") || undefined };
+    }
+    const plan = validation.plan;
+    const done: string[] = [];
+    const today = todayJalali();
+    plan.actions.forEach((action, index) => {
+      if (action.type === "party.create") {
+        const party: DebtParty = {
+          id: `party-${Date.now()}-${index}`,
+          name: action.name,
+          phone: action.phone ?? "",
+          city: action.city ?? profile.city ?? "",
+          kind: action.kind,
+          amount: action.amount,
+          reason: action.reason,
+          date: today,
+          dueDate: null,
+          note: "",
+          color: "mint",
+        };
+        onAddParty(party);
+        done.push(`${action.kind === "debtor" ? "بدهکار" : "بستانکار"} ثبت شد: ${action.name} — ${formatAmount(action.amount)} تومان بابت ${action.reason}`);
+        return;
+      }
+      if (action.type === "party.payment.add") {
+        const payment: PartyPayment = { id: `pay-${Date.now()}-${index}`, partyId: action.partyId, date: today, amount: action.amount, method: action.method === "card" ? "credit" : action.method, note: action.note ?? "" };
+        onAddPayment(payment);
+        done.push(`پرداخت ثبت شد: ${formatAmount(action.amount)} تومان`);
+        return;
+      }
+      if (action.type === "entry.add") {
+        const entry: FinanceEntry = {
+          id: `fin-${Date.now()}-${index}`,
+          kind: action.kind,
+          date: today,
+          amount: action.amount,
+          reason: action.reason,
+          category: action.category ?? (action.kind === "income" ? "سایر درآمد" : "سایر هزینه"),
+          method: "cash",
+          partyId: null,
+          note: "",
+        };
+        onAddEntry(entry);
+        done.push(`${action.kind === "income" ? "درآمد" : "هزینه"} ثبت شد: ${formatAmount(action.amount)} تومان بابت ${action.reason}`);
+        return;
+      }
+      if (action.type === "answer") done.push(action.text);
+    });
+    return { say: plan.say, done, question: plan.question };
+  };
+
   const ask = async (text: string) => {
     const value = text.trim();
-    if (!value || thinking) return;
+    if ((!value && !attachment) || thinking) return;
     const history = messages.slice(-8).map((message) => ({ role: (message.role === "bot" ? "assistant" : "user") as "user" | "assistant", content: message.text }));
-    setMessages((current) => [...current, makeAssistantMessage("user", value)]);
+    const shown = attachment ? `${value || "این تصویر را تحلیل کن"} · 📷 ${attachment.name}` : value;
+    setMessages((current) => [...current, makeAssistantMessage("user", shown)]);
     setQuestion("");
     setThinking(true);
 
-    const result = await askCloud(value, history);
-    if (result.ok) {
+    const result = await askCloud({
+      message: value || "این تصویر را تحلیل کن.",
+      history,
+      section,
+      mode: "auto",
+      image: attachment?.dataUrl,
+      context: {
+        today: formatJalali(todayJalali(), "short"),
+        parties: partyFacts,
+        profile: { city: profile.city },
+      },
+    });
+
+    if (!result.ok) {
       setMessages((current) => [
         ...current,
-        makeAssistantMessage("bot", result.text, {
-          confidence: 86,
-          category: "کشاورزی",
-          sources: [],
-          followUps: [],
-          matchedId: "glm-5.3-flash",
-          kind: "knowledge",
-          engine: "cloud",
-          model: result.label,
+        makeAssistantMessage("bot", `کشاورزیار الان جواب نداد (موتور محلی خاموش است).\n${result.error}\n\nاینترنت یا VPN را بررسی کن و دوباره بفرست.`, {
+          confidence: 0, category: "برنامه", sources: [], followUps: [], matchedId: "cloud-error", kind: "fallback", engine: "cloud-error",
         }),
       ]);
-    } else {
+      setThinking(false);
+      return;
+    }
+
+    if (result.mode === "text") {
       setMessages((current) => [
         ...current,
-        makeAssistantMessage(
-          "bot",
-          `پاسخ از مدل نیامد (موتور محلی فعلاً خاموش است).\n${result.error}\n\nاینترنت یا VPN را بررسی کنید و دوباره بفرستید.`,
-          { confidence: 0, category: "برنامه", sources: [], followUps: [], matchedId: "cloud-error", kind: "fallback", engine: "cloud-error" }
-        ),
+        makeAssistantMessage("bot", result.text, { confidence: 86, category: "کشاورزی", sources: [], followUps: [], matchedId: "keshavaryar", kind: "knowledge", engine: "cloud", model: "کشاورزیار" }),
       ]);
+    } else {
+      const executed = runPlan(result.plan);
+      const lines = [executed.say, ...executed.done].filter(Boolean);
+      const body = lines.length ? lines.join("\n") : "انجام شد.";
+      setMessages((current) => [
+        ...current,
+        makeAssistantMessage("bot", executed.question ? `${body}\n\n${executed.question}` : body, {
+          confidence: 92, category: "دفتر مالی", sources: [], followUps: [], matchedId: "keshavaryar-action", kind: "data", engine: "cloud", model: "کشاورزیار",
+        }),
+      ]);
+      if (executed.done.length) setToast("کشاورزیار رکورد را ثبت کرد.");
     }
+    setAttachment(null);
     setThinking(false);
   };
 
@@ -245,7 +353,7 @@ export function BackupPage({
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-mint-300/15 bg-mint-300/10 text-mint-300"><BrainCircuit className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1">
                 <h2 className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-white">کشاورزیار <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] font-medium text-mint-300">دستیار هوشمند</span></h2>
-                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">پاسخ‌ها از GLM 5.3 Flash · موتور محلی فعلاً خاموش</p>
+                <p className="mt-0.5 truncate text-[8px] text-[#78968a]">کشاورزیار · ثبت مستقیم در دفتر · تحلیل تصویر</p>
               </div>
               <button type="button" onClick={resetMemory} className="flex shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] px-2 py-1.5 text-[8px] text-[#93ad9f] transition hover:text-white" aria-label="پاک کردن حافظهٔ گفتگو"><Eraser className="h-3 w-3" /> حافظه</button>
             </div>
@@ -257,7 +365,7 @@ export function BackupPage({
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[7px]">
                       <span className={cn("flex items-center gap-1 rounded px-1.5 py-0.5", message.meta.confidence >= 80 ? "bg-mint-300/[0.08] text-mint-300" : message.meta.confidence >= 55 ? "bg-sand-300/[0.08] text-sand-300" : "bg-white/[0.04] text-[#9fb6aa]")}><Percent className="h-2.5 w-2.5" />اطمینان {toPersianDigits(message.meta.confidence)}٪</span>
                       <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[#9fb6aa]">{message.meta.category}</span>
-                      <span className={cn("rounded px-1.5 py-0.5", message.meta.engine === "cloud" ? "bg-[#60a5fa]/[0.1] text-[#9cc4f5]" : message.meta.engine === "cloud-error" ? "bg-[#f87171]/[0.1] text-[#f0a59a]" : "bg-white/[0.04] text-[#93ad9f]")}>{message.meta.engine === "cloud" ? `مدل زنده · ${message.meta.model ?? ""}` : message.meta.engine === "cloud-error" ? "بدون پاسخ مدل" : "آفلاین · محلی"}</span>
+                      <span className={cn("rounded px-1.5 py-0.5", message.meta.engine === "cloud" ? "bg-[#60a5fa]/[0.1] text-[#9cc4f5]" : message.meta.engine === "cloud-error" ? "bg-[#f87171]/[0.1] text-[#f0a59a]" : "bg-white/[0.04] text-[#93ad9f]")}>{message.meta.engine === "cloud" ? (message.meta.model ?? "کشاورزیار") : message.meta.engine === "cloud-error" ? "بدون پاسخ" : "آفلاین · محلی"}</span>
                       {message.meta.highStakes && <span className="rounded bg-[#c5b97f]/[0.08] px-1.5 py-0.5 text-[#d8c896]">نیازمند احتیاط حقوقی</span>}
                       {message.meta.sources.length > 0 && (
                         <details className="w-full">
@@ -274,12 +382,27 @@ export function BackupPage({
               {thinking && <div className="inline-flex items-center gap-1.5 rounded-2xl bg-white/[0.03] px-3 py-2 text-[8px] text-[#9fb6aa]"><span className="flex gap-0.5"><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:150ms]" /><span className="h-1 w-1 animate-pulse rounded-full bg-mint-300 [animation-delay:300ms]" /></span>GLM 5.3 Flash در حال فکر کردن…</div>}
             </div>
             <div className="border-t border-white/[0.06] p-2.5">
+              <div className="mb-2 flex flex-wrap items-center gap-1">
+                <span className="ml-1 text-[7px] text-[#5f7d70]">حوزهٔ تحلیل:</span>
+                {([["assistant", "عمومی"], ["crops", "کشت و نهاده"], ["parties", "دفتر"], ["finance", "مالی"], ["inventory", "انبار"], ["trade", "بازار"], ["documents", "اسناد"]] as const).map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setSection(key)} className={cn("rounded-lg px-2 py-1 text-[8px] transition", section === key ? "bg-mint-400/15 text-mint-300" : "text-[#78968a] hover:text-white")}>{label}</button>
+                ))}
+              </div>
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {(lastBot?.meta?.followUps?.length ? lastBot.meta.followUps : suggestions).slice(0, 5).map((sample) => <button key={sample} type="button" onClick={() => ask(sample)} className="rounded-lg border border-white/[0.07] px-2 py-1 text-[8px] text-[#93ad9f] transition hover:border-mint-300/20 hover:text-mint-300">{sample}</button>)}
               </div>
+              {attachment && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-mint-300/20 bg-mint-300/[0.05] px-2 py-1.5">
+                  <img src={attachment.dataUrl} alt="تصویر پیوست" className="h-8 w-8 rounded object-cover" />
+                  <span className="flex-1 truncate text-[8px] text-[#a9c1b5]">{attachment.name}</span>
+                  <button type="button" onClick={() => setAttachment(null)} className="text-[#93ad9f] hover:text-white" aria-label="حذف تصویر"><X className="h-3.5 w-3.5" /></button>
+                </div>
+              )}
               <form onSubmit={(event) => { event.preventDefault(); ask(question); }} className="flex gap-2">
-                <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="مثلاً: آیا چک چاپی معتبر است؟ / چقدر طلب دارم؟" className="field flex-1 py-2 text-[10px]" aria-label="سؤال از کشاورزیار" />
-                <button type="submit" disabled={thinking || !question.trim()} className="grid h-9 w-9 place-items-center rounded-xl bg-mint-400 text-[#07110d] disabled:opacity-40" aria-label="ارسال"><Send className="h-4 w-4" /></button>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(event) => { void pickImage(event.target.files?.[0]); event.target.value = ""; }} aria-label="انتخاب تصویر" />
+                <button type="button" onClick={() => fileRef.current?.click()} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] text-[#93ad9f] transition hover:text-white" aria-label="ارسال تصویر به کشاورزیار"><ImagePlus className="h-4 w-4" /></button>
+                <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="مثلاً: برای رضا ۲ میلیون بدهی ثبت کن / چقدر طلب دارم؟ / این برگه را بخوان" className="field flex-1 py-2 text-[10px]" aria-label="سؤال از کشاورزیار" />
+                <button type="submit" disabled={thinking || (!question.trim() && !attachment)} className="grid h-9 w-9 place-items-center rounded-xl bg-mint-400 text-[#07110d] disabled:opacity-40" aria-label="ارسال"><Send className="h-4 w-4" /></button>
               </form>
               <p className="mt-1.5 text-[7px] leading-4 text-[#6f8c7f]"><ShieldCheck className="ml-1 inline h-2.5 w-2.5" />پاسخ عددی فقط از دفتر شما؛ پاسخ حقوقی راهنمای عمومی است و جای مشاورهٔ رسمی را نمی‌گیرد.</p>
             </div>

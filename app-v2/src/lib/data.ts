@@ -7,6 +7,7 @@ export type Page =
   | "contracts"
   | "rentals"
   | "crops"
+  | "crop-plan"
   | "finance"
   | "parties"
   | "inventory"
