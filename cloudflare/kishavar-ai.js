@@ -281,6 +281,31 @@ async function ddgLiteSearch(query) {
   }
 }
 
+/** جایگزین خبری: Google News RSS برای پرسش‌های روز (قیمت، بازار، کشت فصل). */
+async function newsSearch(query) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7_000);
+    const response = await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=fa&gl=IR&ceid=IR:fa`, {
+      headers: { "user-agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Safari/537.36", accept: "application/rss+xml,text/xml" },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    const xml = (await response.text()).slice(0, 220_000);
+    const rows = [];
+    const item = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?(?:<pubDate>([\s\S]*?)<\/pubDate>)?[\s\S]*?<\/item>/g;
+    let match;
+    while ((match = item.exec(xml)) && rows.length < 6) {
+      const title = decodeEntities(stripTags(match[1])).trim();
+      if (title) rows.push(`- ${title}`);
+    }
+    return rows.length ? `نتایج خبری (Google News):\n${rows.join("\n")}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** جایگزین دانش‌محور: ویکی‌پدیای فارسی برای وقتی موتورهای جستجو محدود شده‌اند. */
 async function wikiSearch(query) {
   try {
@@ -316,6 +341,7 @@ async function webSearch(env, query) {
     async () => ({ text: await jinaSearch(env, query), engine: "jina" }),
     async () => ({ text: await duckSearch(query), engine: "duckduckgo" }),
     async () => ({ text: await ddgLiteSearch(query), engine: "duckduckgo" }),
+    async () => ({ text: await newsSearch(query), engine: "google-news" }),
     async () => ({ text: await wikiSearch(query), engine: "wikipedia" }),
   ];
   for (const attempt of attempts) {
@@ -337,7 +363,7 @@ async function webSearch(env, query) {
 }
 
 const WEATHER_HINTS = /(هوا|باران|بارش|بارندگی|بارانی|رگبار|هواشناسی|سرما|گرما|یخبندان|خشکسالی|رطوبت|دما|پیش.?بینی|ابر|طوفان|تگرگ|سیل)/;
-const SEARCH_HINTS = /(قیمت|بازار|نرخ|هوا|باران|بارش|بارندگی|بارانی|رگبار|هواشناسی|تعرفه|یارانه|بیمه|مجاز|ممنوع|امسال|اعتبار|کارخانه|خریدار)/;
+const SEARCH_HINTS = /(قیمت|بازار|نرخ|هوا|باران|بارش|بارندگی|بارانی|رگبار|هواشناسی|تعرفه|یارانه|بیمه|مجاز|ممنوع|امسال|اعتبار|کارخانه|خریدار|بکارم|بکاریم|کشت|محصول|توصیه|پنجرهٔ کاشت|تقویم کشت|خاک|هکتار|کود|آبیاری|سم‌پاشی|برداشت)/;
 
 /** نام مکان‌های گفته‌شده در پیام: روستا/شهر/منطقه/استان + شهر پروفایل. */
 function placeCandidates(message, profileCity) {
@@ -445,12 +471,65 @@ async function weatherBriefFor(places) {
   return null;
 }
 
+const KNOWN_PLACES = [
+  "آذربایجان شرقی", "آذربایجان غربی", "اردبیل", "اصفهان", "البرز", "ایلام", "بوشهر", "تهران", "چهارمحال و بختیاری", "خراسان جنوبی", "خراسان رضوی", "خراسان شمالی", "خوزستان", "زنجان", "سمنان", "سیستان و بلوچستان", "فارس", "قزوین", "قم", "کردستان", "کرمان", "کرمانشاه", "کهگیلویه و بویراحمد", "گلستان", "گیلان", "لرستان", "مازندران", "مرکزی", "همدان", "هرمزگان", "یزد",
+  "انبارالوم", "انبارآلوم", "آق قلا", "گرگان", "گنبد کاووس", "علی آباد", "بندر ترکمن", "رشت", "لاهیجان", "بندر انزلی", "ساری", "بابل", "آمل", "بهشهر", "اردبیل", "پارس آباد", "اهواز", "دزفول", "شوشتر", "مشهد", "نیشابور", "تربت حیدریه", "کرمان", "رفسنجان", "بم", "یزد", "میبد", "اردکان", "اصفهان", "کاشان", "شهرضا", "شیراز", "مرودشت", "داراب", "ارومیه", "خوی", "میاندوآب", "تبریز", "مراغه", "همدان", "ملایر", "کرمانشاه", "تهران", "اراک", "قم", "قزوین", "زنجان", "سمنان", "بجنورد", "بیرجند", "زاهدان", "کرج", "خرم آباد", "ایلام", "یاسوج", "بوشهر", "بندرعباس", "ساری", "شهرکرد", "سنندج"
+];
+
+/** نام استان/شهر را از خود پیام کاربر پیدا می‌کند؛ برای کاربر بدون پروفایل هم جستجو منطقه‌ای می‌شود. */
+function knownPlaceIn(text, fallback = "") {
+  const clean = String(text ?? "").replace(/[يى]/g, "ی").replace(/ك/g, "ک").replace(/\s+/g, " ");
+  const matches = KNOWN_PLACES.filter((place) => clean.includes(place)).sort((a, b) => b.length - a.length);
+  return matches[0] ?? String(fallback ?? "").trim();
+}
+
 function searchQueryFor(message, city) {
   const text = String(message ?? "");
-  const place = String(city ?? "").trim();
+  const place = knownPlaceIn(text, city);
   if (WEATHER_HINTS.test(text)) return `${place || "ایران"} هواشناسی پیش‌بینی بارش امروز`;
   if (/(قیمت|نرخ|بازار|خریدار|کارخانه|فروش)/.test(text)) return `${text.slice(0, 90)} ${place} بازار امروز`;
+  if (/(بکارم|بکاریم|کشت|محصول|توصیه|تقویم کشت|پنجرهٔ کاشت|خاک|هکتار)/.test(text)) {
+    const month = text.match(/(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)/)?.[0] ?? "";
+    return `${place} ${month} بهترین محصولات کشت توصیه کارشناس زراعت`.trim();
+  }
   return [text.slice(0, 100), place, "کشاورزی"].filter(Boolean).join(" ");
+}
+
+/** پاسخ پشتیبان منطقه‌ای فقط وقتی همهٔ موتورها بخوابند؛ بدون ادعای زنده و با برچسب شفاف. */
+const LOCAL_PROVINCE = {
+  "انبارالوم": "گلستان", "انبارآلوم": "گلستان", "آق قلا": "گلستان", "گرگان": "گلستان", "گنبد کاووس": "گلستان", "علی آباد": "گلستان", "بندر ترکمن": "گلستان",
+  "رشت": "گیلان", "لاهیجان": "گیلان", "بندر انزلی": "گیلان", "ساری": "مازندران", "بابل": "مازندران", "آمل": "مازندران",
+  "اردبیل": "اردبیل", "پارس آباد": "اردبیل", "اهواز": "خوزستان", "دزفول": "خوزستان", "شوشتر": "خوزستان",
+  "مشهد": "خراسان رضوی", "نیشابور": "خراسان رضوی", "کرمان": "کرمان", "رفسنجان": "کرمان", "بم": "کرمان",
+  "یزد": "یزد", "میبد": "یزد", "اصفهان": "اصفهان", "کاشان": "اصفهان", "شیراز": "فارس", "مرودشت": "فارس",
+  "ارومیه": "آذربایجان غربی", "خوی": "آذربایجان غربی", "تبریز": "آذربایجان شرقی", "مراغه": "آذربایجان شرقی",
+  "همدان": "همدان", "کرمانشاه": "کرمانشاه", "تهران": "تهران", "اراک": "مرکزی",
+};
+const LOCAL_CROPS = {
+  "گلستان": { autumn: "گندم، جو، کلزا و سبزیجات برگی/پیازی", spring: "سویا، پنبه، ذرت و صیفی‌جات", summer: "سویا، ذرت و صیفی‌جات", winter: "گندم، جو و کلزا" },
+  "گیلان": { autumn: "گندم، جو، کلزا و سبزیجات برگی", spring: "برنج، صیفی‌جات و ذرت", summer: "برنج و صیفی‌جات", winter: "گندم، جو و کلزا" },
+  "مازندران": { autumn: "گندم، جو، کلزا و سبزیجات برگی", spring: "برنج، صیفی‌جات و ذرت", summer: "برنج و صیفی‌جات", winter: "گندم، جو و کلزا" },
+  "اردبیل": { autumn: "گندم، جو، کلزا و چغندرقند", spring: "سیب‌زمینی، چغندرقند و یونجه", summer: "یونجه و سیب‌زمینی", winter: "گندم و جو" },
+  "خوزستان": { autumn: "گندم، جو، کلزا و پیاز", spring: "گوجه‌فرنگی، ذرت و کنجد", summer: "ذرت، کنجد و صیفی‌جات", winter: "گندم، جو و کلزا" },
+  "خراسان رضوی": { autumn: "گندم، جو، کلزا و زعفران (آماده‌سازی)", spring: "چغندرقند، سیب‌زمینی و ذرت", summer: "ذرت و صیفی‌جات", winter: "گندم و جو" },
+  "یزد": { autumn: "گندم، جو، پیاز و زعفران (آماده‌سازی)", spring: "پسته، انار و صیفی‌جات", summer: "پسته و صیفی‌جات", winter: "گندم و جو" },
+  "اصفهان": { autumn: "گندم، جو و کلزا", spring: "چغندرقند، سیب‌زمینی و یونجه", summer: "ذرت و صیفی‌جات", winter: "گندم و جو" },
+  "فارس": { autumn: "گندم، جو، کلزا و چغندرقند", spring: "چغندرقند، ذرت و صیفی‌جات", summer: "ذرت و صیفی‌جات", winter: "گندم و جو" },
+  "کرمان": { autumn: "گندم، جو و پیاز", spring: "پسته، سیب‌زمینی و صیفی‌جات", summer: "پسته و صیفی‌جات", winter: "گندم و جو" },
+  "آذربایجان غربی": { autumn: "گندم، جو، کلزا و چغندرقند", spring: "چغندرقند، سیب‌زمینی و یونجه", summer: "یونجه و سیب‌زمینی", winter: "گندم و جو" },
+  "آذربایجان شرقی": { autumn: "گندم، جو، کلزا و چغندرقند", spring: "چغندرقند، سیب‌زمینی و یونجه", summer: "یونجه و سیب‌زمینی", winter: "گندم و جو" },
+  "همدان": { autumn: "گندم، جو، کلزا و چغندرقند", spring: "سیب‌زمینی، چغندرقند و یونجه", summer: "یونجه و سیب‌زمینی", winter: "گندم و جو" },
+};
+function localCropAnswer(message, fallbackPlace) {
+  const text = String(message ?? "");
+  const found = knownPlaceIn(text, fallbackPlace);
+  const province = LOCAL_PROVINCE[found] ?? (Object.keys(LOCAL_CROPS).includes(found) ? found : "گلستان");
+  const monthName = text.match(/(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)/)?.[0] ?? "";
+  const index = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"].indexOf(monthName) + 1;
+  const season = index >= 7 && index <= 10 ? "autumn" : index >= 4 && index <= 6 ? "summer" : index >= 1 && index <= 3 ? "spring" : "winter";
+  const crops = (LOCAL_CROPS[province] ?? LOCAL_CROPS["گلستان"])[season];
+  const seasonFa = { autumn: "پاییز", spring: "بهار", summer: "تابستان", winter: "زمستان" }[season];
+  return `سلام! الان ظرفیت پاسخ زندهٔ کشاورزیار پر بود، ولی پاسخ پشتیبان منطقه‌ای را می‌دهم: برای ${found || "منطقهٔ شما"}${monthName ? ` در ${monthName}` : ""} (${seasonFa}) گزینه‌های اصلی ${crops} هستند. قبل از کاشت، آزمون خاک و شوری آب را انجام بده و رقم/دوز نهاده را با کارشناس محلی هماهنگ کن. این پاسخ از تقویم منطقه‌ای است، نه دادهٔ زندهٔ بازار یا هوا.`;
 }
 
 async function callDahl(key, payload, timeoutMs = 20_000) {
@@ -753,7 +832,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 19,
+        version: 24,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
@@ -832,10 +911,11 @@ export default {
       const body = await request.json().catch(() => ({}));
       const name = String(body?.name ?? "").trim().replace(/[<>{}]/g, "").slice(0, 80);
       const city = String(body?.city ?? "").trim().replace(/[<>{}]/g, "").slice(0, 60);
+      const province = String(body?.province ?? "").trim().replace(/[<>{}]/g, "").slice(0, 60);
       const climate = String(body?.climate ?? "").slice(0, 20);
       if (name.length < 2) return json({ ok: false, error: "نام محصول را کامل بنویس" }, 400);
       const cache = typeof caches !== "undefined" ? caches.default : null;
-      const cacheKey = new Request(`https://cache.local/crop/v2?n=${encodeURIComponent(name)}&c=${encodeURIComponent(city)}&z=${encodeURIComponent(climate)}`);
+      const cacheKey = new Request(`https://cache.local/crop/v3?n=${encodeURIComponent(name)}&p=${encodeURIComponent(province)}&c=${encodeURIComponent(city)}&z=${encodeURIComponent(climate)}&d=${encodeURIComponent(String(body?.today ?? "").slice(0, 10))}`);
       if (cache) {
         const hit = await cache.match(cacheKey);
         if (hit) {
@@ -844,7 +924,7 @@ export default {
         }
       }
       const [web, weather] = await Promise.all([
-        webSearch(env, `تقویم کشت و داشت ${name} ${city} تاریخ کاشت آبیاری کود برداشت`.trim()),
+        webSearch(env, `تقویم کشت و داشت ${name} ${province} ${city} تاریخ کاشت آبیاری کود برداشت`.trim()),
         city ? weatherBrief(city) : Promise.resolve(null),
       ]);
       const evidence = [
@@ -855,7 +935,7 @@ export default {
 فقط JSON معتبر با این ساختار برگردان (هیچ متن دیگری ننویس):
 {"relevant":true,"name":"نام محصول","summary":"جمع‌بندی دو جمله‌ای","sowing":"پنجره کاشت با ماه شمسی و اقلیم","harvestDays":عدد,"waterMm":عدد,"fertilizer":"برنامه کوددهی خلاصه و دقیق","irrigation":"نکات آبیاری و فاصله","tasks":[{"day":0,"kind":"prep|planting|fertilizer|spray|irrigation|harvest","title":"کوتاه","detail":"دستور دقیق"}],"risks":["ریسک و راه پیشگیری"],"confidence":"بالا|متوسط"}
 قواعد: ۶ تا ۱۰ وظیفه با day نسبت به کاشت؛ عددها برای هر هکتار و بازه منطقی؛ اگر نام محصول کشاورزی نیست relevant را false و reason فارسی بده؛ از داده‌های بالا برای تاریخ و بارش استفاده کن؛ چیزی که مطمئن نیستی نساز.`;
-      const user = `محصول: ${name}\nشهر: ${city || "نامشخص"}\nاقلیم: ${climate || "نامشخص"}\nامروز: ${body?.today || ""}\n\n${evidence}`;
+      const user = `محصول: ${name}\nاستان: ${province || "نامشخص"}\nشهر: ${city || "نامشخص"}\nاقلیم: ${climate || "نامشخص"}\nامروز: ${body?.today || ""}\n\n${evidence}`;
       const result = await complete(env, {
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         response_format: { type: "json_object" },
@@ -947,7 +1027,7 @@ export default {
     let searchBlock = "";
     const city = context?.profile?.city;
     const wantsWeather = WEATHER_HINTS.test(message);
-    const places = wantsWeather ? placeCandidates(message, city) : [];
+    const places = wantsWeather ? placeCandidates(message, knownPlaceIn(message, city)) : [];
     if (!isAction && ["crops", "trade", "assistant"].includes(section) && (SEARCH_HINTS.test(message) || wantsWeather)) {
       const [weather, found] = await Promise.all([
         wantsWeather && places.length ? weatherBriefFor(places) : Promise.resolve(null),
@@ -996,6 +1076,9 @@ export default {
 
     const result = await complete(env, payload, { requirePersian: true });
     if (!result.text) {
+      if (section === "crops" && !isAction) {
+        return json({ ok: true, mode: "text", text: localCropAnswer(message, city), engine: "local-fallback", identity: "کشاورزیار" });
+      }
       return json({ ok: false, error: ALL_KEYS_FAILED, code: "ALL_KEYS_FAILED", detail: result.errors }, 502);
     }
 

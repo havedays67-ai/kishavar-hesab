@@ -12,7 +12,6 @@ import { useProfile } from "../lib/profile";
 import {
   CROPS,
   planCrop,
-  rankCrops,
   type ClimateZone,
   type CropId,
   type FarmProfile,
@@ -25,6 +24,7 @@ import { scoreCatalog } from "../lib/agronomy/crop-catalog";
 import { guessClimate } from "../lib/agronomy/region";
 import { checkProfile } from "../lib/profile-check";
 import { verifyProfilePlace } from "../lib/ai/place-check";
+import { askCloud } from "../lib/ai/cloud-chat";
 
 const CLIMATE_LABELS: Record<ClimateZone, string> = {
   cold: "سرد",
@@ -163,6 +163,7 @@ export function CropPlanPage() {
   const [assistantStatus, setAssistantStatus] = useState("");
   const [locationDeclined, setLocationDeclined] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [aiBrief, setAiBrief] = useState<{ state: "idle" | "loading" | "ready" | "error"; text: string }>({ state: "idle", text: "" });
 
   const crop = CROPS[cropId];
   const productValue = productMode === "other" ? otherName : crop.name.startsWith("گندم") ? "گندم" : crop.name;
@@ -200,6 +201,28 @@ export function CropPlanPage() {
     }
   }
 
+  async function requestAiBrief() {
+    setAiBrief((current) => (current.state === "loading" ? current : { state: "loading", text: "" }));
+    const monthName = JALALI_MONTHS[Math.max(0, Math.min(11, todayJalali().jm - 1))];
+    const where = [profile.province, profile.city].filter(Boolean).join("، ") || "ایران";
+    const message = [
+      `زمین من در ${where} است؛ ${toPersianDigits(areaHa)} هکتار، اقلیم ${CLIMATE_LABELS[climate]}، خاک ${SOIL_LABELS[soil]}، منبع آب ${WATER_LABELS[waterSource]}.`,
+      `الان ${monthName} است.`,
+      "برای همین زمین و همین ماه، بهترین محصولات برای کشت کدام‌اند و چرا؟",
+      "فقط محصولاتی را بگو که کاشتشان در همین پنجرهٔ زمانی منطقی است؛ گزینه‌های خارج از فصل را کنار بگذار.",
+      "پاسخ کوتاه، فارسی و عملی باشد و اگر داده کم است، همان را بگو.",
+    ].join(" ");
+    const result = await askCloud({
+      message,
+      section: "crops",
+      mode: "text",
+      history: [],
+      context: { today: formatJalali(todayJalali(), "long"), profile: { city: profile.city } },
+    });
+    if (result.ok && result.mode === "text") setAiBrief({ state: "ready", text: result.text });
+    else setAiBrief({ state: "error", text: "تحلیل آنلاین الان در دسترس نبود؛ برآورد محلی پایین نمایش داده می‌شود." });
+  }
+
   async function beginAnalysis() {
     if (verifying) return;
     setVerifying(true);
@@ -228,6 +251,7 @@ export function CropPlanPage() {
     setAnalyzed(true);
     announceReasoning(true);
     setVerifying(false);
+    void requestAiBrief();
   }
 
   async function runResearch() {
@@ -237,7 +261,7 @@ export function CropPlanPage() {
       setResearchState("error");
       return;
     }
-    const cached = cachedCropInsight(name);
+    const cached = cachedCropInsight(name, { city: profile.city, province: profile.province, climate, today: formatJalali(todayJalali(), "long") });
     if (cached) {
       setPendingInsight(cached);
       setResearchState("ready");
@@ -250,6 +274,7 @@ export function CropPlanPage() {
     announceReasoning(false);
     const result = await researchCrop(name, {
       city: profile.city,
+      province: profile.province,
       climate: CLIMATE_LABELS[climate],
       today: formatJalali(todayJalali(), "long"),
     });
@@ -267,7 +292,7 @@ export function CropPlanPage() {
   }
 
   const farm: FarmProfile = {
-    region: profile.city || "منطقهٔ شما",
+    region: [profile.city, profile.province].filter(Boolean).join("، ") || "منطقهٔ شما",
     climate,
     areaHa: Math.max(0.1, areaHa),
     soil,
@@ -275,7 +300,7 @@ export function CropPlanPage() {
     season: "autumn",
   };
 
-  const plan = useMemo(() => planCrop(cropId, farm), [cropId, climate, soil, waterSource, areaHa, profile.city]);
+  const plan = useMemo(() => planCrop(cropId, farm), [cropId, climate, soil, waterSource, areaHa, profile.city, profile.province]);
   const season = useMemo(() => {
     const date = planting ?? todayJalali();
     const schedule = CROP_SCHEDULES[cropId];
@@ -286,8 +311,7 @@ export function CropPlanPage() {
     });
   }, [cropId, crop, areaHa, planting]);
 
-  const ranked = useMemo(() => rankCrops(farm), [climate, soil, waterSource, areaHa, profile.city]);
-  const catalog = useMemo(() => scoreCatalog(farm), [climate, soil, waterSource, areaHa, profile.city]);
+  const catalog = useMemo(() => scoreCatalog(farm, todayJalali().jm), [climate, soil, waterSource, areaHa, profile.city, profile.province]);
   const filteredCatalog = useMemo(() => {
     const query = catalogQuery.trim();
     return query ? catalog.filter((item) => `${item.name} ${item.category}`.includes(query)) : catalog;
@@ -404,38 +428,49 @@ export function CropPlanPage() {
       )}
 
       <div className={cn("space-y-4", !analyzed && "hidden")}>
+      <section className="glass rounded-[22px] border border-mint-300/20 p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> تحلیل کشاورزیار برای زمین شما</h2>
+          <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">بر پایهٔ منطقه، ماه و دادهٔ زنده</span>
+        </div>
+        {aiBrief.state === "loading" ? (
+          <p className="flex items-center gap-2 text-[8px] leading-4 text-mint-300"><Loader2 className="h-3 w-3 animate-spin" /> کشاورزیار دارد منطقه، فصل و گزینه‌های کشت را بررسی می‌کند…</p>
+        ) : aiBrief.state === "ready" ? (
+          <p className="whitespace-pre-line text-[9px] leading-5 text-[#dcebe2]">{aiBrief.text}</p>
+        ) : aiBrief.state === "error" ? (
+          <p className="text-[8px] leading-4 text-[#e3d39a]">{aiBrief.text}</p>
+        ) : (
+          <p className="text-[8px] leading-4 text-[#93ad9f]">با زدن «تحلیل زمین»، استدلال زندهٔ کشاورزیار برای همین منطقه و ماه اینجا نمایش داده می‌شود.</p>
+        )}
+      </section>
+
       <section className="glass rounded-[22px] p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> چه بکارم؟ — ۳ پیشنهاد برتر زمین شما</h2>
-            <p className="mt-0.5 text-[8px] text-[#78968a]">بر پایهٔ اقلیم {CLIMATE_LABELS[climate]}، خاک {SOIL_LABELS[soil]}، منبع {WATER_LABELS[waterSource]} و {toPersianDigits(areaHa)} هکتار.</p>
+            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> چه بکارم؟ — ۳ پیشنهاد برتر بر پایهٔ منطقه، ماه و زمین</h2>
+            <p className="mt-0.5 text-[8px] text-[#78968a]">بر پایهٔ منطقه، ماه {JALALI_MONTHS[Math.max(0, Math.min(11, todayJalali().jm - 1))]}، اقلیم {CLIMATE_LABELS[climate]}، خاک {SOIL_LABELS[soil]}، منبع {WATER_LABELS[waterSource]} و {toPersianDigits(areaHa)} هکتار؛ همه از فهرست کامل {toPersianDigits(catalog.length)} محصول.</p>
           </div>
           <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">کِی بکارم؟ {bestWindow.label}</span>
         </div>
         <div className="grid gap-2 md:grid-cols-3">
-          {ranked.map((item, index) => (
+          {catalog.slice(0, 3).map((item, index) => (
             <button
-              key={item.crop.id}
+              key={item.name}
               type="button"
-              onClick={() => setCropId(item.crop.id)}
-              className={cn("rounded-xl border p-2.5 text-right transition", item.crop.id === cropId ? "border-mint-300/40 bg-mint-300/[0.07]" : "border-white/[0.06] hover:border-white/15")}
+              onClick={() => chooseProduct(item.name)}
+              className={cn("rounded-xl border p-2.5 text-right transition", productValue === item.name ? "border-mint-300/40 bg-mint-300/[0.07]" : "border-white/[0.06] hover:border-white/15")}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-semibold text-white">{toPersianDigits(index + 1)}. {item.crop.name}</span>
+                <span className="text-[9px] font-semibold text-white">{toPersianDigits(index + 1)}. {item.name}</span>
                 <span className={cn("rounded px-1.5 py-0.5 text-[7px]", item.score >= 75 ? "bg-mint-300/10 text-mint-300" : item.score >= 50 ? "bg-sand-300/10 text-sand-300" : "bg-[#f87171]/10 text-[#f0a59a]")}>{toPersianDigits(item.score)}</span>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
                 <div className={cn("h-full rounded-full", item.score >= 75 ? "bg-mint-400" : item.score >= 50 ? "bg-sand-300" : "bg-[#f0a59a]")} style={{ width: `${Math.max(4, item.score)}%` }} />
               </div>
               <p className="mt-1.5 text-[7px] leading-4 text-[#93ad9f]">کاشت: {item.window}</p>
-              <p className="text-[7px] leading-4 text-[#93ad9f]">آب: {toPersianDigits(item.water.needM3.toLocaleString("en-US"))} م³</p>
-              <p className="mt-1 text-[7px] text-[#6f8c7f]">{item.crop.id === cropId ? <span className="text-mint-300">همین حالا انتخاب شده</span> : "برای دیدن تقویم کامل، بزن"}</p>
+              <p className="mt-1 text-[7px] leading-4 text-[#78968a]">{item.note}</p>
+              <p className="mt-1 text-[7px] text-[#6f8c7f]">{productValue === item.name ? <span className="text-mint-300">همین حالا انتخاب شده</span> : "برای دیدن تحلیل و تقویم، بزن"}</p>
             </button>
-          ))}
-        </div>
-        <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
-          {ranked.map((item) => (
-            <p key={`why-${item.crop.id}`} className="flex items-start gap-1 text-[7px] leading-4 text-[#78968a]"><CircleCheck className="mt-0.5 h-2.5 w-2.5 shrink-0 text-mint-300/70" />{item.crop.name}: {item.verdict} — {item.factors[0]?.detail ?? ""}</p>
           ))}
         </div>
       </section>
@@ -634,7 +669,7 @@ export function CropPlanPage() {
         open={rescueOpen}
         personalIssue={checkProfile(profile).personalIssue}
         onClose={() => setRescueOpen(false)}
-        onReject={() => { setRescueOpen(false); setLocationDeclined(true); setAnalyzed(true); announceReasoning(true); }}
+        onReject={() => { setRescueOpen(false); setLocationDeclined(true); setAnalyzed(true); announceReasoning(true); void requestAiBrief(); }}
         onResolved={(place) => {
           const province = place.province || profile.province;
           const city = place.city || place.village || profile.city;
@@ -644,6 +679,7 @@ export function CropPlanPage() {
           setRescueOpen(false);
           setAnalyzed(true);
           announceReasoning(true);
+          void requestAiBrief();
         }}
       />
     </div>

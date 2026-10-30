@@ -67,7 +67,7 @@ export const CROPS: Record<CropId, CropSpec> = {
   "wheat-irrigated": {
     id: "wheat-irrigated",
     name: "گندم آبی",
-    windows: { cold: "مهر تا نیمهٔ آبان", temperate: "آبان تا آذر", warm: "آذر تا دی", dry: "آبان تا آذر", humid: "آذر تا دی" },
+    windows: { cold: "مهر تا نیمهٔ آبان", temperate: "آبان تا آذر", warm: "آذر تا دی", dry: "آبان تا آذر", humid: "آبان تا آذر" },
     waterNeedMm: 550,
     maxEc: 6,
     soils: ["loam", "clay"],
@@ -97,7 +97,7 @@ export const CROPS: Record<CropId, CropSpec> = {
   barley: {
     id: "barley",
     name: "جو",
-    windows: { cold: "مهر تا آبان", temperate: "آبان تا آذر", warm: "آذر", dry: "آبان", humid: "آذر" },
+    windows: { cold: "مهر تا آبان", temperate: "آبان تا آذر", warm: "آذر", dry: "آبان", humid: "آبان تا آذر" },
     waterNeedMm: 450,
     maxEc: 8,
     soils: ["loam", "clay", "sandy"],

@@ -39,7 +39,7 @@ export type CloudResult =
   | { ok: true; mode: "action"; plan: unknown; latencyMs: number }
   | { ok: false; error: string; latencyMs: number };
 
-const ATTEMPT_TIMEOUT_MS = 45_000;
+const ATTEMPT_TIMEOUT_MS = 65_000;
 
 async function attempt(endpoint: string, request: CloudRequest): Promise<CloudResult> {
   const controller = new AbortController();

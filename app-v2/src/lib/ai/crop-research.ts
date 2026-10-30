@@ -32,11 +32,12 @@ const ENDPOINTS = [
   "https://ai.tivachat-vflash-ai.ir/api/research",
   "https://kishavar-ai.indistinctiveeee.workers.dev/api/research",
 ];
-const CACHE_KEY = "kishavar.crop-research.v2";
+const CACHE_KEY = "kishavar.crop-research.v3";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 70_000;
 
 const normalizeName = (name: string) => name.trim().replace(/[يى]/g, "ی").replace(/ك/g, "ک").replace(/\u200c/g, " ").replace(/\s+/g, " ").toLowerCase();
+const normalizePlace = (value = "") => value.trim().replace(/[يى]/g, "ی").replace(/ك/g, "ک").replace(/\s+/g, " ").toLowerCase();
 
 type CacheMap = Record<string, { at: number; data: CropInsight }>;
 
@@ -51,16 +52,20 @@ function readCache(): CacheMap {
   }
 }
 
-export function cachedCropInsight(name: string): CropInsight | null {
-  const hit = readCache()[normalizeName(name)];
+function cacheKey(name: string, options: { city?: string; province?: string; climate?: string; today?: string } = {}): string {
+  return [normalizeName(name), normalizePlace(options.province), normalizePlace(options.city), normalizePlace(options.climate), String(options.today ?? "").slice(0, 10)].join("|");
+}
+
+export function cachedCropInsight(name: string, options: { city?: string; province?: string; climate?: string; today?: string } = {}): CropInsight | null {
+  const hit = readCache()[cacheKey(name, options)];
   if (!hit || !hit.data || Date.now() - Number(hit.at || 0) > MAX_AGE_MS) return null;
   return hit.data;
 }
 
-function writeCache(name: string, data: CropInsight) {
+function writeCache(name: string, data: CropInsight, options: { city?: string; province?: string; climate?: string; today?: string } = {}) {
   try {
     const map = readCache();
-    map[normalizeName(name)] = { at: Date.now(), data };
+    map[cacheKey(name, options)] = { at: Date.now(), data };
     const keys = Object.keys(map);
     if (keys.length > 24) keys.slice(0, keys.length - 24).forEach((key) => delete map[key]);
     localStorage.setItem(CACHE_KEY, JSON.stringify(map));
@@ -71,12 +76,12 @@ function writeCache(name: string, data: CropInsight) {
 
 export async function researchCrop(
   name: string,
-  options: { city?: string; climate?: string; today?: string; force?: boolean } = {},
+  options: { city?: string; province?: string; climate?: string; today?: string; force?: boolean } = {},
 ): Promise<CropResearchResult> {
   const clean = name.trim().slice(0, 80);
   if (clean.length < 2) return { ok: false, kind: "irrelevant", message: "نام محصول را کامل بنویس." };
   if (!options.force) {
-    const cached = cachedCropInsight(clean);
+    const cached = cachedCropInsight(clean, options);
     if (cached) return { ok: true, data: cached, cached: true };
   }
   let lastError = "";
@@ -87,7 +92,7 @@ export async function researchCrop(
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: clean, city: options.city ?? "", climate: options.climate ?? "", today: options.today ?? "" }),
+        body: JSON.stringify({ name: clean, city: options.city ?? "", province: options.province ?? "", climate: options.climate ?? "", today: options.today ?? "" }),
         signal: controller.signal,
         cache: "no-store",
       });
@@ -117,7 +122,7 @@ export async function researchCrop(
         lastError = "تقویم خالی برگشت";
         continue;
       }
-      writeCache(clean, insight);
+      writeCache(clean, insight, options);
       return { ok: true, data: insight, cached: false };
     } catch (error) {
       lastError = error instanceof Error && error.name === "AbortError" ? "زمان انتظار تمام شد" : String(error);
