@@ -32,6 +32,8 @@ export interface CloudRequest {
   mode?: "auto" | "text" | "action";
   image?: string;
   context?: { today?: string; parties?: CloudPartyFact[]; profile?: { city?: string } };
+  /** درخواست نیمه‌کارهٔ قبلی؛ برای اینکه پاسخ بعدی «متن آزاد» نشود و همان کنش ادامه یابد. */
+  pending?: { question: string };
 }
 
 export type CloudResult =
@@ -56,7 +58,8 @@ async function attempt(endpoint: string, request: CloudRequest): Promise<CloudRe
         mode: request.mode ?? "auto",
         image: request.image,
         context: request.context,
-        maxTokens: 700,
+        pending: request.pending,
+        maxTokens: 1000,
       }),
       signal: controller.signal,
       cache: "no-store",

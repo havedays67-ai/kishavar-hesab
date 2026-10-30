@@ -24,7 +24,9 @@ export async function requestNotificationPermission(): Promise<PermissionState> 
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
       const status = await LocalNotifications.requestPermissions();
-      return status.display === "granted" ? "granted" : "denied";
+      if (status.display === "granted") return "granted";
+      if (status.display === "denied") return "denied";
+      return "prompt";
     } catch {
       return "unavailable";
     }
@@ -43,7 +45,8 @@ export async function checkLocationPermission(): Promise<PermissionState> {
       const { Geolocation } = await import("@capacitor/geolocation");
       const status = await Geolocation.checkPermissions();
       if (status.location === "granted" || status.coarseLocation === "granted") return "granted";
-      return status.location === "denied" ? "denied" : "prompt";
+      if (status.location === "denied" || status.coarseLocation === "denied") return "denied";
+      return "prompt";
     } catch {
       return "unavailable";
     }
@@ -66,7 +69,8 @@ export async function requestLocationPermission(): Promise<PermissionState> {
       const { Geolocation } = await import("@capacitor/geolocation");
       const status = await Geolocation.requestPermissions();
       if (status.location === "granted" || status.coarseLocation === "granted") return "granted";
-      return status.location === "denied" ? "denied" : "prompt";
+      if (status.location === "denied" || status.coarseLocation === "denied") return "denied";
+      return "prompt";
     } catch {
       return "unavailable";
     }

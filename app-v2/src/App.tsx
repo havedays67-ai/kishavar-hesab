@@ -156,6 +156,13 @@ export default function App() {
   const [rentPayments, setRentPayments] = useState<RentPaymentRecord[]>(() => loadList(STORAGE_RENTS, []));
   const [signatures, setSignatures] = useState<LeaseSignature[]>(() => loadList(STORAGE_SIGNATURES, []));
   const [activeDocument, setActiveDocument] = useState<DocumentSpec | null>(null);
+  const [autoPrintDocument, setAutoPrintDocument] = useState(false);
+  const [autoShareDocument, setAutoShareDocument] = useState(false);
+  const openDocument = (spec: DocumentSpec, action: "open" | "print" | "share" = "open") => {
+    setAutoPrintDocument(action === "print");
+    setAutoShareDocument(action === "share");
+    setActiveDocument(spec);
+  };
   const documents = buildDocumentRegistry(trades, contracts, plots, ledger.cheques);
   const { audit } = useSignatures();
   const health = useMemo(() => {
@@ -233,25 +240,26 @@ export default function App() {
 
   const updateLedger = (patch: Partial<LedgerState>) => setLedger((current) => ({ ...current, ...patch }));
 
-  const addPartyAccount = (party: DebtParty) => updateLedger({ parties: [party, ...ledger.parties] });
-  const updatePartyAccount = (party: DebtParty) => updateLedger({ parties: ledger.parties.map((row) => (row.id === party.id ? party : row)) });
+  const addPartyAccount = (party: DebtParty) => setLedger((current) => ({ ...current, parties: [party, ...current.parties] }));
+  const updatePartyAccount = (party: DebtParty) => setLedger((current) => ({ ...current, parties: current.parties.map((row) => (row.id === party.id ? party : row)) }));
   const deletePartyAccount = (id: string) => {
     removeReceiptsForRecord("party", id);
     // رسیدهای هر پرداخت هم باید با حذف طرف‌حساب پاک شوند، وگرنه فایل بی‌صاحب می‌ماند.
     ledger.payments.filter((payment) => payment.partyId === id).forEach((payment) => removeReceiptsForRecord("party-payment", payment.id));
-    updateLedger({
-      parties: ledger.parties.filter((party) => party.id !== id),
-      payments: ledger.payments.filter((payment) => payment.partyId !== id),
-    });
+    setLedger((current) => ({
+      ...current,
+      parties: current.parties.filter((party) => party.id !== id),
+      payments: current.payments.filter((payment) => payment.partyId !== id),
+    }));
   };
-  const addPartyPayment = (payment: PartyPayment) => updateLedger({ payments: [payment, ...ledger.payments] });
+  const addPartyPayment = (payment: PartyPayment) => setLedger((current) => ({ ...current, payments: [payment, ...current.payments] }));
   const deletePartyPayment = (id: string) => {
     removeReceiptsForRecord("party-payment", id);
     updateLedger({ payments: ledger.payments.filter((payment) => payment.id !== id) });
   };
 
-  const addEntry = (entry: FinanceEntry) => updateLedger({ entries: [entry, ...ledger.entries] });
-  const updateEntry = (entry: FinanceEntry) => updateLedger({ entries: ledger.entries.map((row) => (row.id === entry.id ? entry : row)) });
+  const addEntry = (entry: FinanceEntry) => setLedger((current) => ({ ...current, entries: [entry, ...current.entries] }));
+  const updateEntry = (entry: FinanceEntry) => setLedger((current) => ({ ...current, entries: current.entries.map((row) => (row.id === entry.id ? entry : row)) }));
   const deleteEntry = (id: string) => {
     removeReceiptsForRecord("debt", id);
     updateLedger({ entries: ledger.entries.filter((entry) => entry.id !== id) });
@@ -329,7 +337,7 @@ export default function App() {
       <FirstRunPermissions />
       <AppShell page={page} onNavigate={navigate} notifications={importantTopics(health.insights)}>
         {page === "dashboard" && (
-          <DashboardPage contracts={contracts} trades={trades} plots={plots} health={health} onNavigate={navigate} onOpenDocument={setActiveDocument} />
+          <DashboardPage contracts={contracts} trades={trades} plots={plots} health={health} onNavigate={navigate} onOpenDocument={openDocument} />
         )}
         {page === "trade" && (
           <TradePage
@@ -341,7 +349,7 @@ export default function App() {
               setTrades((current) => current.filter((trade) => trade.id !== id));
             }}
             onUpdateTrade={(id, patch) => setTrades((current) => current.map((trade) => (trade.id === id ? { ...trade, ...patch } : trade)))}
-            onOpenDocument={setActiveDocument}
+            onOpenDocument={openDocument}
           />
         )}
         {page === "quick-sale" && <QuickSalePage />}
@@ -361,7 +369,7 @@ export default function App() {
               setContracts((current) => current.filter((contract) => contract.id !== id));
             }}
             onDeleteSignature={(id) => setSignatures((current) => current.filter((signature) => signature.id !== id))}
-            onOpenDocument={setActiveDocument}
+            onOpenDocument={openDocument}
           />
         )}
         {page === "crop-plan" && <CropPlanPage />}
@@ -374,7 +382,7 @@ export default function App() {
               setPlots((current) => current.filter((plot) => plot.id !== id));
             }}
             onUpdatePlot={(plot) => setPlots((current) => current.map((row) => (row.id === plot.id ? plot : row)))}
-            onOpenDocument={setActiveDocument}
+            onOpenDocument={openDocument}
           />
         )}
         {page === "finance" && (
@@ -422,11 +430,11 @@ export default function App() {
           />
         )}
         {page === "documents" && (
-          <DocumentsPage trades={trades} contracts={contracts} plots={plots} onOpenDocument={setActiveDocument} />
+          <DocumentsPage trades={trades} contracts={contracts} plots={plots} onOpenDocument={openDocument} />
         )}
         {page === "receipts" && <ReceiptsPage />}
         {page === "reports" && (
-          <ReportsPage trades={trades} plots={plots} contracts={contracts} health={health} onOpenDocument={setActiveDocument} onNavigateTrade={() => navigate("trade")} ledger={ledger} />
+          <ReportsPage trades={trades} plots={plots} contracts={contracts} health={health} onOpenDocument={openDocument} onNavigateTrade={() => navigate("trade")} ledger={ledger} />
         )}
         {page === "backup" && (
           <BackupPage
@@ -442,7 +450,7 @@ export default function App() {
             signatures={signatures}
             onRestore={restore}
             onReset={resetAll}
-            onOpenDocument={setActiveDocument}
+            onOpenDocument={openDocument}
             onNavigate={navigate}
           />
         )}
@@ -452,7 +460,7 @@ export default function App() {
       </AppShell>
 
       {activeDocument && (
-        <DocumentDialog spec={activeDocument} onClose={() => setActiveDocument(null)} />
+        <DocumentDialog spec={activeDocument} autoPrint={autoPrintDocument} autoShare={autoShareDocument} onClose={() => { setActiveDocument(null); setAutoPrintDocument(false); setAutoShareDocument(false); }} />
       )}
     </>
   );

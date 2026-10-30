@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import {
@@ -196,10 +196,14 @@ export function DocumentDialog({
   spec,
   onClose,
   onPrint,
+  autoPrint = false,
+  autoShare = false,
 }: {
   spec: DocumentSpec;
   onClose: () => void;
   onPrint?: () => void;
+  autoPrint?: boolean;
+  autoShare?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [zoom, setZoom] = useState<"fit" | "large">("fit");
@@ -276,6 +280,8 @@ export function DocumentDialog({
     setStatus({ tone: outcome === "failed" ? "err" : "ok", text: shareOutcomeMessage(outcome, "link") });
   };
 
+  const autoPrinted = useRef(false);
+  const autoShared = useRef(false);
   const printNow = async () => {
     onPrint?.();
     if (busy) return;
@@ -287,6 +293,33 @@ export function DocumentDialog({
     if (result.url && result.filename) setDirectFile({ url: result.url, filename: result.filename });
     setStatus({ tone: result.ok ? "ok" : "err", text: result.message });
   };
+
+  const sharePdfNow = async () => {
+    setBusy("pdf");
+    setStatus({ tone: "info", text: "در حال ساخت فایل سند برای ارسال…" });
+    const result = await deliverDocumentPdf(document.getElementById("print-root"), spec.serial);
+    setBusy(null);
+    if (result.url && result.filename) setDirectFile({ url: result.url, filename: result.filename });
+    setStatus({ tone: result.ok ? "ok" : "err", text: result.ok ? "فایل سند ساخته شد و پنجرهٔ ارسال/ذخیره باز شد." : result.message });
+  };
+
+  useEffect(() => {
+    if (!autoShare || autoShared.current) return;
+    autoShared.current = true;
+    const timer = window.setTimeout(() => { void sharePdfNow(); }, 600);
+    return () => window.clearTimeout(timer);
+    // ارسال خودکار فقط یک بار و به‌درخواست کنش کشاورزیار
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoShare]);
+
+  useEffect(() => {
+    if (!autoPrint || autoPrinted.current) return;
+    autoPrinted.current = true;
+    const timer = window.setTimeout(() => { void printNow(); }, 500);
+    return () => window.clearTimeout(timer);
+    // چاپ خودکار فقط یک بار و به‌درخواست کنش کشاورزیار
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrint]);
 
   return createPortal(
     <div className="doc-overlay fixed inset-0 z-[100] flex flex-col bg-[#07110d]/95" role="dialog" aria-modal="true" aria-label={`پیش‌نمایش ${spec.meta.title}`}>

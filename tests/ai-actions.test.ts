@@ -62,6 +62,26 @@ describe("کنش‌های دستیار — برنامهٔ کامل", () => {
     expect(parseActionPlan(JSON.stringify({ say: "زیاد", actions })).ok).toBe(false);
   });
 
+  it("کنش معتبر را به‌خاطر یک کنش خراب از دست نمی‌دهد", () => {
+    const result = parseActionPlan(JSON.stringify({
+      say: "ثبت",
+      actions: [
+        { type: "entry.add", kind: "expense", amount: 500000, reason: "کود" },
+        { type: "party.create", name: "<bad>", kind: "debtor", amount: 1000, reason: "طلب" },
+      ],
+    }));
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions).toHaveLength(1);
+    expect(result.plan?.actions[0].type).toBe("entry.add");
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it("باز کردن آخرین رسید را بدون شناسه می‌پذیرد", () => {
+    const result = parseActionPlan(JSON.stringify({ say: "رسیدها", actions: [{ type: "receipt.open", target: "last" }] }));
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions[0]).toMatchObject({ type: "receipt.open", target: "last" });
+  });
+
   it("سؤال روشن‌کننده بدون کنش پذیرفته می‌شود", () => {
     const result = parseActionPlan('{"say":"","question":"چند هکتار دارید؟","actions":[]}');
     expect(result.ok).toBe(true);

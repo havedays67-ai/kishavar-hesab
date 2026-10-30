@@ -70,6 +70,7 @@ const ACTION_RULES = `
 - {"type":"document.create","docType":"party-statement","partyId":"شناسهٔ طرف‌حساب","title":"عنوان اختیاری"}
 - {"type":"document.print","docType":"party-statement","id":"شناسهٔ اختیاری"}
 - {"type":"document.send","docType":"party-statement","id":"شناسهٔ اختیاری"}
+- {"type":"receipt.open","target":"last"}
 - {"type":"receipt.send","target":"last"}
 - {"type":"signature.request","title":"عنوان سند","note":"توضیح کوتاه","signerRole":"counterparty"}
 - {"type":"navigate","page":"documents"}
@@ -77,7 +78,7 @@ const ACTION_RULES = `
 فیلدها را تخت بنویس؛ هیچ فیلد تو در تو («params») نساز.
 docType فقط یکی از: sale-contract, weigh-ticket, quality-minutes, sale-invoice, settlement, lease-contract, lease-receipt, lease-handover, trades-report, cost-report, party-statement, finance-report, inventory-report, cheque-sheet
 kind فقط debtor یا creditor؛ method فقط cash یا bank یا cheque یا card؛ entry kind فقط income یا expense.
-page فقط یکی از: dashboard, trade, parties, documents, receipts, signatures, reports, inventory, crops, rentals, finance.
+page فقط یکی از: dashboard, trade, parties, documents, receipts, signatures, reports, inventory, crops, rentals, finance, backup.
 قواعد سخت:
 - حداکثر ۳ کنش. اگر اطلاعات لازم نیست، جای حدس زدن در question یک سؤال کوتاه بپرس و actions را خالی بگذار.
 - مبلغ را فقط اگر کاربر گفته است بگذار؛ هرگز از خودت نساز.
@@ -91,7 +92,7 @@ const ALL_KEYS_FAILED =
   "ظرفیت پاسخ‌دهی الان پر است؛ لطفاً چند دقیقه بعد دوباره بپرسید. کشاورزیار همین‌جاست.";
 
 const ACTION_HINTS =
-  /(ثبت|اضافه|وارد کن|بزن|بنویس|درست کن|ایجاد کن|بساز|صادر کن|پرداخت|بدهکار|بستانکار|هزینه|درآمد|قرض|سند|رسید|امضا|چاپ|بفرست|ارسال)/;
+  /(ثبت|اضافه|وارد کن|بزن|بنویس|درست کن|ایجاد کن|بساز|صادر کن|پرداخت|طلب|طلبکار|بدهی|بدهکار|بستانکار|هزینه|درآمد|قرض|سند|رسید|امضا|چاپ|بفرست|ارسال|فرم امضا|کادر امضا)/;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -669,6 +670,124 @@ async function complete(env, payload, { requirePersian = true, deadlineMs = 38_0
   return { text: "", engine: "none", errors };
 }
 
+/** تبدیل رقم فارسی/کلمه‌ای به تومان؛ فقط وقتی کاربر صریحاً مبلغ گفته است. */
+function localAmount(text) {
+  const normalized = String(text ?? "")
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[,\u060c]/g, "");
+  const match = normalized.match(/(\d+(?:\.\d+)?)\s*(میلیارد|میلیون|هزار|تومان)?/);
+  if (!match) return 0;
+  let value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const unit = match[2] || "";
+  if (unit === "میلیارد") value *= 1_000_000_000;
+  else if (unit === "میلیون") value *= 1_000_000;
+  else if (unit === "هزار") value *= 1_000;
+  if (value < 1000) value *= 1_000; // «۵» در جملهٔ «۵ میلیون» قبلاً واحد گرفته؛ «۵۰۰» یعنی ۵۰۰ هزار.
+  return Math.round(Math.min(value, 100_000_000_000));
+}
+
+function localText(text) {
+  return String(text ?? "").replace(/[\u200c]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** کنش‌های روشن و پرتکرار را بدون مدل می‌سازد؛ آخرین سنگر برای وقتی ظرفیت مدل پر است. */
+function localActionPlan(message, context = {}, history = []) {
+  const current = localText(message);
+  const previous = history
+    .filter((turn) => turn && turn.role === "user" && typeof turn.content === "string")
+    .slice(-3)
+    .map((turn) => localText(turn.content))
+    .join(" ، ");
+  const text = `${previous} ، ${current}`;
+  const amount = localAmount(current) || localAmount(previous);
+  const wantsDebt = /(طلب|طلبکار|بدهی|بدهکار|بستانکار|قرض)/.test(text)
+    || (/بابت/.test(current) && /(ثبت|وارد|اضافه|بنویس)/.test(current) && !/(هزینه|درآمد)/.test(current));
+  const wantsEntry = /(هزینه|درآمد)/.test(current) && !wantsDebt;
+  const wantsSignature = /(امضا|کادر امضا|فرم امضا)/.test(current);
+  const wantsDocument = /(سند|صورت‌حساب|قرارداد|فاکتور|چاپ)/.test(current);
+  const wantsReceipt = /(رسید)/.test(current);
+
+  if (!amount && !wantsDebt && !wantsEntry && !wantsSignature && !wantsDocument && !wantsReceipt) return null;
+
+  if (wantsDebt) {
+    let name = "";
+    const fromText = text.match(/(?:از|به)\s+([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s+(?:طلب|بدهی|بدهکار|بستانکار)/);
+    if (fromText) name = fromText[1].trim();
+    if (!name) {
+      const lead = text.replace(/^\s*[،,\u060c]\s*/, "").match(/^([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s*[،,\u060c]/);
+      if (lead) name = lead[1].trim();
+    }
+    if (!name) {
+      const known = Array.isArray(context?.parties) ? context.parties.find((party) => party && text.includes(party.name)) : null;
+      if (known) name = known.name;
+    }
+    if (!name) return null;
+    const reasonMatch = text.match(/بابت\s+([^،,.]+)/);
+    const cleanReason = (value) => {
+      let out = value.trim();
+      for (let i = 0; i < 3; i += 1) out = out.replace(/\s*(ثبت|کن|بزن|وارد|اضافه)\s*$/g, "").trim();
+      return out.slice(0, 120);
+    };
+    const reason = reasonMatch ? cleanReason(reasonMatch[1]) : /بستانکار|بدهی من|باید بدهم/.test(text) ? "بدهی" : "طلب";
+    if (!amount) {
+      return { say: "", question: `مبلغ ${/بستانکار|بدهی من|باید بدهم/.test(text) ? "بدهی" : "طلب"} از «${name}» چقدر است؟`, actions: [] };
+    }
+    const kind = /(بستانکار|بدهی من|باید بدهم)/.test(text) ? "creditor" : "debtor";
+    const existing = Array.isArray(context?.parties) ? context.parties.find((party) => party && name.includes(party.name)) : null;
+    if (existing) {
+      return {
+        say: `پرداخت ${amount.toLocaleString("fa-IR")} تومانی برای ${existing.name} ثبت شد.`,
+        question: null,
+        actions: [{ type: "party.payment.add", partyId: existing.id, amount, method: "cash", note: reason }],
+      };
+    }
+    return {
+      say: `${kind === "debtor" ? "بدهکار" : "بستانکار"} «${name}» به مبلغ ${amount.toLocaleString("fa-IR")} تومان بابت ${reason} ثبت شد.`,
+      question: null,
+      actions: [{ type: "party.create", name, kind, amount, reason }],
+    };
+  }
+
+  if (wantsEntry && amount) {
+    const reasonMatch = text.match(/بابت\s+([^،,.]+)/);
+    const reason = reasonMatch ? (() => { let out = reasonMatch[1].trim(); for (let i = 0; i < 3; i += 1) out = out.replace(/\s*(ثبت|کن|بزن|وارد|اضافه)\s*$/g, "").trim(); return out.slice(0, 120); })() : /درآمد/.test(current) ? "درآمد" : "هزینه";
+    return {
+      say: `${/درآمد/.test(current) ? "درآمد" : "هزینه"} ${amount.toLocaleString("fa-IR")} تومان بابت ${reason} ثبت شد.`,
+      question: null,
+      actions: [{ type: "entry.add", kind: /درآمد/.test(current) ? "income" : "expense", amount, reason }],
+    };
+  }
+
+  if (wantsSignature && !amount) {
+    return {
+      say: "فرم مشخصات و کادر امضا باز شد؛ نام امضاکننده و امضای خود را در همان فرم کامل کن.",
+      question: null,
+      actions: [{ type: "signature.request", title: "درخواست امضای الکترونیک", signerRole: "counterparty" }],
+    };
+  }
+
+  if (wantsReceipt && /(ثبت|بفرست|ارسال|ذخیره)/.test(current)) {
+    return {
+      say: "بایگانی رسیدها باز شد؛ برای ثبت رسید جدید، تصویر رسید را در همان صفحه یا زیر رکورد مربوط بارگذاری کن.",
+      question: null,
+      actions: [{ type: "receipt.open", target: "last" }],
+    };
+  }
+
+  if (wantsDocument && /(چاپ|بفرست|ارسال)/.test(current)) {
+    const docType = /قرارداد/.test(current) ? "lease-contract" : /فاکتور/.test(current) ? "sale-invoice" : "party-statement";
+    return {
+      say: "سند مرتبط در دفتر پیدا شد؛ پیش‌نمایش و چاپ برایت باز می‌شود.",
+      question: null,
+      actions: [{ type: current.includes("چاپ") ? "document.print" : "document.send", docType }],
+    };
+  }
+
+  return null;
+}
+
 const KIND_MAP = { بدهکار: "debtor", بدهی: "debtor", debtor: "debtor", بستانکار: "creditor", طلب: "creditor", creditor: "creditor" };
 const ENTRY_MAP = { هزینه: "expense", هزینه‌کرد: "expense", expense: "expense", درآمد: "income", درامد: "income", income: "income" };
 const METHOD_MAP = { نقد: "cash", نقدی: "cash", cash: "cash", بانک: "bank", bank: "bank", چک: "cheque", cheque: "cheque", کارت: "card", card: "card" };
@@ -692,7 +811,7 @@ function clean(value, max = 160) {
 }
 
 /** یکدست‌سازی خروجی مدل به قرارداد بستهٔ کنش‌ها. */
-function normalizePlan(plan) {
+function normalizePlan(plan, message = "") {
   const raw = Array.isArray(plan?.actions) ? plan.actions.slice(0, 3) : [];
   const actions = [];
   const missing = [];
@@ -712,7 +831,13 @@ function normalizePlan(plan) {
         if (!name) missing.push("نام طرف‌حساب");
         continue;
       }
-      actions.push({ type, name, kind: KIND_MAP[String(src.kind ?? "").trim()] ?? "debtor", amount, reason });
+      const explicitKind = KIND_MAP[String(src.kind ?? "").trim()];
+      const inferredKind = /بستانکار|بدهی من|باید بدهم/.test(message) ? "creditor" : "debtor";
+      actions.push({
+        type, name, kind: explicitKind ?? inferredKind, amount, reason,
+        city: clean(src.city, 40) || undefined,
+        phone: clean(src.phone, 30) || undefined,
+      });
     } else if (type === "party.payment.add") {
       const amount = toNumber(src.amount);
       const partyId = clean(src.partyId ?? src.party, 80);
@@ -752,12 +877,17 @@ function normalizePlan(plan) {
       actions.push({ type, text: clean(src.text, 600) });
     }
   }
-  const question = clean(plan?.question, 300);
-  if (missing.length && !actions.length) {
-    const unique = [...new Set(missing)];
-    return { say: clean(plan?.say, 300), question: `برای ادامه، این‌ها را بگو: ${unique.join("، ")}؟`, actions: [] };
+  const missingUnique = [...new Set(missing)];
+  let question = clean(plan?.question, 300);
+  if (missingUnique.length) {
+    const ask = `برای ادامه، این‌ها را بگو: ${missingUnique.join("، ")}؟`;
+    question = question ? `${question} ${ask}` : ask;
   }
-  return { say: clean(plan?.say, 400), question: question || undefined, actions };
+  if (missingUnique.length && !actions.length) {
+    // هیچ چیزی ثبت نشده؛ جملهٔ «ثبت شد» مدل نباید نمایش داده شود.
+    return { say: "", question, actions: [] };
+  }
+  return { say: actions.length ? clean(plan?.say, 400) : "", question: question || undefined, actions };
 }
 
 function extractJson(text) {
@@ -832,7 +962,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 27,
+        version: 33,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
@@ -1021,7 +1151,10 @@ export default {
     const context = body?.context && typeof body.context === "object" ? body.context : {};
 
     const history = Array.isArray(body?.history) ? body.history.slice(-6) : [];
-    const maxTokens = budgetFor(section, isAction);
+    const requestedTokens = Number(body?.maxTokens);
+    const maxTokens = isAction
+      ? Math.max(900, Math.min(1200, Number.isFinite(requestedTokens) && requestedTokens > 0 ? requestedTokens : 900))
+      : Math.min(1200, Math.max(300, Number.isFinite(requestedTokens) && requestedTokens > 0 ? requestedTokens : budgetFor(section, false)));
 
     // دادهٔ روز: اول پیش‌بینی عددی بارش، بعد وب. اگر هر دو بخوابند صادقانه بگو.
     let searchBlock = "";
@@ -1055,7 +1188,11 @@ export default {
       : "";
     const profileBlock = `${context?.today ? `\n\nامروز: ${context.today}` : ""}${context?.profile?.city ? `\nمنطقهٔ کاربر: ${context.profile.city}` : ""}`;
 
-    const system = `${isAction ? AGENT_SYSTEM + "\n" + ACTION_RULES : SECTION_PROMPTS[section]}${partyBlock}${profileBlock}${searchBlock}`;
+    const pending = body?.pending && typeof body.pending === "object" ? clean(body.pending.question, 300) : "";
+    const pendingBlock = pending
+      ? `\n\nدرخواست نیمه‌کارهٔ قبلی: ${pending}\nکاربر الان جزئیات تکمیلی را می‌دهد؛ همان کنش قبلی را با اطلاعات قبلیِ گفتگو کامل کن و دوباره از اول شروع نکن.`
+      : "";
+    const system = `${isAction ? AGENT_SYSTEM + "\n" + ACTION_RULES : SECTION_PROMPTS[section]}${partyBlock}${profileBlock}${pendingBlock}${searchBlock}`;
 
     const userContent = body?.image
       ? [
@@ -1076,9 +1213,16 @@ export default {
       max_tokens: maxTokens,
     };
 
-    const result = await complete(env, payload, section === "crops" && !isAction
-      ? { requirePersian: true, deadlineMs: 52_000 }
-      : { requirePersian: true });
+    if (isAction) {
+      const local = localActionPlan(message, context, history);
+      if (local) return json({ ok: true, mode: "action", plan: local, engine: "local-action", identity: "کشاورزیار" });
+    }
+
+    const result = await complete(env, payload, isAction
+      ? { requirePersian: true, workersFirst: true, deadlineMs: 45_000 }
+      : section === "crops"
+        ? { requirePersian: true, deadlineMs: 52_000 }
+        : { requirePersian: true });
     if (!result.text) {
       if (section === "crops" && !isAction) {
         return json({ ok: true, mode: "text", text: localCropAnswer(message, city), engine: "local-fallback", identity: "کشاورزیار" });
@@ -1089,7 +1233,7 @@ export default {
     if (isAction) {
       const plan = extractJson(result.text);
       if (plan && Array.isArray(plan.actions)) {
-        return json({ ok: true, mode: "action", plan: normalizePlan(plan), identity: "کشاورزیار" });
+        return json({ ok: true, mode: "action", plan: normalizePlan(plan, message), identity: "کشاورزیار" });
       }
       // مدل JSON نداد: چیزی ثبت نمی‌شود و متن خام هم نمایش داده نمی‌شود.
       return json({

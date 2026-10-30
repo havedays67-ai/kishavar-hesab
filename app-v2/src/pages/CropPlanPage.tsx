@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, CalendarDays, CircleCheck, CloudRain, Droplets, FlaskConical, Leaf, Loader2, Search, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp, X } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatAmount } from "../lib/money-format";
-import { formatJalali, JALALI_MONTHS, toPersianDigits, todayJalali, type JDate } from "../lib/format";
+import { dateToJalali, formatJalali, JALALI_MONTHS, jalaliToDate, toPersianDigits, todayJalali, type JDate } from "../lib/format";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { SelectField, type SelectOption } from "../components/FormControls";
 import { ProductPicker } from "../components/ProductPicker";
@@ -24,7 +24,6 @@ import { scoreCatalog } from "../lib/agronomy/crop-catalog";
 import { guessClimate } from "../lib/agronomy/region";
 import { checkProfile } from "../lib/profile-check";
 import { verifyProfilePlace } from "../lib/ai/place-check";
-import { askCloud } from "../lib/ai/cloud-chat";
 
 const CLIMATE_LABELS: Record<ClimateZone, string> = {
   cold: "سرد",
@@ -142,6 +141,41 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
   );
 }
 
+type SavedCropPlan = {
+  cropId?: CropId;
+  climate?: ClimateZone;
+  soil?: SoilType;
+  waterSource?: WaterSource;
+  areaHa?: number;
+  planting?: JDate | null;
+  productMode?: "crop" | "other";
+  otherName?: string;
+  catalogQuery?: string;
+  analyzed?: boolean;
+  locationDeclined?: boolean;
+  acceptedInsight?: CropInsight | null;
+  aiBrief?: { state: "idle" | "ready" | "error"; text: string };
+};
+
+const CROP_PLAN_STORAGE = "kishavar.crop-plan.v1";
+
+function readSavedPlan(key: string): SavedCropPlan | null {
+  try {
+    const raw = localStorage.getItem(`${CROP_PLAN_STORAGE}:${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedCropPlan;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function addDays(date: JDate, days: number): JDate {
+  const base = jalaliToDate(date);
+  base.setDate(base.getDate() + days);
+  return dateToJalali(base);
+}
+
 export function CropPlanPage() {
   const { profile, saveProfile, openOnboarding } = useProfile();
   const [cropId, setCropId] = useState<CropId>("wheat-irrigated");
@@ -163,7 +197,11 @@ export function CropPlanPage() {
   const [assistantStatus, setAssistantStatus] = useState("");
   const [locationDeclined, setLocationDeclined] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const storageKey = `${profile.province || "-"}|${profile.city || "-"}`;
+  const [restored, setRestored] = useState(false);
   const [aiBrief, setAiBrief] = useState<{ state: "idle" | "loading" | "ready" | "error"; text: string }>({ state: "idle", text: "" });
+  const [aiPlan, setAiPlan] = useState<{ state: "idle" | "loading" | "ready" | "error"; data: CropInsight | null; message: string }>({ state: "idle", data: null, message: "" });
+  const planRequestRef = useRef(0);
 
   const crop = CROPS[cropId];
   const productValue = productMode === "other" ? otherName : crop.name.startsWith("گندم") ? "گندم" : crop.name;
@@ -201,27 +239,33 @@ export function CropPlanPage() {
     }
   }
 
-  async function requestAiBrief() {
-    setAiBrief((current) => (current.state === "loading" ? current : { state: "loading", text: "" }));
-    const monthName = JALALI_MONTHS[Math.max(0, Math.min(11, todayJalali().jm - 1))];
-    const where = [profile.province, profile.city].filter(Boolean).join("، ") || "ایران";
-    const message = [
-      `زمین من در ${where} است؛ ${toPersianDigits(areaHa)} هکتار، اقلیم ${CLIMATE_LABELS[climate]}، خاک ${SOIL_LABELS[soil]}، منبع آب ${WATER_LABELS[waterSource]}.`,
-      `الان ${monthName} است.`,
-      "برای همین زمین و همین ماه، بهترین محصولات برای کشت کدام‌اند و چرا؟",
-      "فقط محصولاتی را بگو که کاشتشان در همین پنجرهٔ زمانی منطقی است؛ گزینه‌های خارج از فصل را کنار بگذار.",
-      "پاسخ کوتاه، فارسی و عملی باشد و اگر داده کم است، همان را بگو.",
-    ].join(" ");
-    const result = await askCloud({
-      message,
-      section: "crops",
-      mode: "text",
-      history: [],
-      context: { today: formatJalali(todayJalali(), "long"), profile: { city: profile.city } },
-    });
-    if (result.ok && result.mode === "text") setAiBrief({ state: "ready", text: result.text });
-    else setAiBrief({ state: "error", text: "تحلیل آنلاین الان در دسترس نبود؛ برآورد محلی پایین نمایش داده می‌شود." });
+  async function requestSeasonPlan() {
+    const token = ++planRequestRef.current;
+    const name = crop.name.startsWith("گندم") ? "گندم" : crop.name;
+    const options = { city: profile.city, province: profile.province, climate, today: formatJalali(todayJalali(), "long") };
+    const cached = cachedCropInsight(name, options);
+    if (cached) {
+      if (token !== planRequestRef.current) return;
+      setAiPlan({ state: "ready", data: cached, message: "" });
+      setAiBrief({ state: "ready", text: cached.summary || `تقویم ${cached.name} بر پایهٔ منطقه و تاریخ کاشت آماده است.` });
+      setAssistantStatus(`تقویم ${cached.name} برای ${[profile.city, profile.province].filter(Boolean).join("، ") || "منطقهٔ شما"} آماده است.`);
+      return;
+    }
+    if (token !== planRequestRef.current) return;
+    setAiPlan({ state: "loading", data: null, message: "" });
+    setAssistantStatus(`کشاورزیار دارد تقویم ${name} را برای منطقه، خاک، آب و تاریخ کاشت شما استدلال می‌کند…`);
+    const result = await researchCrop(name, options);
+    if (token !== planRequestRef.current) return;
+    if (result.ok) {
+      setAiPlan({ state: "ready", data: result.data, message: "" });
+      setAiBrief({ state: "ready", text: result.data.summary || `تقویم ${result.data.name} بر پایهٔ منطقه و داده‌های زمین آماده است.` });
+      setAssistantStatus(`استدلال تقویم ${result.data.name} تمام شد؛ برنامهٔ پایین بر پایهٔ منطقه، تاریخ کاشت و داده‌های زمین است.`);
+    } else {
+      setAiPlan({ state: "error", data: null, message: result.message });
+      setAssistantStatus("استدلال آنلاین تقویم الان ممکن نشد؛ برنامهٔ محاسباتی پایه نمایش داده می‌شود.");
+    }
   }
+
 
   async function beginAnalysis() {
     if (verifying) return;
@@ -251,7 +295,6 @@ export function CropPlanPage() {
     setAnalyzed(true);
     announceReasoning(true);
     setVerifying(false);
-    void requestAiBrief();
   }
 
   async function runResearch() {
@@ -291,6 +334,50 @@ export function CropPlanPage() {
     }
   }
 
+  useEffect(() => {
+    const saved = readSavedPlan(storageKey);
+    if (saved) {
+      if (saved.cropId && CROPS[saved.cropId]) setCropId(saved.cropId);
+      if (saved.climate && CLIMATE_LABELS[saved.climate]) setClimate(saved.climate);
+      if (saved.soil && SOIL_LABELS[saved.soil]) setSoil(saved.soil);
+      if (saved.waterSource && WATER_LABELS[saved.waterSource]) setWaterSource(saved.waterSource);
+      if (typeof saved.areaHa === "number" && saved.areaHa > 0) setAreaHa(saved.areaHa);
+      if (saved.planting && typeof saved.planting === "object") setPlanting(saved.planting);
+      if (saved.productMode === "crop" || saved.productMode === "other") setProductMode(saved.productMode);
+      if (typeof saved.otherName === "string") setOtherName(saved.otherName);
+      if (typeof saved.catalogQuery === "string") setCatalogQuery(saved.catalogQuery);
+      if (saved.analyzed) {
+        setAnalyzed(true);
+        setAssistantStatus("استدلال تمام شد؛ نتیجه و امتیازها پایین آماده است.");
+      }
+      if (saved.locationDeclined) setLocationDeclined(true);
+      if (saved.acceptedInsight && Array.isArray(saved.acceptedInsight.tasks)) setAcceptedInsight(saved.acceptedInsight);
+      if (saved.aiBrief && (saved.aiBrief.state === "ready" || saved.aiBrief.state === "error")) setAiBrief(saved.aiBrief);
+    }
+    setRestored(true);
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!restored) return;
+    const payload: SavedCropPlan = {
+      cropId, climate, soil, waterSource, areaHa, planting, productMode, otherName, catalogQuery,
+      analyzed, locationDeclined, acceptedInsight,
+      aiBrief: aiBrief.state === "ready" ? { state: "ready", text: aiBrief.text } : aiBrief.state === "error" ? { state: "error", text: aiBrief.text } : { state: "idle", text: "" },
+    };
+    try {
+      localStorage.setItem(`${CROP_PLAN_STORAGE}:${storageKey}`, JSON.stringify(payload));
+    } catch {
+      /* حافظهٔ دستگاه پر است؛ صفحه همچنان کار می‌کند. */
+    }
+  }, [restored, storageKey, cropId, climate, soil, waterSource, areaHa, planting, productMode, otherName, catalogQuery, analyzed, locationDeclined, acceptedInsight, aiBrief]);
+
+  useEffect(() => {
+    if (!analyzed) return;
+    void requestSeasonPlan();
+    // عمداً فقط با تغییر تحلیل یا مشخصات زمین اجرا می‌شود؛ خود تابع وضعیت loading را کنترل می‌کند.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzed, cropId, productMode, otherName, climate, soil, waterSource, areaHa, profile.city, profile.province]);
+
   const farm: FarmProfile = {
     region: [profile.city, profile.province].filter(Boolean).join("، ") || "منطقهٔ شما",
     climate,
@@ -323,6 +410,30 @@ export function CropPlanPage() {
     const spray = season.tasks.filter((task) => task.kind === "spray");
     return { fertilizer, spray };
   }, [season]);
+
+  const aiData = aiPlan.state === "ready" && aiPlan.data ? aiPlan.data : null;
+  const aiTasks = useMemo(() => {
+    if (!aiData || aiData.tasks.length === 0) return null;
+    return aiData.tasks
+      .filter((task) => task && typeof task.day === "number" && task.kind)
+      .map((task) => ({
+        offset: Math.max(0, Math.round(task.day)),
+        date: addDays(season.planting, Math.max(0, Math.round(task.day))),
+        kind: task.kind,
+        title: task.title,
+        detail: task.detail,
+        stage: TASK_LABELS[task.kind] ?? "",
+        total: undefined as number | undefined,
+        unit: "",
+      }));
+  }, [aiData, season.planting]);
+  const displayTasks = aiTasks ?? season.tasks;
+  const displayDuration = aiData?.harvestDays && aiData.harvestDays >= 20 ? Math.round(aiData.harvestDays) : season.durationDays;
+  const displayHarvest = aiData?.harvestDays && aiData.harvestDays >= 20 ? addDays(season.planting, Math.round(aiData.harvestDays)) : season.harvest;
+  const displayWaterM3 = aiData?.waterMm && aiData.waterMm > 0 ? Math.round(aiData.waterMm * Math.max(0.1, areaHa)) : season.waterM3;
+  const displayFertilizer = aiData ? displayTasks.filter((task) => task.kind === "fertilizer") : groups.fertilizer;
+  const displaySpray = aiData ? displayTasks.filter((task) => task.kind === "spray") : groups.spray;
+  const riskItems = [...(aiData?.risks ?? []), ...plan.risks].slice(0, 5);
 
   return (
     <div className="space-y-4">
@@ -433,10 +544,26 @@ export function CropPlanPage() {
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> تحلیل کشاورزیار برای زمین شما</h2>
           <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">بر پایهٔ منطقه، ماه و دادهٔ زنده</span>
         </div>
-        {aiBrief.state === "loading" ? (
-          <p className="flex items-center gap-2 text-[8px] leading-4 text-mint-300"><Loader2 className="h-3 w-3 animate-spin" /> کشاورزیار دارد منطقه، فصل و گزینه‌های کشت را بررسی می‌کند…</p>
+        {aiPlan.state === "loading" ? (
+          <p className="flex items-center gap-2 text-[8px] leading-4 text-mint-300"><Loader2 className="h-3 w-3 animate-spin" /> کشاورزیار دارد تقویم کامل {crop.name} را برای منطقه، خاک، آب و تاریخ کاشت شما استدلال می‌کند…</p>
+        ) : aiData ? (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="rounded bg-mint-300/10 px-1.5 py-0.5 text-[7px] text-mint-300">تقویم استدلال‌شده برای {[profile.city, profile.province].filter(Boolean).join("، ") || "منطقهٔ شما"}</span>
+              <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[7px] text-[#93ad9f]">{aiData.engine === "local-fallback" ? "پاسخ پشتیبان منطقه‌ای" : "استدلال زنده با دادهٔ منطقه و تاریخ"}</span>
+            </div>
+            <p className="whitespace-pre-line text-[9px] leading-5 text-[#dcebe2]">{aiData.summary}</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-lg border border-white/[0.06] p-2"><p className="text-[7px] text-[#78968a]">پنجرهٔ کاشت</p><p className="mt-0.5 text-[8px] leading-4 text-[#dcebe2]">{aiData.sowing || "—"}</p></div>
+              <div className="rounded-lg border border-white/[0.06] p-2"><p className="text-[7px] text-[#78968a]">کوددهی</p><p className="mt-0.5 text-[8px] leading-4 text-[#dcebe2]">{aiData.fertilizer || "—"}</p></div>
+              <div className="rounded-lg border border-white/[0.06] p-2"><p className="text-[7px] text-[#78968a]">آبیاری</p><p className="mt-0.5 text-[8px] leading-4 text-[#dcebe2]">{aiData.irrigation || "—"}</p></div>
+            </div>
+            <p className="text-[7px] leading-4 text-[#78968a]">تاریخ‌های خط زمانی، کوددهی و سم‌پاشی پایین از همین استدلال و برای تاریخ کاشت {formatJalali(season.planting, "long")} ساخته شده‌اند.</p>
+          </div>
         ) : aiBrief.state === "ready" ? (
           <p className="whitespace-pre-line text-[9px] leading-5 text-[#dcebe2]">{aiBrief.text}</p>
+        ) : aiPlan.state === "error" ? (
+          <p className="text-[8px] leading-4 text-[#e3d39a]">استدلال آنلاین تقویم انجام نشد ({aiPlan.message || "خطای موقت"})؛ برنامهٔ پایین از محاسبهٔ منطقه‌ای پایه ساخته شده و «استدلال‌شده» نیست.</p>
         ) : aiBrief.state === "error" ? (
           <p className="text-[8px] leading-4 text-[#e3d39a]">{aiBrief.text}</p>
         ) : (
@@ -510,14 +637,14 @@ export function CropPlanPage() {
             <div className="min-w-0">
               <p className={cn("text-[10px] font-semibold", plan.score >= 75 ? "text-mint-300" : plan.score >= 50 ? "text-sand-300" : "text-[#f0a59a]")}>{plan.verdict}</p>
               <p className="mt-1 text-[8px] leading-4 text-[#93ad9f]">پنجرهٔ کاشت: <span className="text-[#dcebe2]">{plan.window}</span></p>
-              <p className="text-[8px] leading-4 text-[#93ad9f]">آب لازم: <span className="text-[#dcebe2]">{toPersianDigits(season.waterM3.toLocaleString("en-US"))} متر مکعب</span></p>
+              <p className="text-[8px] leading-4 text-[#93ad9f]">آب لازم: <span className="text-[#dcebe2]">{toPersianDigits(displayWaterM3.toLocaleString("en-US"))} متر مکعب</span></p>
             </div>
           </div>
           {season.windowWarning && (
             <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-[#c5b97f]/25 bg-[#c5b97f]/[0.06] px-2 py-1.5 text-[8px] leading-4 text-[#e3d39a]"><ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" />{season.windowWarning}</p>
           )}
           <div className="mt-3 space-y-1.5">
-            {plan.risks.slice(0, 3).map((risk) => <p key={risk} className="text-[8px] leading-4 text-[#a9c1b5]">• {risk}</p>)}
+            {riskItems.slice(0, 4).map((risk) => <p key={risk} className="text-[8px] leading-4 text-[#a9c1b5]">• {risk}</p>)}
           </div>
           {plan.questions.length > 0 && (
             <p className="mt-2 rounded-lg bg-white/[0.03] px-2 py-1.5 text-[8px] leading-4 text-[#93ad9f]">{plan.questions[0]}</p>
@@ -529,8 +656,8 @@ export function CropPlanPage() {
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border border-white/[0.06] p-2.5">
               <p className="mb-1 text-[8px] text-[#78968a]">طول فصل</p>
-              <p className="text-[11px] font-semibold text-white">{toPersianDigits(season.durationDays)} روز</p>
-              <p className="mt-0.5 text-[7px] text-[#6f8c7f]">برداشت: {formatJalali(season.harvest, "long")}</p>
+              <p className="text-[11px] font-semibold text-white">{toPersianDigits(displayDuration)} روز</p>
+              <p className="mt-0.5 text-[7px] text-[#6f8c7f]">برداشت: {formatJalali(displayHarvest, "long")}</p>
             </div>
             <div className="rounded-xl border border-white/[0.06] p-2.5">
               <p className="mb-1 text-[8px] text-[#78968a]">کود کل فصل</p>
@@ -548,8 +675,8 @@ export function CropPlanPage() {
             </div>
           </div>
           <div className="mt-3 space-y-2">
-            <Bar label="آب مورد نیاز فصل (متر مکعب)" value={season.waterM3} max={Math.max(season.waterM3, plan.water.availableM3 ?? 0) || 1} tone="bg-[#60a5fa]" />
-            {plan.water.availableM3 !== null && <Bar label="آب در دسترس (متر مکعب)" value={plan.water.availableM3} max={Math.max(season.waterM3, plan.water.availableM3) || 1} tone="bg-mint-400" />}
+            <Bar label="آب مورد نیاز فصل (متر مکعب)" value={displayWaterM3} max={Math.max(displayWaterM3, plan.water.availableM3 ?? 0) || 1} tone="bg-[#60a5fa]" />
+            {plan.water.availableM3 !== null && <Bar label="آب در دسترس (متر مکعب)" value={plan.water.availableM3} max={Math.max(displayWaterM3, plan.water.availableM3) || 1} tone="bg-mint-400" />}
           </div>
         </section>
       </div>
@@ -557,7 +684,7 @@ export function CropPlanPage() {
       <section className="glass rounded-[22px] p-4">
         <h2 className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sun className="h-3.5 w-3.5 text-mint-300" /> خط زمانی فصل</h2>
         <p className="mb-2 text-[8px] text-[#78968a]">هر نقطه یک عملیات است؛ رنگ = نوع کار.</p>
-        <SeasonTimeline start={season.planting} duration={season.durationDays} tasks={season.tasks.map((task) => ({ offset: task.offset, kind: task.kind, title: task.title }))} />
+        <SeasonTimeline start={season.planting} duration={displayDuration} tasks={displayTasks.map((task) => ({ offset: task.offset, kind: task.kind, title: task.title }))} />
         <div className="mt-2 flex flex-wrap gap-2">
           {(Object.keys(TASK_LABELS) as TaskKind[]).map((kind) => (
             <span key={kind} className="flex items-center gap-1 text-[7px] text-[#93ad9f]"><span className="h-1.5 w-1.5 rounded-full" style={{ background: TASK_STYLE[kind].dot }} />{TASK_LABELS[kind]}</span>
@@ -569,7 +696,8 @@ export function CropPlanPage() {
         <section className="glass rounded-[22px] p-4">
           <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-white"><FlaskConical className="h-3.5 w-3.5 text-[#d8c896]" /> برنامهٔ کوددهی</h2>
           <div className="space-y-2">
-            {groups.fertilizer.map((task) => (
+            {displayFertilizer.length === 0 && aiData && <p className="text-[8px] leading-4 text-[#93ad9f]">در تقویم استدلال‌شدهٔ این محصول برای این منطقه، عملیات کوددهی جداگانه‌ای ذکر نشده؛ جزئیات را از کارشناس محلی بگیر.</p>}
+            {displayFertilizer.map((task) => (
               <div key={`${task.offset}-${task.title}`} className="rounded-xl border border-white/[0.06] p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[9px] font-medium text-[#dcebe2]">{task.title}</p>
@@ -585,7 +713,8 @@ export function CropPlanPage() {
         <section className="glass rounded-[22px] p-4">
           <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-white"><ShieldAlert className="h-3.5 w-3.5 text-[#f0a59a]" /> برنامهٔ سم‌پاشی</h2>
           <div className="space-y-2">
-            {groups.spray.map((task) => (
+            {displaySpray.length === 0 && aiData && <p className="text-[8px] leading-4 text-[#93ad9f]">در تقویم استدلال‌شدهٔ این محصول برای این منطقه، سم‌پاشی جداگانه‌ای ذکر نشده؛ پایش مزرعه را جدی بگیر.</p>}
+            {displaySpray.map((task) => (
               <div key={`${task.offset}-${task.title}`} className="rounded-xl border border-white/[0.06] p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[9px] font-medium text-[#dcebe2]">{task.title}</p>
@@ -613,7 +742,7 @@ export function CropPlanPage() {
               </tr>
             </thead>
             <tbody>
-              {season.tasks.map((task) => (
+              {displayTasks.map((task) => (
                 <tr key={`${task.offset}-${task.kind}-${task.title}`} className="border-b border-white/[0.03] last:border-0">
                   <td className="py-1.5 text-[#dcebe2]">{formatJalali(task.date, "short")}</td>
                   <td className="py-1.5"><span className={cn("rounded px-1.5 py-0.5", TASK_STYLE[task.kind].chip)}>{TASK_LABELS[task.kind]}</span></td>
@@ -669,7 +798,7 @@ export function CropPlanPage() {
         open={rescueOpen}
         personalIssue={checkProfile(profile).personalIssue}
         onClose={() => setRescueOpen(false)}
-        onReject={() => { setRescueOpen(false); setLocationDeclined(true); setAnalyzed(true); announceReasoning(true); void requestAiBrief(); }}
+        onReject={() => { setRescueOpen(false); setLocationDeclined(true); setAnalyzed(true); announceReasoning(true); }}
         onResolved={(place) => {
           const province = place.province || profile.province;
           const city = place.city || place.village || profile.city;
@@ -679,7 +808,6 @@ export function CropPlanPage() {
           setRescueOpen(false);
           setAnalyzed(true);
           announceReasoning(true);
-          void requestAiBrief();
         }}
       />
     </div>

@@ -51,7 +51,7 @@ import {
 import { askCloud, type CloudSection } from "../lib/ai/cloud-chat";
 import { parseActionPlan, type AssistantDocType } from "../lib/ai/actions";
 import { makeDocument, verificationPayload, type DocumentKind, type DocumentSpec } from "../lib/documents";
-import { documentEntity } from "../lib/signable";
+import { partyEntity } from "../lib/signable";
 import type { SignableEntity } from "../lib/signatures";
 import { SignatureDialog } from "../components/SignatureDialog";
 import { shareFile, shareLink, shareOutcomeMessage } from "../lib/share";
@@ -63,6 +63,7 @@ import { GuideCenter } from "../components/GuideCenter";
 // مبلغ/عدد با ارقام لاتین و جداکنندهٔ هزارگان (یکدست در کل برنامه)
 const fa = (value: number) => formatAmount(value, { decimals: 0 });
 const money = (value: number) => `${fa(value)} تومان`;
+const uid = (prefix: string) => `${prefix}-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}`;
 
 type Tab = "assistant" | "backup" | "help" | "settings";
 
@@ -94,6 +95,8 @@ export function BackupPage({
   onAddPayment,
   onAddEntry,
   onOpenDocument,
+  onPrintDocument,
+  onShareDocument,
   onNavigate,
 }: {
   ledger: LedgerState;
@@ -109,6 +112,8 @@ export function BackupPage({
   onAddPayment: (payment: PartyPayment) => void;
   onAddEntry: (entry: FinanceEntry) => void;
   onOpenDocument?: (spec: DocumentSpec) => void;
+  onPrintDocument?: (spec: DocumentSpec) => void;
+  onShareDocument?: (spec: DocumentSpec) => void;
   onNavigate?: (page: Page) => void;
 }) {
   const { profile } = useProfile();
@@ -167,6 +172,7 @@ export function BackupPage({
 
   const [signTarget, setSignTarget] = useState<SignableEntity | null>(null);
   const [signRole, setSignRole] = useState<string | undefined>(undefined);
+  const [pendingDraft, setPendingDraft] = useState<{ question: string } | null>(null);
   const [failOpen, setFailOpen] = useState(false);
 
   /** ساخت سند از دادهٔ واقعی دفتر؛ هرگز سند با دادهٔ ساختگی ساخته نمی‌شود. */
@@ -212,18 +218,20 @@ export function BackupPage({
   };
 
   /** اجرای برنامهٔ کنش؛ فقط کنش‌های مجاز و اعتبارسنجی‌شده. */
-  const runPlan = (raw: unknown): { say: string; done: string[]; question?: string } => {
+  const runPlan = (raw: unknown): { say: string; done: string[]; question?: string; writes: number; effects: number } => {
     const validation = parseActionPlan(JSON.stringify(raw));
     if (!validation.ok || !validation.plan) {
-      return { say: "نتوانستم این درخواست را به ثبت امن تبدیل کنم.", done: [], question: validation.errors.join("، ") || undefined };
+      return { say: "نتوانستم این درخواست را به ثبت امن تبدیل کنم.", done: [], question: validation.errors.join("، ") || undefined, writes: 0, effects: 0 };
     }
     const plan = validation.plan;
     const done: string[] = [];
+    let writes = 0;
+    let effects = 0;
     const today = todayJalali();
-    plan.actions.forEach((action, index) => {
+    plan.actions.forEach((action) => {
       if (action.type === "party.create") {
         const party: DebtParty = {
-          id: `party-${Date.now()}-${index}`,
+          id: uid("party"),
           name: action.name,
           phone: action.phone ?? "",
           city: action.city ?? profile.city ?? "",
@@ -236,18 +244,20 @@ export function BackupPage({
           color: "mint",
         };
         onAddParty(party);
+        writes += 1;
         done.push(`${action.kind === "debtor" ? "بدهکار" : "بستانکار"} ثبت شد: ${action.name} — ${formatAmount(action.amount)} تومان بابت ${action.reason}`);
         return;
       }
       if (action.type === "party.payment.add") {
-        const payment: PartyPayment = { id: `pay-${Date.now()}-${index}`, partyId: action.partyId, date: today, amount: action.amount, method: action.method === "card" ? "credit" : action.method, note: action.note ?? "" };
+        const payment: PartyPayment = { id: uid("pay"), partyId: action.partyId, date: today, amount: action.amount, method: action.method === "card" ? "credit" : action.method, note: action.note ?? "" };
         onAddPayment(payment);
+        writes += 1;
         done.push(`پرداخت ثبت شد: ${formatAmount(action.amount)} تومان`);
         return;
       }
       if (action.type === "entry.add") {
         const entry: FinanceEntry = {
-          id: `fin-${Date.now()}-${index}`,
+          id: uid("fin"),
           kind: action.kind,
           date: today,
           amount: action.amount,
@@ -258,11 +268,13 @@ export function BackupPage({
           note: "",
         };
         onAddEntry(entry);
+        writes += 1;
         done.push(`${action.kind === "income" ? "درآمد" : "هزینه"} ثبت شد: ${formatAmount(action.amount)} تومان بابت ${action.reason}`);
         return;
       }
       if (action.type === "receipt.open") {
         onNavigate?.("receipts");
+        effects += 1;
         done.push("رسیدها باز شد؛ رسید موردنظر را همان‌جا ببین.");
         return;
       }
@@ -275,6 +287,7 @@ export function BackupPage({
           done.push("هنوز رسیدی در برنامه ذخیره نشده است؛ اول از صفحهٔ رسیدها یکی را بارگذاری کن.");
           return;
         }
+        effects += 1;
         void shareFile({
           title: picked.title,
           fileName: picked.fileName || `receipt-${picked.id}.png`,
@@ -291,30 +304,42 @@ export function BackupPage({
           done.push("برای این نوع سند، رکورد مرتبط در دفتر پیدا نشد؛ اول معامله/قرارداد/طرف‌حساب را ثبت کن.");
           return;
         }
+        effects += 1;
         if (action.type === "document.send") {
-          done.push(`نشانی استعلام سند «${spec.meta.title}» آماده شد.`);
-          void shareLink({
-            title: spec.meta.title,
-            text: `${spec.meta.title} — ${spec.serial} (کشاورزحساب)`,
-            url: verificationPayload(spec),
-          }).then((outcome) => setToast(shareOutcomeMessage(outcome, "link")));
+          if (onShareDocument) onShareDocument(spec);
+          else {
+            void shareLink({
+              title: spec.meta.title,
+              text: `${spec.meta.title} — ${spec.serial} (کشاورزحساب)`,
+              url: verificationPayload(spec),
+            }).then((outcome) => setToast(shareOutcomeMessage(outcome, "link")));
+          }
+          done.push(`فایل سند «${spec.meta.title}» برای ارسال آماده و باز شد.`);
           return;
         }
-        onOpenDocument?.(spec);
-        done.push(`${action.type === "document.print" ? "پیش‌نمایش چاپ" : "سند"} «${spec.meta.title}» آماده شد.`);
+        if (action.type === "document.print" && onPrintDocument) onPrintDocument(spec);
+        else onOpenDocument?.(spec);
+        done.push(`${action.type === "document.print" ? "سند برای چاپ باز شد" : "سند"} «${spec.meta.title}» آماده شد.`);
         return;
       }
       if (action.type === "signature.request") {
-        const signParty = ledger.parties[0];
-        if (!signParty) {
-          done.push("برای ساختن برگهٔ امضا اول یک طرف‌حساب ثبت کن، بعد دوباره بگو.");
-          return;
-        }
-        const spec = makeDocument("party-statement", {
-          party: signParty,
-          payments: ledger.payments.filter((payment) => payment.partyId === signParty.id),
-        });
-        setSignTarget(documentEntity({ ...spec, meta: { ...spec.meta, title: action.title } }));
+        const haystack = `${action.title} ${action.note ?? ""}`;
+        const matched = ledger.parties.find((party) => haystack.includes(party.name)) ?? ledger.parties[0];
+        const signParty: DebtParty = matched ?? {
+          id: uid("sign"),
+          name: profile.fullName || "طرف قرارداد",
+          phone: profile.phone || "",
+          city: profile.city || "",
+          kind: "debtor",
+          amount: 0,
+          reason: action.note ?? action.title,
+          date: todayJalali(),
+          dueDate: null,
+          note: "",
+          color: "mint",
+        };
+        effects += 1;
+        setSignTarget(partyEntity(signParty));
         setSignRole(action.signerRole);
         done.push(`فرم مشخصات و کادر امضا برای «${action.title}» باز شد${action.note ? ` — ${action.note}` : ""}.`);
         return;
@@ -322,6 +347,7 @@ export function BackupPage({
       if (action.type === "navigate") {
         const page = action.page === "contracts" || action.page === "profile" ? action.page : action.page;
         onNavigate?.(page as Page);
+        effects += 1;
         done.push(`صفحهٔ ${action.page} باز شد.`);
         return;
       }
@@ -331,7 +357,7 @@ export function BackupPage({
       }
       if (action.type === "answer") done.push(action.text);
     });
-    return { say: plan.say, done, question: plan.question };
+    return { say: plan.say, done, question: plan.question, writes, effects };
   };
 
   const ask = async (text: string) => {
@@ -347,7 +373,8 @@ export function BackupPage({
       message: value || "این تصویر را تحلیل کن.",
       history,
       section,
-      mode: "auto",
+      mode: pendingDraft ? "action" : "auto",
+      pending: pendingDraft ? { question: pendingDraft.question } : undefined,
       image: attachment?.dataUrl,
       context: {
         today: formatJalali(todayJalali(), "short"),
@@ -375,15 +402,20 @@ export function BackupPage({
       ]);
     } else {
       const executed = runPlan(result.plan);
-      const lines = [executed.say, ...executed.done].filter(Boolean);
-      const body = lines.length ? lines.join("\n") : "انجام شد.";
+      // «ثبت شد» فقط وقتی نمایش داده می‌شود که واقعاً چیزی در دفتر نوشته شده باشد.
+      const showSay = executed.writes > 0 || (executed.effects === 0 && executed.done.length === 0);
+      const lines = [...(showSay ? [executed.say] : []), ...executed.done].filter(Boolean);
+      const body = lines.length ? lines.join("\n") : "هیچ تغییری در دفتر ثبت نشد.";
       setMessages((current) => [
         ...current,
         makeAssistantMessage("bot", executed.question ? `${body}\n\n${executed.question}` : body, {
-          confidence: 92, category: "دفتر مالی", sources: [], followUps: [], matchedId: "keshavaryar-action", kind: "data", engine: "cloud", model: "کشاورزیار",
+          confidence: executed.writes > 0 || executed.effects > 0 ? 92 : 40,
+          category: "دفتر مالی", sources: [], followUps: [], matchedId: "keshavaryar-action", kind: executed.writes > 0 ? "data" : "fallback", engine: "cloud", model: "کشاورزیار",
         }),
       ]);
-      if (executed.done.length) setToast("کشاورزیار رکورد را ثبت کرد.");
+      if (executed.writes > 0) setToast(`${toPersianDigits(executed.writes)} رکورد در دفتر ثبت شد.`);
+      else if (executed.effects > 0) setToast("درخواست اجرا شد.");
+      setPendingDraft(executed.question ? { question: executed.question } : null);
     }
     setAttachment(null);
     setThinking(false);
@@ -589,6 +621,15 @@ export function BackupPage({
               {[["طرف‌حساب‌های مالی", ledger.parties.length], ["قرارداد زمین", contracts.length], ["معامله محصول", trades.length], ["زمین و کشت", plots.length], ["پرداخت اجاره", rentPayments.length], ["امضا", signatures.length], ["چک", ledger.cheques.length], ["وام", ledger.loans.length]].map(([label, count]) => <div key={String(label)} className="flex items-center justify-between border-b border-white/[0.05] pb-1.5"><span className="text-[#819d90]">{label}</span><span className="text-[#d3e4da]">{toPersianDigits(Number(count))} رکورد</span></div>)}
             </div>
             <p className="mt-2 rounded-lg bg-white/[0.02] px-2.5 py-2 text-[8px] leading-5 text-[#78968a]">ذخیره‌سازی محلی (localStorage) با نسخه‌بندی. برای نسخه چندکاربره، اتصال به PostgreSQL در معماری پیش‌بینی شده است.</p>
+          </section>
+          <section className="glass rounded-[22px] p-4 lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-[11px] font-semibold text-white">دسترسی‌های دستگاه</h2>
+                <p className="mt-1 text-[8px] leading-4 text-[#819d90]">اعلان موضوعات مهم و موقعیت مکانی را جدا روشن/خاموش کن و اجازهٔ واقعی را از سیستم بگیر. وضعیت در همین دستگاه ذخیره می‌شود.</p>
+              </div>
+              <button type="button" onClick={() => window.dispatchEvent(new Event("kishavar:open-permissions"))} className="rounded-xl border border-mint-300/25 bg-mint-300/[0.07] px-3 py-2 text-[9px] text-mint-300">مدیریت دسترسی اعلان و موقعیت</button>
+            </div>
           </section>
         </div>
       )}

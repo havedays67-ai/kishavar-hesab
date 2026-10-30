@@ -55,7 +55,7 @@ export interface EntryAddAction {
   reason: string;
   category?: string;
 }
-export interface ReceiptOpenAction { type: "receipt.open"; target: "party" | "party-payment" | "trade" | "cheque"; id: string }
+export interface ReceiptOpenAction { type: "receipt.open"; target: "last" | "party" | "party-payment" | "trade" | "cheque"; id?: string }
 export interface RecordUpdateAction {
   type: "record.update";
   record: "party" | "crop" | "inventory" | "trade";
@@ -195,10 +195,10 @@ export function validateAction(raw: unknown): { action?: AppAction; error?: stri
     }
     case "receipt.open": {
       const id = cleanText(raw.id, 80);
-      const target = String(raw.target ?? "");
-      if (!id) return { error: "شناسهٔ رکورد لازم است" };
-      if (!["party", "party-payment", "trade", "cheque"].includes(target)) return { error: "نوع رکورد رسید نامعتبر" };
-      return { action: { type, target: target as ReceiptOpenAction["target"], id } };
+      const target = String(raw.target ?? "last");
+      if (!id && target !== "last") return { error: "شناسهٔ رکورد لازم است" };
+      if (!["last", "party", "party-payment", "trade", "cheque"].includes(target)) return { error: "نوع رکورد رسید نامعتبر" };
+      return { action: { type, target: target as ReceiptOpenAction["target"], id: id ?? undefined } };
     }
     case "record.update": {
       const record = String(raw.record ?? "");
@@ -268,7 +268,7 @@ export function parseActionPlan(raw: string): ValidationResult {
   const say = cleanText(parsed.say, 600) ?? "";
   const question = cleanText(parsed.question, 300) ?? undefined;
   const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
-  if (rawActions.length > MAX_ACTIONS) errors.push(`حداکثر ${MAX_ACTIONS} کنش در هر نوبت مجاز است`);
+  if (rawActions.length > MAX_ACTIONS) return { ok: false, errors: [`حداکثر ${MAX_ACTIONS} کنش در هر نوبت مجاز است`] };
 
   const actions: AppAction[] = [];
   for (const item of rawActions.slice(0, MAX_ACTIONS)) {
@@ -276,9 +276,11 @@ export function parseActionPlan(raw: string): ValidationResult {
     if (result.action) actions.push(result.action);
     else if (result.error) errors.push(result.error);
   }
-  if (errors.length > 0) return { ok: false, errors };
-  if (actions.length === 0 && !question && !say) return { ok: false, errors: ["هیچ کنش یا پاسخی نبود"] };
-  return { ok: true, plan: { actions, say, question }, errors: [] };
+  // اگر هیچ کنش معتبری نمانده و مدل هم سؤالی نپرسیده، متن «ثبت شد» به‌تنهایی پذیرفته نمی‌شود.
+  if (actions.length === 0 && !question && errors.length > 0) return { ok: false, errors };
+  if (actions.length === 0 && !question && !say) return { ok: false, errors: errors.length ? errors : ["هیچ کنش یا پاسخی نبود"] };
+  // کنش‌های نامعتبر فقط هشدار می‌شوند؛ کنش‌های معتبر نباید به‌خاطر یک فیلد خراب از دست بروند.
+  return { ok: true, plan: { actions, say, question }, errors };
 }
 
 /** متن تأیید برای کاربر؛ کنش‌های مخرب همیشه تأیید می‌خواهند. */
