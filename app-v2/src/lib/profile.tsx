@@ -139,7 +139,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   return (
     <ProfileContext.Provider value={value}>
       {children}
-      <OnboardingModal open={onboarding && !stored} onDone={(profile) => { value.saveProfile(profile); setOnboarding(false); }} />
+      <OnboardingModal open={onboarding} initial={stored} onDone={(profile) => { value.saveProfile(profile); setOnboarding(false); }} />
     </ProfileContext.Provider>
   );
 }
@@ -150,19 +150,32 @@ export function useProfile(): ProfileContextValue {
   return context;
 }
 
-function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: UserProfile) => void }) {
+function OnboardingModal({ open, initial, onDone }: { open: boolean; initial?: UserProfile | null; onDone: (profile: UserProfile) => void }) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [farmName, setFarmName] = useState("");
-  const [province, setProvince] = useState("");
-  const [city, setCity] = useState("");
-  const [role, setRole] = useState<string>(PROFILE_ROLES[0]);
+  const [fullName, setFullName] = useState(initial?.fullName ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [businessName, setBusinessName] = useState(initial?.businessName ?? "");
+  const [farmName, setFarmName] = useState(initial?.farmName ?? "");
+  const [province, setProvince] = useState(initial?.province ?? "");
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [role, setRole] = useState<string>(initial?.role || PROFILE_ROLES[0]);
   const [customRole, setCustomRole] = useState("");
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const customRoleBox = useRef<HTMLDivElement | null>(null);
+  // اگر پنجره برای تکمیل دوباره باز شد، مقادیر ذخیره‌شده را نشان بده و چیزی را پاک نکن.
+  useEffect(() => {
+    if (!open) return;
+    setFullName(initial?.fullName ?? "");
+    setPhone(initial?.phone ?? "");
+    setBusinessName(initial?.businessName ?? "");
+    setFarmName(initial?.farmName ?? "");
+    setProvince(initial?.province ?? "");
+    setCity(initial?.city ?? "");
+    setRole(initial?.role || PROFILE_ROLES[0]);
+    setStep(1);
+    setError("");
+  }, [open, initial]);
   // با انتخاب «سایر»، کادر نوشتن در دید کاربر قرار می‌گیرد (در موبایل پایین صفحه بود)
   useEffect(() => {
     if (role !== PROFILE_ROLE_OTHER) return;
@@ -182,6 +195,7 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
     }
     onDone({
       ...EMPTY_PROFILE,
+      ...(initial ?? {}),
       fullName,
       phone,
       businessName: businessName.trim() || fullName.trim(),
@@ -195,7 +209,7 @@ function OnboardingModal({ open, onDone }: { open: boolean; onDone: (profile: Us
 
   return (
     <>
-      <Modal open={open} onClose={() => setToast("برای استفاده از برنامه، نام و شماره تماس لازم است.")} title="خوش آمدید — پروفایل شما" description="این اطلاعات فقط روی همین دستگاه ذخیره می‌شود و در اسناد و پیشنهادهای نام/تلفن استفاده می‌شود." size="md">
+      <Modal open={open} onClose={() => setToast("برای استفاده از برنامه، نام و شماره تماس لازم است.")} title={initial ? "تکمیل اطلاعات پروفایل" : "خوش آمدید — پروفایل شما"} description="این اطلاعات فقط روی همین دستگاه ذخیره می‌شود و در اسناد و پیشنهادهای نام/تلفن استفاده می‌شود." size="md">
         <div className="space-y-4 p-5">
           <div className="flex items-center gap-2">
             {[1, 2].map((index) => (

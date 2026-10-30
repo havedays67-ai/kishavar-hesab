@@ -55,6 +55,8 @@ import { RentalsPage, type LeaseSignature, type RentPaymentRecord } from "./page
 import { ReportsPage } from "./pages/ReportsPage";
 import { TradePage } from "./pages/TradePage";
 import { QuickSalePage } from "./pages/QuickSalePage";
+import { FirstRunPermissions } from "./components/FirstRunPermissions";
+import { importantTopics, notifyImportantTopics } from "./lib/important-notifications";
 
 const AVAILABLE_PAGES: Page[] = [
   "dashboard",
@@ -160,6 +162,15 @@ export default function App() {
     const entities = buildSignableEntities({ ledger, trades, documents });
     return buildInsights({ ledger, trades, plots, contracts, signableEntities: entities, pendingSignatures: entities.map((entity) => { const report = audit(entity); return { entity, required: report.required, signed: report.signed, missing: report.missing.length }; }) });
   }, [ledger, trades, documents, plots, contracts, audit]);
+
+  useEffect(() => {
+    const topics = importantTopics(health.insights);
+    if (topics.length === 0) return;
+    const run = () => { void notifyImportantTopics(topics); };
+    run();
+    window.addEventListener("kishavar:permissions-updated", run);
+    return () => window.removeEventListener("kishavar:permissions-updated", run);
+  }, [health.insights]);
 
   useEffect(() => {
     document.title = `${PAGE_TITLES[page]} | کشاورزحساب`;
@@ -315,7 +326,8 @@ export default function App() {
 
   return (
     <>
-      <AppShell page={page} onNavigate={navigate}>
+      <FirstRunPermissions />
+      <AppShell page={page} onNavigate={navigate} notifications={importantTopics(health.insights)}>
         {page === "dashboard" && (
           <DashboardPage contracts={contracts} trades={trades} plots={plots} health={health} onNavigate={navigate} onOpenDocument={setActiveDocument} />
         )}

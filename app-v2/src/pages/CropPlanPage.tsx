@@ -6,6 +6,8 @@ import { formatJalali, JALALI_MONTHS, toPersianDigits, todayJalali, type JDate }
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { SelectField, type SelectOption } from "../components/FormControls";
 import { ProductPicker } from "../components/ProductPicker";
+import { Modal } from "../components/ui";
+import { ProfileLocationDialog } from "../components/ProfileLocationDialog";
 import { useProfile } from "../lib/profile";
 import {
   CROPS,
@@ -20,6 +22,9 @@ import {
 import { buildSeasonPlan, CROP_SCHEDULES, TASK_LABELS, type TaskKind } from "../lib/agronomy/season-plan";
 import { cachedCropInsight, researchCrop, type CropInsight } from "../lib/ai/crop-research";
 import { scoreCatalog } from "../lib/agronomy/crop-catalog";
+import { guessClimate } from "../lib/agronomy/region";
+import { checkProfile } from "../lib/profile-check";
+import { verifyProfilePlace } from "../lib/ai/place-check";
 
 const CLIMATE_LABELS: Record<ClimateZone, string> = {
   cold: "سرد",
@@ -40,16 +45,6 @@ const WATER_LABELS: Record<WaterSource, string> = {
   qanat: "قنات",
   rain: "دیم/باران",
 };
-/** حدس محافظه‌کارانهٔ اقلیم از استان/شهر پروفایل؛ کاربر همیشه می‌تواند عوضش کند. */
-function guessClimate(value: string): ClimateZone {
-  const text = String(value ?? "");
-  if (/(گیلان|مازندران|گلستان)/.test(text)) return "humid";
-  if (/(خوزستان|بوشهر|هرمزگان|سیستان|بلوچستان|جاسک|چابهار)/.test(text)) return "warm";
-  if (/(یزد|کرمان|اصفهان|سمنان|قم|قزوین|مرکزی|خراسان جنوبی)/.test(text)) return "dry";
-  if (/(آذربایجان|اردبیل|کردستان|همدان|زنجان|قزوین|البرز)/.test(text)) return "cold";
-  return "temperate";
-}
-
 const CLIMATE_OPTIONS: SelectOption[] = (Object.keys(CLIMATE_LABELS) as ClimateZone[]).map((id) => ({ value: id, label: CLIMATE_LABELS[id] }));
 const SOIL_OPTIONS: SelectOption[] = (Object.keys(SOIL_LABELS) as SoilType[]).map((id) => ({ value: id, label: SOIL_LABELS[id] }));
 const WATER_OPTIONS: SelectOption[] = (Object.keys(WATER_LABELS) as WaterSource[]).map((id) => ({ value: id, label: WATER_LABELS[id] }));
@@ -148,7 +143,7 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
 }
 
 export function CropPlanPage() {
-  const { profile } = useProfile();
+  const { profile, saveProfile, openOnboarding } = useProfile();
   const [cropId, setCropId] = useState<CropId>("wheat-irrigated");
   const [climate, setClimate] = useState<ClimateZone>(() => guessClimate(profile.province || profile.city));
   const [soil, setSoil] = useState<SoilType>("loam");
@@ -163,6 +158,11 @@ export function CropPlanPage() {
   const [researchMessage, setResearchMessage] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [analyzed, setAnalyzed] = useState(false);
+  const [rescueOpen, setRescueOpen] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [assistantStatus, setAssistantStatus] = useState("");
+  const [locationDeclined, setLocationDeclined] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const crop = CROPS[cropId];
   const productValue = productMode === "other" ? otherName : crop.name.startsWith("گندم") ? "گندم" : crop.name;
@@ -192,6 +192,44 @@ export function CropPlanPage() {
     setResearchState("idle");
   }
 
+  function announceReasoning(quick = false) {
+    setAssistantStatus("کشاورزیار در حال استدلال اطلاعات بر اساس موقعیت مکانی شما است…");
+    setNoticeOpen(true);
+    if (quick) {
+      window.setTimeout(() => setAssistantStatus((current) => (current.startsWith("کشاورزیار در حال استدلال") ? "استدلال تمام شد؛ نتیجه و امتیازها پایین آماده است." : current)), 2_500);
+    }
+  }
+
+  async function beginAnalysis() {
+    if (verifying) return;
+    setVerifying(true);
+    const check = checkProfile(profile);
+    if (check.personalIssue) {
+      setAssistantStatus("برای شروع، نام و شمارهٔ پروفایل را کامل کن.");
+      openOnboarding();
+      setVerifying(false);
+      return;
+    }
+    if (check.locationIssue && !locationDeclined) {
+      setRescueOpen(true);
+      setVerifying(false);
+      return;
+    }
+    setAssistantStatus("کشاورزیار دارد اطلاعات منطقه را بررسی می‌کند…");
+    if (!locationDeclined) {
+      const place = await verifyProfilePlace(profile.province, profile.city);
+      if (place === "not-found") {
+        setAssistantStatus("اطلاعات منطقه در سرویس‌های نقشه پیدا نشد؛ لطفاً تأیید کن.");
+        setRescueOpen(true);
+        setVerifying(false);
+        return;
+      }
+    }
+    setAnalyzed(true);
+    announceReasoning(true);
+    setVerifying(false);
+  }
+
   async function runResearch() {
     const name = otherName.trim();
     if (name.length < 2) {
@@ -208,11 +246,14 @@ export function CropPlanPage() {
     setPendingInsight(null);
     setResearchMessage("");
     setResearchState("waiting");
+    setAssistantStatus("کشاورزیار در حال استدلال اطلاعات بر اساس موقعیت مکانی شما است…");
+    announceReasoning(false);
     const result = await researchCrop(name, {
       city: profile.city,
       climate: CLIMATE_LABELS[climate],
       today: formatJalali(todayJalali(), "long"),
     });
+    setAssistantStatus("");
     if (result.ok) {
       setPendingInsight(result.data);
       setResearchState("ready");
@@ -288,9 +329,20 @@ export function CropPlanPage() {
           . هیچ نتیجه‌ای از قبل ذخیره نشده و همه‌چیز با همین مقادیر محاسبه می‌شود.
         </p>
         {!analyzed && (
-          <button type="button" onClick={() => setAnalyzed(true)} className="mt-2 w-full rounded-xl bg-mint-300 px-3 py-2.5 text-[10px] font-semibold text-[#10201a]">
-            {profile.city ? `تحلیل زمین ${profile.city} و امتیازدهی همهٔ محصولات` : "تحلیل با مشخصات فعلی (شهر پروفایل خالی است)"}
+          <button type="button" onClick={() => void beginAnalysis()} disabled={verifying} className="mt-2 w-full rounded-xl bg-mint-300 px-3 py-2.5 text-[10px] font-semibold text-[#10201a] disabled:opacity-60">
+            {verifying ? "در حال بررسی اطلاعات منطقه…" : profile.city ? `تحلیل زمین ${profile.city} و امتیازدهی همهٔ محصولات` : "تحلیل زمین و امتیازدهی همهٔ محصولات"}
           </button>
+        )}
+        {assistantStatus && (
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-mint-300/20 bg-mint-300/[0.05] px-2.5 py-2 text-[8px] leading-4 text-mint-300">
+            {assistantStatus.startsWith("استدلال تمام") ? <CircleCheck className="h-3.5 w-3.5 shrink-0" /> : <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />}
+            <span>{assistantStatus}</span>
+          </div>
+        )}
+        {analyzed && profile.city && guessClimate(profile.province || profile.city) !== climate && (
+          <p className="mt-2 rounded-xl border border-sand-300/25 bg-sand-300/[0.05] px-2.5 py-2 text-[8px] leading-4 text-[#e6dcc0]">
+            مشخصات انتخابی با منطقهٔ «{profile.city}» هم‌خوان نیست؛ اقلیم را اصلاح کن تا امتیازها دقیق‌تر شود.
+          </p>
         )}
         {productMode === "other" && (
           <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-sand-300/20 bg-sand-300/[0.04] p-2 sm:flex-row sm:items-center">
@@ -543,16 +595,9 @@ export function CropPlanPage() {
 
       </div>
 
-      {researchState !== "idle" && (
+      {["ready", "notfound", "error"].includes(researchState) && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-[22px] border border-white/10 bg-[#101c17] p-4 shadow-2xl">
-            {researchState === "waiting" && (
-              <div className="text-center">
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-mint-300" />
-                <h3 className="mt-3 text-[12px] font-semibold text-white">در حال استدلال</h3>
-                <p className="mt-1 text-[9px] leading-5 text-[#93ad9f]">منتظر بمانید؛ تقویم {otherName.trim()} با اقلیم و هوای منطقه ساخته می‌شود.</p>
-              </div>
-            )}
             {researchState === "ready" && pendingInsight && (
               <div>
                 <div className="flex items-center gap-2">
@@ -576,6 +621,31 @@ export function CropPlanPage() {
           </div>
         </div>
       )}
+      <Modal open={noticeOpen} onClose={() => setNoticeOpen(false)} title="کشاورزیار در حال استدلال" size="sm">
+        <div className="p-5 text-center">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-mint-300/10 text-mint-300"><Loader2 className="h-5 w-5 animate-spin" /></span>
+          <h3 className="mt-3 text-[12px] font-semibold text-white">اطلاعات بر اساس موقعیت مکانی شما بررسی می‌شود</h3>
+          <p className="mt-1.5 text-[9px] leading-5 text-[#93ad9f]">کشاورزیار مشخصات زمین، اقلیم و محصولات را با منطقهٔ شما تطبیق می‌دهد. بستن این پنجره استدلال را متوقف نمی‌کند و وضعیت پایین همین صفحه نوشته می‌ماند.</p>
+          <button type="button" onClick={() => setNoticeOpen(false)} className="mt-3 w-full rounded-xl bg-mint-300 px-3 py-2.5 text-[10px] font-semibold text-[#10201a]">متوجه شدم</button>
+        </div>
+      </Modal>
+
+      <ProfileLocationDialog
+        open={rescueOpen}
+        personalIssue={checkProfile(profile).personalIssue}
+        onClose={() => setRescueOpen(false)}
+        onReject={() => { setRescueOpen(false); setLocationDeclined(true); setAnalyzed(true); announceReasoning(true); }}
+        onResolved={(place) => {
+          const province = place.province || profile.province;
+          const city = place.city || place.village || profile.city;
+          saveProfile({ ...profile, province, city, address: profile.address || place.display });
+          setLocationDeclined(false);
+          setClimate(guessClimate(province || city));
+          setRescueOpen(false);
+          setAnalyzed(true);
+          announceReasoning(true);
+        }}
+      />
     </div>
   );
 }

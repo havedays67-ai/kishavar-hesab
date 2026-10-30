@@ -680,12 +680,71 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 17,
+        version: 18,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
         searchKeys: allKeys(env, "JINA_KEYS").length,
       });
+    }
+    if (url.pathname === "/api/place" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const province = String(body?.province ?? "").trim().slice(0, 60);
+      const city = String(body?.city ?? "").trim().slice(0, 60);
+      if (!province && !city) return json({ ok: true, found: false });
+      const query = [city, province, "ایران"].filter(Boolean).join(" ");
+      const cache = typeof caches !== "undefined" ? caches.default : null;
+      const cacheKey = new Request(`https://cache.local/placecheck/v1?q=${encodeURIComponent(query)}`);
+      if (cache) {
+        const hit = await cache.match(cacheKey);
+        if (hit) return json({ ok: true, ...(await hit.json()) });
+      }
+      const data = await fetchJson(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&accept-language=fa&q=${encodeURIComponent(query)}`,
+        { headers: { "User-Agent": "KishavarHesab/1.0 (place check)" } },
+        6_000
+      );
+      const hit = Array.isArray(data) ? data[0] : null;
+      const address = hit?.address && typeof hit.address === "object" ? hit.address : null;
+      const foundProvince = String(address?.state ?? "").trim();
+      const result = {
+        found: Boolean(hit),
+        province: foundProvince,
+        city: String(address?.city ?? address?.town ?? address?.village ?? address?.county ?? "").trim(),
+        display: String(hit?.display_name ?? "").slice(0, 180),
+      };
+      if (cache) await cache.put(cacheKey, new Response(JSON.stringify(result), { headers: { "content-type": "application/json", "cache-control": "max-age=2592000" } }));
+      return json({ ok: true, ...result });
+    }
+    if (url.pathname === "/api/reverse" && (request.method === "POST" || request.method === "GET")) {
+      const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
+      const latitude = Number(body?.lat ?? url.searchParams.get("lat"));
+      const longitude = Number(body?.lon ?? url.searchParams.get("lon"));
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+        return json({ ok: false, error: "مختصات معتبر نیست" }, 400);
+      }
+      const cache = typeof caches !== "undefined" ? caches.default : null;
+      const cacheKey = new Request(`https://cache.local/place/v2?lat=${latitude.toFixed(3)}&lon=${longitude.toFixed(3)}`);
+      if (cache) {
+        const hit = await cache.match(cacheKey);
+        if (hit) return json({ ok: true, ...(await hit.json()) });
+      }
+      const data = await fetchJson(
+        `https://nominatim.openstreetmap.org/reverse?format=json&accept-language=fa&zoom=14&addressdetails=1&lat=${latitude}&lon=${longitude}`,
+        { headers: { "User-Agent": "KishavarHesab/1.0 (location lookup)" } },
+        6_000
+      );
+      const address = data?.address && typeof data.address === "object" ? data.address : null;
+      if (!address) return json({ ok: false, error: "موقعیت پیدا نشد" }, 404);
+      const cleanPart = (value, prefixes = []) => String(value ?? "").trim().replace(new RegExp(`^(${prefixes.join("|")})\\s*`), "").trim();
+      const province = cleanPart(address.state ?? address.province, ["استان"]);
+      const rawCity = String(address.city ?? address.town ?? address.municipality ?? "").trim();
+      const county = cleanPart(address.county, ["شهرستان"]);
+      const city = /دهستان/.test(rawCity) || !rawCity ? county : cleanPart(rawCity, ["شهر"]);
+      const village = String(address.village ?? address.hamlet ?? address.neighbourhood ?? "").trim();
+      const result = { province, city, village, display: String(data.display_name ?? "").slice(0, 180), lat: latitude, lon: longitude };
+      if (cache) await cache.put(cacheKey, new Response(JSON.stringify(result), { headers: { "content-type": "application/json", "cache-control": "max-age=2592000" } }));
+      return json({ ok: true, ...result });
     }
     if (url.pathname === "/api/search" && request.method === "POST") {
       const body = await request.json().catch(() => ({}));

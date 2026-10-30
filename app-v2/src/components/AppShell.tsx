@@ -31,7 +31,8 @@ import { cn } from "../utils/cn";
 import { type Page } from "../lib/data";
 import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
-import { Avatar, BrandMark } from "./ui";
+import { Avatar, BrandMark, Modal } from "./ui";
+import type { Insight } from "../lib/insights";
 
 const NAV_ITEMS: {
   id: Page;
@@ -95,13 +96,16 @@ export function AppShell({
   page,
   onNavigate,
   children,
+  notifications = [],
 }: {
   page: Page;
   onNavigate: (page: Page) => void;
   children: ReactNode;
+  notifications?: Insight[];
 }) {
   const today = todayJalali();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isNative = Capacitor.isNativePlatform();
   const { profile } = useProfile();
   const displayName = profileDisplayName(profile);
@@ -243,10 +247,10 @@ export function AppShell({
                 type="button"
                 className="relative grid h-9 w-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.025] text-[#9bb4a8] transition hover:bg-white/[0.06] hover:text-white"
                 aria-label="اعلان‌ها"
-                onClick={() => go("reports")}
+                onClick={() => setNotificationsOpen(true)}
               >
                 <Bell className="h-4 w-4" />
-                <span className="absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full border border-[#07110d] bg-sand-300" />
+                {notifications.length > 0 && <span className="absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full border border-[#07110d] bg-sand-300" />}
               </button>
               <button
                 type="button"
@@ -317,6 +321,22 @@ export function AppShell({
           </button>
         </div>
       </nav>
+
+      <Modal open={notificationsOpen} onClose={() => setNotificationsOpen(false)} title="موضوعات مهم" description="کشاورزیار فقط موارد بحرانی و هشدارها را اعلان می‌کند؛ هر مورد را باز کن و اقدامش را انجام بده." size="sm">
+        <div className="space-y-2 p-5">
+          {notifications.length === 0 ? (
+            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center text-[9px] leading-5 text-[#93ad9f]">فعلاً موضوع مهمی برای اعلان نیست. دفتر مالی، چک‌ها، انبار و قراردادها را کامل کن تا هشدارهای واقعی ساخته شود.</p>
+          ) : notifications.map((item) => (
+            <button key={item.code} type="button" onClick={() => { setNotificationsOpen(false); go(item.page as Page); }} className={`flex w-full items-start gap-2.5 rounded-xl border p-3 text-right transition ${item.severity === "critical" ? "border-[#f0a59a]/25 bg-[#f0a59a]/[0.05] hover:border-[#f0a59a]/45" : "border-sand-300/20 bg-sand-300/[0.04] hover:border-sand-300/40"}`}>
+              <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${item.severity === "critical" ? "bg-[#f0a59a]" : "bg-sand-300"}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[10px] font-semibold text-[#eef8f2]">{item.title}</span>
+                <span className="mt-0.5 block text-[8px] leading-4 text-[#93ad9f]">{item.action || item.detail}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       {moreOpen && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center">

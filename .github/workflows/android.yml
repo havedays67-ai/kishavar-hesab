@@ -102,6 +102,7 @@ jobs:
           grep -qi "Filesystem" android/app/src/main/assets/capacitor.plugins.json || (echo "Filesystem plugin missing" && exit 1)
           grep -qi "Share" android/app/src/main/assets/capacitor.plugins.json || (echo "Share plugin missing" && exit 1)
           grep -qi "LocalNotifications" android/app/src/main/assets/capacitor.plugins.json || (echo "LocalNotifications plugin missing" && exit 1)
+          grep -qi "Geolocation" android/app/src/main/assets/capacitor.plugins.json || (echo "Geolocation plugin missing" && exit 1)
           
       - name: Configure project (minSdk 26, target 35)
         run: |
@@ -109,7 +110,7 @@ jobs:
           sed -i -E 's/targetSdkVersion = [0-9]+/targetSdkVersion = 35/' android/variables.gradle
           sed -i -E 's/compileSdkVersion = [0-9]+/compileSdkVersion = 35/' android/variables.gradle
           grep -n "minSdkVersion\|targetSdkVersion\|compileSdkVersion" android/variables.gradle
-          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <application#' android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <application#' android/app/src/main/AndroidManifest.xml
           CODE=$((1000 + GITHUB_RUN_NUMBER))
           sed -i -E "s/versionCode [0-9]+/versionCode $CODE/" android/app/build.gradle
           echo "versionCode=$CODE"
@@ -252,6 +253,11 @@ jobs:
           console.log('این بسته از اپ میدانی پیشرفته در پوشه app-v2 ساخته شده است.');
           console.log('');
           console.log('تازه‌ها:');
+          console.log('- وضعیت «کشاورزیار در حال استدلال» روی صفحهٔ تقویم کشت، همراه پنجرهٔ اطلاع‌رسانی و ماندن وضعیت بعد از بستن پنجره');
+          console.log('- بررسی پروفایل و منطقه قبل از استدلال؛ اگر اطلاعات ناقص/مشکوک باشد، با اجازهٔ کاربر استان و شهر از موقعیت مکانی پر می‌شود');
+          console.log('- درخواست اجازهٔ اعلان و موقعیت در اولین ورود؛ موقعیت اختیاری است و در صورت رد شدن، تحلیل با مشخصات دستی ادامه می‌یابد');
+          console.log('- اعلان موضوعات مهم: چک برگشتی، طلب سرگذشته، مانده فروش، رطوبت محصول، اقساط، کمبود انبار و قراردادهای نزدیک پایان');
+          console.log('- پنجرهٔ «موضوعات مهم» از زنگ بالای برنامه با دسترسی مستقیم به صفحهٔ هر اقدام');
           console.log('- کشاورزیار حالا ثبت می‌کند: بدهی، طلب، پرداخت و هزینه را در دفتر می‌سازد');
           console.log('- اگر نام/مبلغ/بابت ناقص باشد، کشاورزیار سؤال می‌پرسد و چیزی از خودش نمی‌سازد');
           console.log('- بخش جدید «تقویم کشت و نهاده»: خط زمانی فصل، برنامهٔ کود و سم با تاریخ شمسی و مقدار کل زمین');
