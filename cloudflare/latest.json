@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "updatedAt": "2026-10-30T14:58:58Z",
+  "updatedAt": "2026-10-30T15:38:11Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": 1073,
+    "versionCode": 1074,
     "minSdk": 26,
-    "sizeBytes": 4963121,
-    "sha256": "524f31ba6937d126af904a7a200eb3093fb610e02776c779d289271bf5288ff5",
+    "sizeBytes": 4965993,
+    "sha256": "640ee6481ceb003668ac527462c4147fad5540831b3dd62b5ad4c24bce48f49e",
     "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk",
-    "releaseNotes": "تقویم کشت و نهاده حالا منوی محصول شیک و جست‌وجوپذیر دارد؛ اقلیم، خاک و منبع آب هم با منوی داخلی برنامه انتخاب می‌شوند. گزینهٔ «سایر» با نام آزاد و پنجرهٔ استدلال هم فعال است.",
-    "build": "app-v2-main-73"
+    "releaseNotes": "جست‌وجوی هوای روستا و شهر با Open-Meteo و OSM، استفاده از همهٔ کلیدهای DAHL و Jina، منوی کامل محصولات و رتبه‌بندی زندهٔ همهٔ آن‌ها بر پایهٔ اقلیم و خاک و آب. تحلیل فقط با دکمهٔ کاربر شروع می‌شود.",
+    "build": "app-v2-main-74"
   },
   "model": {
     "status": "not-published",

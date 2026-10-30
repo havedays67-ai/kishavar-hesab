@@ -2,19 +2,19 @@
 // deploy: POST /accounts/{account}/workers/scripts/kishavar-download
 const MANIFEST = {
   "schema": 1,
-  "updatedAt": "2026-10-30T14:58:58Z",
+  "updatedAt": "2026-10-30T15:38:11Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": 1073,
+    "versionCode": 1074,
     "minSdk": 26,
-    "sizeBytes": 4963121,
-    "sha256": "524f31ba6937d126af904a7a200eb3093fb610e02776c779d289271bf5288ff5",
+    "sizeBytes": 4965993,
+    "sha256": "640ee6481ceb003668ac527462c4147fad5540831b3dd62b5ad4c24bce48f49e",
     "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk",
     "releaseNotes": "کشاورزیار پایدارتر شد؛ تقویم کشت و نهاده حالا جست‌وجوی محصول، گزینهٔ «سایر» با نام آزاد، پنجرهٔ استدلال و نتیجهٔ تاییدشده دارد. کش نتایج و پاسخ‌های پشتیبان هم اضافه شد.",
-    "build": "app-v2-main-73"
+    "build": "app-v2-main-74"
   },
   "model": {
     "status": "not-published",
