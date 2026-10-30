@@ -255,11 +255,84 @@ function decodeEntities(value) {
     .replace(/&nbsp;/g, " ");
 }
 
+/** جایگزین دوم DuckDuckGo: نسخهٔ سبک، وقتی HTML اصلی محدود شده باشد. */
+async function ddgLiteSearch(query) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7_000);
+    const response = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, {
+      headers: { "user-agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Safari/537.36", accept: "text/html" },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    const html = (await response.text()).slice(0, 180_000);
+    const rows = [];
+    const block = /<a[^>]+class=['"]result-link['"][^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:class=['"]result-snippet['"][^>]*>([\s\S]*?)<\/td>)?/g;
+    let match;
+    while ((match = block.exec(html)) && rows.length < 6) {
+      const title = decodeEntities(stripTags(match[1])).trim();
+      const snippet = decodeEntities(stripTags(match[2] ?? "")).trim();
+      if (title) rows.push(`- ${title}${snippet ? `: ${snippet.slice(0, 220)}` : ""}`);
+    }
+    return rows.length ? `نتایج جست‌وجوی وب (DuckDuckGo Lite):\n${rows.join("\n")}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** جایگزین دانش‌محور: ویکی‌پدیای فارسی برای وقتی موتورهای جستجو محدود شده‌اند. */
+async function wikiSearch(query) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6_000);
+    const response = await fetch(`https://fa.wikipedia.org/w/api.php?action=query&list=search&format=json&utf8=1&srlimit=5&srsearch=${encodeURIComponent(query.slice(0, 120))}`, {
+      headers: { "user-agent": "KishavarHesab/1.0 (search fallback)" },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const rows = (data?.query?.search ?? []).map((item) => {
+      const snippet = decodeEntities(stripTags(item.snippet ?? "")).replace(/\s+/g, " ").trim();
+      return snippet ? `- ${item.title}: ${snippet.slice(0, 220)}` : `- ${item.title}`;
+    });
+    return rows.length ? `نتایج دانش‌نامه (ویکی‌پدیای فارسی):\n${rows.join("\n")}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** جست‌وجوی وب با زنجیرهٔ جایگزین و کش؛ اگر همه بخوابند، آخرین نتیجهٔ موفق را برمی‌گرداند. */
 async function webSearch(env, query) {
-  const jina = await jinaSearch(env, query);
-  if (jina) return { text: jina, engine: "jina" };
-  const duck = await duckSearch(query);
-  if (duck) return { text: duck, engine: "duckduckgo" };
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const cacheKey = new Request(`https://cache.local/search/v1?q=${encodeURIComponent(query)}`);
+  const staleKey = new Request(`https://cache.local/search/stale/v1?q=${encodeURIComponent(query)}`);
+  if (cache) {
+    const hit = await cache.match(cacheKey);
+    if (hit) return { text: await hit.text(), engine: "cache" };
+  }
+  const attempts = [
+    async () => ({ text: await jinaSearch(env, query), engine: "jina" }),
+    async () => ({ text: await duckSearch(query), engine: "duckduckgo" }),
+    async () => ({ text: await ddgLiteSearch(query), engine: "duckduckgo" }),
+    async () => ({ text: await wikiSearch(query), engine: "wikipedia" }),
+  ];
+  for (const attempt of attempts) {
+    const found = await attempt();
+    if (found.text) {
+      if (cache) {
+        const headers = { "content-type": "text/plain; charset=utf-8", "cache-control": "max-age=21600" };
+        await cache.put(cacheKey, new Response(found.text, { headers }));
+        await cache.put(staleKey, new Response(found.text, { headers: { ...headers, "cache-control": "max-age=604800" } }));
+      }
+      return found;
+    }
+  }
+  if (cache) {
+    const stale = await cache.match(staleKey);
+    if (stale) return { text: `${await stale.text()}\n(نتیجهٔ ذخیره‌شدهٔ قبلی؛ موتور جستجو الان پاسخ نداد.)`, engine: "cache-stale" };
+  }
   return { text: null, engine: "none" };
 }
 
@@ -680,7 +753,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 18,
+        version: 19,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
