@@ -1,9 +1,9 @@
 /**
- * کشاورزیار — مغز زندهٔ برنامه (Cloudflare Worker) — نسخهٔ ۱۴
+ * کشاورزیار — مغز زندهٔ برنامه (Cloudflare Worker) — نسخهٔ ۱۵
  * ==========================================================
  * هویت: «کشاورزیار». هرگز نام مدل یا شرکت سازنده را به کاربر نمی‌گوید.
  *
- * تغییرات کلیدی نسخهٔ ۱۴:
+ * تغییرات کلیدی نسخهٔ ۱۵:
  *   • حذف فیلتر کلیدواژه‌ای سخت؛ تشخیص موضوع توسط خود مدل انجام می‌شود.
  *   • هیچ متن انگلیسی/استدلال خام مدل به کاربر نشان داده نمی‌شود.
  *   • جابه‌جایی کلیدها دو دور کامل (۱→۵، ۱→۵) با همان مدل و همان حافظه.
@@ -13,6 +13,9 @@
 
 const DAHL_URL = "https://inference.dahl.global/v1/chat/completions";
 const DAHL_MODEL = "zai-org/GLM-5.3-Flash";
+/** ذخیرهٔ پشتیبان روی همان کلیدها؛ فقط وقتی ظرفیت مدل اصلی پر است. */
+const RESERVE_MODEL = "MiniMaxAI/MiniMax-M2.7";
+const RESERVE_MS = 18_000;
 
 /** فقط پس از شکست کامل ۲ دور × همهٔ کلیدها به‌عنوان آخرین سنگر. */
 const FALLBACK_MODELS = [
@@ -85,7 +88,7 @@ page فقط یکی از: dashboard, trade, parties, documents, receipts, signatu
 const OUT_OF_DOMAIN = "فقط درباره کشاورزی و حسابداری می‌توانم کمک کنم.";
 
 const ALL_KEYS_FAILED =
-  "فعلا کشاورزیار نمی‌تواند پاسخ بدهد، لطفا بعدا دوباره امتحان کنید، از شکیبایی شما متشکریم";
+  "ظرفیت پاسخ‌دهی الان پر است؛ لطفاً چند دقیقه بعد دوباره بپرسید. کشاورزیار همین‌جاست.";
 
 const ACTION_HINTS =
   /(ثبت|اضافه|وارد کن|بزن|بنویس|درست کن|ایجاد کن|بساز|صادر کن|پرداخت|بدهکار|بستانکار|هزینه|درآمد|قرض|سند|رسید|امضا|چاپ|بفرست|ارسال)/;
@@ -113,6 +116,40 @@ function keysOf(env, name) {
     .filter(Boolean);
 }
 
+/** بعضی مدل‌ها پاسخ را دو بار پشت هم می‌گذارند؛ یک نسخه نگه می‌داریم. */
+function dedupeText(value) {
+  const text = String(value ?? "").trim();
+  if (!text || /^[{[]/.test(text)) return text;
+  if (text.length % 2 === 0) {
+    const half = text.slice(0, text.length / 2);
+    if (half === text.slice(text.length / 2)) return half.trim();
+  }
+  const parts = text.split(/\n{2,}/);
+  if (parts.length >= 2 && parts.length % 2 === 0) {
+    const half = parts.length / 2;
+    if (parts.slice(0, half).join("\n\n") === parts.slice(half).join("\n\n")) return parts.slice(0, half).join("\n\n").trim();
+  }
+  return text;
+}
+
+/** حذف استدلال خام و خطوط انگلیسی از خروجی مدل پشتیبان. */
+function stripReasoning(value) {
+  let text = String(value ?? "");
+  text = text.replace(/<think[\s\S]*?<\/think>/gi, "").replace(/^[\s\S]*<\/think>/i, "").trim();
+  if (/^[{[]/.test(text)) return text;
+  return text
+    .split(/\r?\n/)
+    .map((line) => {
+      const fa = (line.match(/[\u0600-\u06FF]/g) || []).length;
+      const en = (line.match(/[A-Za-z]/g) || []).length;
+      if (!fa && en >= 4) return "";
+      return line.replace(/\s+(I|The|You|This|We|It|As|Note)\s+[A-Za-z][A-Za-z\s,.'!?;:()\-]{12,}$/, "");
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function lastParagraph(value) {
   const text = String(value ?? "").trim();
   if (!text) return "";
@@ -129,34 +166,42 @@ function looksPersian(text) {
   return en <= fa * 0.35;
 }
 
-/** جست‌وجوی Jina با جابه‌جایی کلید و کش یک‌ساعته. */
+/** جست‌وجوی Jina: کلید ۱→۵، دو دور کامل، سپس جایگزین. */
 async function jinaSearch(env, query) {
   const keys = keysOf(env, "JINA_KEYS");
   if (!keys.length) return null;
   const cache = typeof caches !== "undefined" ? caches.default : null;
-  const cacheKey = new Request(`https://cache.local/jina?q=${encodeURIComponent(query)}`);
+  const cacheKey = new Request(`https://cache.local/jina/v2?q=${encodeURIComponent(query)}`);
   if (cache) {
     const hit = await cache.match(cacheKey);
     if (hit) return await hit.text();
   }
-  for (const key of keys) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 9000);
-      const response = await fetch(`https://s.jina.ai/${encodeURIComponent(query)}`, {
-        headers: { authorization: `Bearer ${key}`, accept: "text/plain", "x-respond-with": "markdown" },
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!response.ok) continue;
-      const text = (await response.text()).slice(0, 4500);
-      if (!text.trim()) continue;
-      if (cache) {
-        await cache.put(cacheKey, new Response(text, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "max-age=3600" } }));
+  const errors = [];
+  const deadline = Date.now() + 9_000;
+  for (let round = 0; round < 2; round += 1) {
+    for (const key of keys) {
+      if (Date.now() > deadline) return null;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), Math.min(5000, Math.max(1500, deadline - Date.now())));
+        const response = await fetch(`https://s.jina.ai/${encodeURIComponent(query)}`, {
+          headers: { authorization: `Bearer ${key}`, accept: "text/plain", "x-respond-with": "markdown" },
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!response.ok) {
+          errors.push(`jina ${response.status}`);
+          continue;
+        }
+        const text = (await response.text()).slice(0, 3600);
+        if (!text.trim()) { errors.push("jina empty"); continue; }
+        if (cache) {
+          await cache.put(cacheKey, new Response(text, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "max-age=3600" } }));
+        }
+        return text;
+      } catch (error) {
+        errors.push(`jina ${String(error?.name || error).slice(0, 30)}`);
       }
-      return text;
-    } catch {
-      // کلید بعدی
     }
   }
   return null;
@@ -203,12 +248,67 @@ function decodeEntities(value) {
 }
 
 async function webSearch(env, query) {
-  return (await jinaSearch(env, query)) ?? (await duckSearch(query));
+  const jina = await jinaSearch(env, query);
+  if (jina) return { text: jina, engine: "jina" };
+  const duck = await duckSearch(query);
+  if (duck) return { text: duck, engine: "duckduckgo" };
+  return { text: null, engine: "none" };
 }
 
-async function callDahl(key, payload) {
+const WEATHER_HINTS = /(هوا|باران|بارش|بارندگی|هواشناسی|سرما|گرما|یخبندان|خشکسالی|رطوبت|دما|پیش.?بینی|ابر|طوفان|تگرگ)/;
+
+const FA_DATE = (iso) => {
+  try {
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "long", day: "numeric", timeZone: "Asia/Tehran" }).format(new Date(`${iso}T12:00:00+03:30`));
+  } catch {
+    return iso;
+  }
+};
+
+/** پیش‌بینی دقیق بارش با Open-Meteo؛ بدون کلید و مستقل از Jina. */
+async function weatherBrief(city) {
+  const name = String(city ?? "").trim().slice(0, 60);
+  if (!name) return null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=fa&format=json`, { signal: controller.signal });
+    if (!geoResponse.ok) { clearTimeout(timer); return null; }
+    const geo = await geoResponse.json();
+    const place = geo?.results?.[0];
+    if (!place || typeof place.latitude !== "number") { clearTimeout(timer); return null; }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=precipitation_sum,precipitation_probability_max,temperature_2m_min,temperature_2m_max,weather_code&timezone=Asia%2FTehran&forecast_days=10`;
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const daily = data?.daily;
+    if (!daily?.time?.length) return null;
+    const rows = daily.time.slice(0, 10).map((date, index) => {
+      const rain = Number(daily.precipitation_sum?.[index] ?? 0);
+      const chance = Number(daily.precipitation_probability_max?.[index] ?? 0);
+      const min = Math.round(Number(daily.temperature_2m_min?.[index] ?? 0));
+      const max = Math.round(Number(daily.temperature_2m_max?.[index] ?? 0));
+      return `- ${FA_DATE(date)}: بارش ${rain.toFixed(1)} میلی‌متر، احتمال بارش ${chance}٪، دما ${min} تا ${max} درجه`;
+    });
+    const total = daily.precipitation_sum.slice(0, 10).reduce((sum, value) => sum + Number(value || 0), 0);
+    return `پیش‌بینی ده‌روزهٔ ${place.name}${place.admin1 ? `، ${place.admin1}` : ""} (Open-Meteo):\n${rows.join("\n")}\nجمع بارش ده روز: ${total.toFixed(1)} میلی‌متر.`;
+  } catch {
+    return null;
+  }
+}
+
+function searchQueryFor(message, city) {
+  const text = String(message ?? "");
+  const place = String(city ?? "").trim();
+  if (WEATHER_HINTS.test(text)) return `${place || "ایران"} هواشناسی پیش‌بینی بارش امروز`;
+  if (/(قیمت|نرخ|بازار|خریدار|کارخانه|فروش)/.test(text)) return `${text.slice(0, 90)} ${place} بازار امروز`;
+  return [text.slice(0, 100), place, "کشاورزی"].filter(Boolean).join(" ");
+}
+
+async function callDahl(key, payload, timeoutMs = 20_000) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 40_000);
+  const timer = setTimeout(() => controller.abort(), Math.max(3_000, timeoutMs));
   try {
     const response = await fetch(DAHL_URL, {
       method: "POST",
@@ -218,49 +318,122 @@ async function callDahl(key, payload) {
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      throw new Error(`dahl ${response.status}: ${detail.slice(0, 100)}`);
+      throw Object.assign(new Error(`dahl ${response.status}: ${detail.slice(0, 100)}`), { status: response.status });
     }
     const data = await response.json();
     const message = data?.choices?.[0]?.message ?? {};
+    // برخی مدل‌ها محتوا را آرایه‌ای از قطعه‌ها برمی‌گردانند.
+    const content = message.content;
+    const text = Array.isArray(content)
+      ? content.map((part) => (typeof part === "string" ? part : part?.text ?? "")).join("")
+      : typeof content === "object" && content !== null
+        ? String(content.text ?? "")
+        : String(content ?? "");
     // هرگز reasoning خام را جای پاسخ نمی‌گذاریم؛ فقط پاسخ نهایی و فارسی.
-    return String(message.content ?? "").trim();
+    return text.trim();
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function callWorkersAi(env, model, payload) {
-  const out = await env.AI.run(model.id, payload);
+async function callWorkersAi(env, model, payload, timeoutMs = 14_000) {
+  let timer;
+  const out = await Promise.race([
+    env.AI.run(model.id, payload),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("fallback timeout")), Math.max(4_000, timeoutMs)); }),
+  ]).finally(() => clearTimeout(timer));
   const message = out?.choices?.[0]?.message;
-  return String(out?.response ?? message?.content ?? "").trim();
+  const raw = out?.response ?? message?.content ?? "";
+  if (raw && typeof raw === "object") {
+    if (Array.isArray(raw)) return raw.map((part) => (typeof part === "string" ? part : part?.text ?? "")).join("").trim();
+    return JSON.stringify(raw);
+  }
+  return String(raw).trim();
 }
 
 /**
- * دو دور کامل روی کلیدها (۱→۵ سپس ۱→۵) با همان مدل و همان payload.
- * فقط پس از آن، Workers AI به‌عنوان آخرین سنگر.
+ * دو دور کامل روی کلیدها (۱→۵ سپس ۱→۵) با مدل اصلی.
+ * سپس همان کلیدها با مدل پشتیبان (اگر ظرفیت اصلی پر باشد)، و در آخر Workers AI.
+ * زمان پاسخ تضمین‌شده است تا کلاینت بی‌پاسخ نماند.
  */
-async function complete(env, payload, { requirePersian = true } = {}) {
+async function complete(env, payload, { requirePersian = true, deadlineMs = 38_000, reserveFirst = false, workersFirst = false } = {}) {
   const errors = [];
   const keys = keysOf(env, "DAHL_KEYS");
-  for (let round = 0; round < 2; round += 1) {
-    for (const key of keys) {
+  const deadline = Date.now() + deadlineMs;
+  const reserveMs = Math.min(RESERVE_MS, Math.max(8_000, Math.round(deadlineMs * 0.45)));
+  const primaryEnd = deadline - reserveMs;
+  // استدلال محصول: ابتدا مدل داخلی سریع؛ اگر JSON نداد، مسیر پشتیبان DAHL.
+  if (workersFirst && env.AI) {
+    for (const model of FALLBACK_MODELS) {
+      if (deadline - Date.now() < 8_000) break;
       try {
-        const text = await callDahl(key, payload);
+        const text = stripReasoning(await callWorkersAi(env, model, { ...payload, response_format: undefined }, Math.min(22_000, deadline - Date.now() - 2_000)));
         if (text && text.length >= 4 && (!requirePersian || looksPersian(text))) {
-          return { text, engine: "primary", errors };
+          return { text: dedupeText(text), engine: `workers-${model.key}`, errors };
         }
-        errors.push(text ? "پاسخ نامعتبر" : "پاسخ خالی");
+        errors.push(`${model.key}: پاسخ نامعتبر`);
       } catch (error) {
-        errors.push(String(error?.message || error).slice(0, 80));
+        errors.push(`${model.key}: ${String(error?.message || error).slice(0, 50)}`);
       }
     }
   }
-  if (env.AI) {
-    for (const model of FALLBACK_MODELS) {
+  // استدلال محصول: مدل اصلی در عمل ظرفیت ندارد؛ مسیر پشتیبان زودتر و با زمان کافی.
+  if (reserveFirst) {
+    for (const key of keys.slice(0, 1)) {
+      const remaining = deadline - Date.now();
+      if (remaining < 5_000) break;
       try {
-        const text = await callWorkersAi(env, model, payload);
+        const raw = await callDahl(key, { ...payload, model: RESERVE_MODEL, reasoning_effort: undefined }, Math.min(46_000, remaining));
+        const text = stripReasoning(raw);
         if (text && text.length >= 4 && (!requirePersian || looksPersian(text))) {
-          return { text, engine: "fallback", errors };
+          return { text: dedupeText(text), engine: "reserve", errors };
+        }
+        errors.push(text ? "پاسخ پشتیبان نامعتبر" : "پاسخ پشتیبان خالی");
+      } catch (error) {
+        errors.push(`reserve: ${String(error?.message || error).slice(0, 60)}`);
+      }
+    }
+  }
+  for (let round = 0; round < 2; round += 1) {
+    for (const key of keys) {
+      const remaining = primaryEnd - Date.now();
+      if (remaining < 2_500) break;
+      try {
+        const text = await callDahl(key, payload, Math.min(18_000, remaining));
+        if (text && text.length >= 4 && (!requirePersian || looksPersian(text))) {
+          return { text: dedupeText(text), engine: "primary", errors };
+        }
+        errors.push(text ? "پاسخ نامعتبر" : "پاسخ خالی");
+      } catch (error) {
+        const status = Number(error?.status || 0);
+        errors.push(String(error?.message || error).slice(0, 80));
+        // ظرفیت مدل: کمی فاصله تا آزادشدن جایگاه، نه هجوم دوبارهٔ بی‌وقفه.
+        if (status === 429) await new Promise((resolve) => setTimeout(resolve, Math.min(700, Math.max(0, primaryEnd - Date.now() - 3_000))));
+      }
+    }
+  }
+  // پشتیبان روی همان کلیدها: مدل دیگر، هویت و قواعد همان است.
+  for (const key of keys) {
+    const remaining = deadline - Date.now();
+    if (remaining < 3_500) break;
+    try {
+      const raw = await callDahl(key, { ...payload, model: RESERVE_MODEL, reasoning_effort: undefined }, Math.min(RESERVE_MS, remaining));
+      const text = stripReasoning(raw);
+      if (text && text.length >= 4 && (!requirePersian || looksPersian(text))) {
+        return { text: dedupeText(text), engine: "reserve", errors };
+      }
+      errors.push(text ? "پاسخ پشتیبان نامعتبر" : "پاسخ پشتیبان خالی");
+    } catch (error) {
+      errors.push(`reserve: ${String(error?.message || error).slice(0, 60)}`);
+    }
+  }
+  if (env.AI && deadline - Date.now() > 4_000) {
+    for (const model of FALLBACK_MODELS) {
+      if (deadline - Date.now() < 4_000) break;
+      try {
+        const text = stripReasoning(await callWorkersAi(env, model, payload, Math.min(14_000, deadline - Date.now() - 1_500)));
+        if (text && text.length >= 4 && (!requirePersian || looksPersian(text))) {
+          return { text: dedupeText(text), engine: "fallback", errors };
         }
       } catch (error) {
         errors.push(`${model.key}: ${String(error?.message || error).slice(0, 50)}`);
@@ -392,6 +565,32 @@ function extractJson(text) {
   return null;
 }
 
+/** همهٔ اشیای JSON متن را جمع می‌کند؛ برای وقتی مدل آرایهٔ وظیفه برمی‌گرداند. */
+function extractJsonObjects(text) {
+  const value = String(text ?? "");
+  const out = [];
+  let depth = 0, start = -1, inString = false, escape = false;
+  for (let i = 0; i < value.length; i += 1) {
+    const ch = value[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === "{") { if (depth === 0) start = i; depth += 1; }
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        try { out.push(JSON.parse(value.slice(start, i + 1))); } catch { /* ignore */ }
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
 function budgetFor(section, isAction) {
   if (isAction) return 480;
   if (section === "inventory" || section === "reports") return 320;
@@ -407,7 +606,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 14,
+        version: 16,
         identity: "کشاورزیار",
         keys: keysOf(env, "DAHL_KEYS").length,
         search: keysOf(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
@@ -417,8 +616,105 @@ export default {
       const body = await request.json().catch(() => ({}));
       const query = String(body?.query ?? "").trim().slice(0, 240);
       if (!query) return json({ ok: false, error: "پرسش خالی" }, 400);
-      const text = await webSearch(env, query);
-      return text ? json({ ok: true, text }) : json({ ok: false, error: "جست‌وجو ناموفق" }, 502);
+      const found = await webSearch(env, query);
+      return found.text
+        ? json({ ok: true, text: found.text, engine: found.engine })
+        : json({ ok: false, error: "فعلا ابزار جستجو کار نمی‌کند", code: "SEARCH_DOWN" }, 502);
+    }
+    if (url.pathname === "/api/research" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const name = String(body?.name ?? "").trim().replace(/[<>{}]/g, "").slice(0, 80);
+      const city = String(body?.city ?? "").trim().replace(/[<>{}]/g, "").slice(0, 60);
+      const climate = String(body?.climate ?? "").slice(0, 20);
+      if (name.length < 2) return json({ ok: false, error: "نام محصول را کامل بنویس" }, 400);
+      const cache = typeof caches !== "undefined" ? caches.default : null;
+      const cacheKey = new Request(`https://cache.local/crop/v2?n=${encodeURIComponent(name)}&c=${encodeURIComponent(city)}&z=${encodeURIComponent(climate)}`);
+      if (cache) {
+        const hit = await cache.match(cacheKey);
+        if (hit) {
+          const cached = await hit.json().catch(() => null);
+          if (cached) return json({ ok: true, ...cached, cached: true });
+        }
+      }
+      const [web, weather] = await Promise.all([
+        webSearch(env, `تقویم کشت و داشت ${name} ${city} تاریخ کاشت آبیاری کود برداشت`.trim()),
+        city ? weatherBrief(city) : Promise.resolve(null),
+      ]);
+      const evidence = [
+        weather ? `پیش‌بینی مزرعه:\n${weather}` : "",
+        web.text ? `نتایج جستجو (${web.engine}):\n${web.text.slice(0, 3200)}` : "جستجوی وب در دسترس نبود.",
+      ].filter(Boolean).join("\n\n");
+      const system = `تو کارشناس زراعت ایران هستی. برای محصول خواسته‌شده یک تقویم کشت واقع‌بینانه و کامل فارسی بده.
+فقط JSON معتبر با این ساختار برگردان (هیچ متن دیگری ننویس):
+{"relevant":true,"name":"نام محصول","summary":"جمع‌بندی دو جمله‌ای","sowing":"پنجره کاشت با ماه شمسی و اقلیم","harvestDays":عدد,"waterMm":عدد,"fertilizer":"برنامه کوددهی خلاصه و دقیق","irrigation":"نکات آبیاری و فاصله","tasks":[{"day":0,"kind":"prep|planting|fertilizer|spray|irrigation|harvest","title":"کوتاه","detail":"دستور دقیق"}],"risks":["ریسک و راه پیشگیری"],"confidence":"بالا|متوسط"}
+قواعد: ۶ تا ۱۰ وظیفه با day نسبت به کاشت؛ عددها برای هر هکتار و بازه منطقی؛ اگر نام محصول کشاورزی نیست relevant را false و reason فارسی بده؛ از داده‌های بالا برای تاریخ و بارش استفاده کن؛ چیزی که مطمئن نیستی نساز.`;
+      const user = `محصول: ${name}\nشهر: ${city || "نامشخص"}\nاقلیم: ${climate || "نامشخص"}\nامروز: ${body?.today || ""}\n\n${evidence}`;
+      const result = await complete(env, {
+        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        response_format: { type: "json_object" },
+        max_tokens: 1000,
+        temperature: 0.2,
+      }, { requirePersian: false, deadlineMs: 48_000, reserveFirst: true, workersFirst: true });
+      if (!result.text) return json({ ok: false, error: "استدلال محصول الان ممکن نیست", code: "RESEARCH_UNAVAILABLE", detail: result.errors.slice(-4) }, 502);
+      // بعضی مدل‌ها به‌جای relevant:false فقط توضیح می‌دهند که موضوع کشاورزی نیست.
+      if (/"relevant"\s*:\s*false/i.test(result.text) || /(رویداد ورزشی|محصول کشاورزی نیست|به کشاورزی مربوط نیست|نیازی به کشت)/.test(result.text)) {
+        return json({ ok: true, relevant: false, reason: "درخواست شما یافت نشد" });
+      }
+      let parsed = extractJson(result.text);
+      if (!parsed || typeof parsed !== "object") return json({ ok: false, error: "نتیجهٔ استدلال معتبر نبود", code: "RESEARCH_INVALID", detail: result.text.slice(0, 160) }, 502);
+      if (Array.isArray(parsed)) parsed = { relevant: true, name, tasks: parsed };
+      else if (!parsed.tasks && (parsed.title || parsed.kind || parsed.day !== undefined)) {
+        const items = extractJsonObjects(result.text).filter((item) => item && (item.title || item.kind));
+        parsed = { relevant: true, name, tasks: items.length ? items : [parsed] };
+      }
+      if (parsed.relevant === false) return json({ ok: true, relevant: false, reason: String(parsed.reason || "این مورد به کشاورزی و تقویم کشت مربوط نیست.").slice(0, 220) });
+      const harvestDays = Math.max(20, Math.min(400, Math.round(Number(parsed.harvestDays) || 120)));
+      let tasks = Array.isArray(parsed.tasks) ? parsed.tasks.slice(0, 12).map((task) => ({
+        day: Math.max(0, Math.min(400, Math.round(Number(task?.day) || 0))),
+        kind: ["prep", "planting", "fertilizer", "spray", "irrigation", "harvest"].includes(task?.kind) ? task.kind : "prep",
+        title: String(task?.title ?? "").replace(/[<>{}]/g, "").slice(0, 80),
+        detail: String(task?.detail ?? "").replace(/[<>{}]/g, "").slice(0, 300),
+      })).filter((task) => task.title) : [];
+      if (!tasks.length) return json({ ok: false, error: "تقویم معتبری ساخته نشد", code: "RESEARCH_INVALID" }, 502);
+      // اگر مدل فقط بخشی را داد، اسکلت حداقلی و محتاطانه را کامل می‌کنیم.
+      let estimated = false;
+      const kinds = new Set(tasks.map((task) => task.kind));
+      const skeleton = [
+        { kind: "planting", day: 0, title: "کاشت", detail: `در پنجرهٔ امن اقلیم ${climate || "منطقه"} و پس از تأمین رطوبت خاک.` },
+        { kind: "irrigation", day: Math.round(harvestDays * 0.25), title: "آبیاری مرحلهٔ رشد", detail: "بر پایهٔ رطوبت خاک؛ از تنش در رشد رویشی جلوگیری کن." },
+        { kind: "fertilizer", day: Math.round(harvestDays * 0.35), title: "کود سرک", detail: "مقدار را بر پایهٔ آزمون خاک و برچسب کود تنظیم کن." },
+        { kind: "irrigation", day: Math.round(harvestDays * 0.6), title: "آبیاری بحرانی", detail: "مرحلهٔ گل‌دهی و پر شدن دانه حساس‌ترین زمان کم‌آبی است." },
+        { kind: "harvest", day: harvestDays, title: "برداشت", detail: "در زمان رسیدگی و با رطوبت مناسب محصول برداشت کن." },
+      ];
+      for (const item of skeleton) {
+        if (!kinds.has(item.kind)) {
+          tasks.push(item);
+          kinds.add(item.kind);
+          estimated = true;
+        }
+      }
+      tasks = tasks.sort((a, b) => a.day - b.day).slice(0, 12);
+      const summary = String(parsed.summary || "").replace(/[<>{}]/g, "").slice(0, 400) || `تقویم پیشنهادی ${name} برای ${city || "منطقهٔ شما"} بر پایهٔ اقلیم ${climate || "محلی"}؛ جزئیات نهایی را با کارشناس محلی تأیید کنید.`;
+      const sowing = String(parsed.sowing || "").replace(/[<>{}]/g, "").slice(0, 160) || `پنجرهٔ کاشت را با اقلیم ${climate || "منطقه"} و تاریخ آخرین سرما تنظیم کن.`;
+      const fertilizer = String(parsed.fertilizer || "").replace(/[<>{}]/g, "").slice(0, 400) || "کود پایه پیش از کاشت و سرک در مرحلهٔ رشد رویشی؛ مقدار بر پایهٔ آزمون خاک.";
+      const irrigation = String(parsed.irrigation || "").replace(/[<>{}]/g, "").slice(0, 300) || "آبیاری بر پایهٔ رطوبت خاک؛ از تنش در گل‌دهی و پر شدن دانه جلوگیری کن.";
+      const payload = {
+        relevant: true,
+        name: String(parsed.name || name).replace(/[<>{}]/g, "").slice(0, 80),
+        summary,
+        sowing,
+        harvestDays,
+        waterMm: Math.max(50, Math.min(2000, Math.round(Number(parsed.waterMm) || 500))),
+        fertilizer,
+        irrigation,
+        tasks,
+        risks: Array.isArray(parsed.risks) ? parsed.risks.slice(0, 5).map((risk) => String(risk).replace(/[<>{}]/g, "").slice(0, 220)) : [],
+        confidence: estimated ? "برآورد" : String(parsed.confidence || "متوسط").slice(0, 10),
+        engine: result.engine,
+        weather: weather ? weather.slice(0, 1400) : "",
+      };
+      if (cache) await cache.put(cacheKey, new Response(JSON.stringify(payload), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "max-age=86400" } }));
+      return json({ ok: true, ...payload, cached: false });
     }
     if (url.pathname !== "/api/chat" || request.method !== "POST") return json({ ok: false, error: "مسیر پیدا نشد" }, 404);
 
@@ -440,12 +736,26 @@ export default {
     const history = Array.isArray(body?.history) ? body.history.slice(-6) : [];
     const maxTokens = budgetFor(section, isAction);
 
-    // جست‌وجو فقط برای بخش‌های داده‌محور و فقط با نشانهٔ نیاز.
+    // دادهٔ روز: اول پیش‌بینی عددی بارش، بعد وب. اگر هر دو بخوابند صادقانه بگو.
     let searchBlock = "";
+    const city = context?.profile?.city;
     if (!isAction && ["crops", "trade", "assistant"].includes(section) && SEARCH_HINTS.test(message)) {
-      const query = [message, context?.profile?.city, "کشاورزی"].filter(Boolean).join(" ");
-      const found = await webSearch(env, query);
-      if (found) searchBlock = `\n\nنتیجهٔ جست‌وجوی وب (منبع بیرونی؛ فقط برای دادهٔ روز استفاده کن و منبع را نام ببر):\n${found}`;
+      const [weather, found] = await Promise.all([
+        WEATHER_HINTS.test(message) && city ? weatherBrief(city) : Promise.resolve(null),
+        webSearch(env, searchQueryFor(message, city)),
+      ]);
+      if (weather) {
+        searchBlock += `\n\n${weather}\nاز این عددها دقیق استفاده کن: تاریخ بارش، مقدار میلی‌متر و دما را بگو. اگر بازهٔ ده‌روزه کافی نیست، صریح بگو.`;
+      }
+      if (!city && WEATHER_HINTS.test(message)) {
+        searchBlock += `\n\nشهر کاربر معلوم نیست؛ برای بارش دقیق، نام شهر یا منطقه را بپرس و عدد نساز.`;
+      }
+      if (found.text) {
+        searchBlock += `\n\nنتیجهٔ جست‌وجوی وب (${found.engine}؛ منبع بیرونی و فقط برای دادهٔ روز):\n${found.text}`;
+      } else if (!weather) {
+        searchBlock += `\n\nابزار جستجو و هواشناسی الان در دسترس نیست. صریح بگو «فعلا ابزار جستجو کار نمی‌کند» و هیچ قیمت، بارش یا آمار روز نساز؛ فقط راهنمایی کارشناسی کلی بده.`;
+      }
+      searchBlock += `\nفقط فارسی روان پاسخ بده؛ عدد و تاریخ را با منبع و بازه بگو و از ارجاع به اینستاگرام یا شبکهٔ اجتماعی پرهیز کن.`;
     }
 
     const partyBlock = context?.parties?.length

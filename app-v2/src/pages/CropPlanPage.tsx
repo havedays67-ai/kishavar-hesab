@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, CircleCheck, Droplets, FlaskConical, Leaf, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp } from "lucide-react";
+import { BadgeCheck, CalendarDays, CircleCheck, CloudRain, Droplets, FlaskConical, Leaf, Loader2, Search, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp, X } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatAmount } from "../lib/money-format";
 import { formatJalali, JALALI_MONTHS, toPersianDigits, todayJalali, type JDate } from "../lib/format";
@@ -16,6 +16,7 @@ import {
   type WaterSource,
 } from "../lib/ai/agronomy-planner";
 import { buildSeasonPlan, CROP_SCHEDULES, TASK_LABELS, type TaskKind } from "../lib/agronomy/season-plan";
+import { cachedCropInsight, researchCrop, type CropInsight } from "../lib/ai/crop-research";
 
 const CLIMATE_LABELS: Record<ClimateZone, string> = {
   cold: "سرد",
@@ -137,8 +138,55 @@ export function CropPlanPage() {
   const [waterSource, setWaterSource] = useState<WaterSource>("well");
   const [areaHa, setAreaHa] = useState(5);
   const [planting, setPlanting] = useState<JDate | null>(todayJalali());
+  const [search, setSearch] = useState("");
+  const [productMode, setProductMode] = useState<"crop" | "other">("crop");
+  const [otherName, setOtherName] = useState("");
+  const [pendingInsight, setPendingInsight] = useState<CropInsight | null>(null);
+  const [acceptedInsight, setAcceptedInsight] = useState<CropInsight | null>(null);
+  const [researchState, setResearchState] = useState<"idle" | "waiting" | "ready" | "notfound" | "error">("idle");
+  const [researchMessage, setResearchMessage] = useState("");
 
   const crop = CROPS[cropId];
+
+  function chooseCrop(id: CropId) {
+    setCropId(id);
+    setProductMode("crop");
+    setSearch("");
+    setResearchState("idle");
+  }
+
+  async function runResearch() {
+    const name = otherName.trim();
+    if (name.length < 2) {
+      setResearchMessage("نام محصول را کامل بنویس.");
+      setResearchState("error");
+      return;
+    }
+    const cached = cachedCropInsight(name);
+    if (cached) {
+      setPendingInsight(cached);
+      setResearchState("ready");
+      return;
+    }
+    setPendingInsight(null);
+    setResearchMessage("");
+    setResearchState("waiting");
+    const result = await researchCrop(name, {
+      city: profile.city,
+      climate: CLIMATE_LABELS[climate],
+      today: formatJalali(todayJalali(), "long"),
+    });
+    if (result.ok) {
+      setPendingInsight(result.data);
+      setResearchState("ready");
+    } else if (result.kind === "irrelevant") {
+      setResearchMessage("درخواست شما یافت نشد");
+      setResearchState("notfound");
+    } else {
+      setResearchMessage(result.message || "استدلال محصول الان ممکن نیست؛ کمی بعد دوباره تلاش کن.");
+      setResearchState("error");
+    }
+  }
 
   const farm: FarmProfile = {
     region: profile.city || "منطقهٔ شما",
@@ -181,11 +229,12 @@ export function CropPlanPage() {
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="block">
-            <span className="mb-1 block text-[8px] text-[#78968a]">محصول</span>
-            <select value={cropId} onChange={(event) => setCropId(event.target.value as CropId)} className="field w-full py-2 text-[10px]">
-              {(Object.keys(CROPS) as CropId[]).map((id) => <option key={id} value={id}>{CROPS[id].name}</option>)}
-            </select>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-[8px] text-[#78968a]">جست‌وجوی محصول</span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#78968a]" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="مثلاً گندم، زعفران، پسته…" className="field w-full py-2 pr-7 text-[10px]" />
+            </div>
           </label>
           <label className="block">
             <span className="mb-1 block text-[8px] text-[#78968a]">اقلیم منطقه</span>
@@ -210,10 +259,79 @@ export function CropPlanPage() {
             <input type="number" min={0.1} step={0.1} value={areaHa} onChange={(event) => setAreaHa(Number(event.target.value) || 0.1)} className="field w-full py-2 text-[10px]" />
           </label>
         </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {(Object.keys(CROPS) as CropId[])
+            .filter((id) => !search.trim() || CROPS[id].name.includes(search.trim()))
+            .map((id) => (
+              <button key={id} type="button" onClick={() => chooseCrop(id)} className={cn("rounded-lg border px-2 py-1 text-[8px] transition", productMode === "crop" && cropId === id ? "border-mint-300/40 bg-mint-300/10 text-mint-200" : "border-white/[0.08] text-[#a9c1b5] hover:border-white/20")}>
+                {CROPS[id].name}
+              </button>
+            ))}
+          <button type="button" onClick={() => { setProductMode("other"); setResearchState("idle"); }} className={cn("rounded-lg border px-2 py-1 text-[8px] transition", productMode === "other" ? "border-sand-300/40 bg-sand-300/10 text-sand-200" : "border-white/[0.08] text-[#a9c1b5] hover:border-white/20")}>
+            سایر (محصول دلخواه)
+          </button>
+        </div>
+        {productMode === "other" && (
+          <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-sand-300/20 bg-sand-300/[0.04] p-2 sm:flex-row sm:items-end">
+            <label className="block flex-1">
+              <span className="mb-1 block text-[8px] text-[#a99f78]">نام محصول یا گیاه را بنویس</span>
+              <input value={otherName} onChange={(event) => setOtherName(event.target.value)} placeholder="مثلاً زعفران، پسته، آویشن…" className="field w-full py-2 text-[10px]" disabled={researchState === "waiting"} />
+            </label>
+            <button type="button" onClick={() => void runResearch()} disabled={researchState === "waiting"} className="rounded-xl bg-sand-300 px-3 py-2 text-[9px] font-semibold text-[#1d2a24] disabled:opacity-60">
+              {researchState === "waiting" ? "در حال استدلال…" : "استدلال و ساخت تقویم"}
+            </button>
+          </div>
+        )}
         <div className="mt-2 max-w-[240px]">
           <JalaliDatePicker label="تاریخ کاشت" value={planting} onChange={setPlanting} />
         </div>
       </section>
+
+      {acceptedInsight && (
+        <section className="glass rounded-[22px] border border-mint-300/20 p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><BadgeCheck className="h-3.5 w-3.5 text-mint-300" /> تقویم اختصاصی {acceptedInsight.name}</h2>
+              <p className="mt-0.5 text-[8px] text-[#78968a]">نتیجهٔ استدلال برای محصولی که در فهرست ثابت نبود؛ اعتبار: {acceptedInsight.confidence}</p>
+            </div>
+            <button type="button" onClick={() => setAcceptedInsight(null)} className="rounded-lg border border-white/[0.08] p-1 text-[#78968a] hover:text-white" aria-label="بستن تقویم اختصاصی"><X className="h-3.5 w-3.5" /></button>
+          </div>
+          <p className="text-[9px] leading-5 text-[#dcebe2]">{acceptedInsight.summary || "برآورد اولیه بر پایهٔ اقلیم و داده‌های موجود."}</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-white/[0.06] p-2.5"><p className="text-[7px] text-[#78968a]">پنجرهٔ کاشت</p><p className="mt-0.5 text-[9px] text-[#dcebe2]">{acceptedInsight.sowing || "بستگی به اقلیم منطقه"}</p></div>
+            <div className="rounded-xl border border-white/[0.06] p-2.5"><p className="text-[7px] text-[#78968a]">طول فصل</p><p className="mt-0.5 text-[9px] text-[#dcebe2]">{toPersianDigits(acceptedInsight.harvestDays)} روز</p></div>
+            <div className="rounded-xl border border-white/[0.06] p-2.5"><p className="text-[7px] text-[#78968a]">آب مورد نیاز</p><p className="mt-0.5 text-[9px] text-[#dcebe2]">{toPersianDigits(acceptedInsight.waterMm)} میلی‌متر</p></div>
+            <div className="rounded-xl border border-white/[0.06] p-2.5"><p className="text-[7px] text-[#78968a]">آبیاری</p><p className="mt-0.5 text-[9px] text-[#dcebe2]">{acceptedInsight.irrigation || "بر پایهٔ رطوبت خاک"}</p></div>
+          </div>
+          {acceptedInsight.fertilizer && <p className="mt-2 rounded-xl border border-[#c5b97f]/20 bg-[#c5b97f]/[0.05] p-2.5 text-[8px] leading-4 text-[#e3d39a]">کوددهی: {acceptedInsight.fertilizer}</p>}
+          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+            <div className="rounded-xl border border-white/[0.06] p-2.5">
+              <p className="mb-1 text-[8px] font-semibold text-white">عملیات پیشنهادی</p>
+              {acceptedInsight.tasks.length === 0 ? <p className="text-[8px] text-[#78968a]">عملیات تفصیلی در دسترس نیست؛ با کارشناس محلی مشورت کن.</p> : acceptedInsight.tasks.map((task, index) => (
+                <div key={`${task.title}-${index}`} className="border-b border-white/[0.04] py-1.5 last:border-0">
+                  <p className="text-[8px] text-[#dcebe2]">روز {toPersianDigits(task.day)} — {task.title}</p>
+                  <p className="text-[7px] leading-4 text-[#93ad9f]">{task.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {acceptedInsight.risks.length > 0 && (
+                <div className="rounded-xl border border-[#f0a59a]/20 bg-[#f0a59a]/[0.04] p-2.5">
+                  <p className="mb-1 text-[8px] font-semibold text-[#f0a59a]">ریسک‌ها</p>
+                  {acceptedInsight.risks.map((risk, index) => <p key={index} className="text-[7px] leading-4 text-[#d7b8b2]">• {risk}</p>)}
+                </div>
+              )}
+              {acceptedInsight.weather && (
+                <div className="rounded-xl border border-[#60a5fa]/20 bg-[#60a5fa]/[0.04] p-2.5">
+                  <p className="mb-1 flex items-center gap-1 text-[8px] font-semibold text-[#9cc4f5]"><CloudRain className="h-3 w-3" /> هوای مزرعه</p>
+                  <p className="max-h-24 overflow-y-auto whitespace-pre-line text-[7px] leading-4 text-[#b9cdc2]">{acceptedInsight.weather}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="mt-2 text-[7px] leading-4 text-[#6f8c7f]">این تقویم برآورد است؛ برای دوز نهاده و تاریخ قطعی، برچسب محصول و نظر کارشناس منطقه مقدم است.</p>
+        </section>
+      )}
 
       <section className="glass rounded-[22px] p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -376,6 +494,40 @@ export function CropPlanPage() {
         </div>
         <p className="mt-2 flex items-start gap-1 text-[7px] leading-4 text-[#6f8c7f]"><Droplets className="mt-0.5 h-2.5 w-2.5 shrink-0" /> دوزها راهنمای عمومی است؛ برچسب سم/کود و نظر کارشناس منطقه همیشه مقدم است.</p>
       </section>
+
+      {researchState !== "idle" && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-[22px] border border-white/10 bg-[#101c17] p-4 shadow-2xl">
+            {researchState === "waiting" && (
+              <div className="text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-mint-300" />
+                <h3 className="mt-3 text-[12px] font-semibold text-white">در حال استدلال</h3>
+                <p className="mt-1 text-[9px] leading-5 text-[#93ad9f]">منتظر بمانید؛ تقویم {otherName.trim()} با اقلیم و هوای منطقه ساخته می‌شود.</p>
+              </div>
+            )}
+            {researchState === "ready" && pendingInsight && (
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-xl bg-mint-300/10 text-mint-300"><BadgeCheck className="h-4 w-4" /></span>
+                  <div><h3 className="text-[12px] font-semibold text-white">استدلال تمام شد، نتیجه آماده است</h3><p className="text-[8px] text-[#78968a]">{pendingInsight.name} — اعتبار {pendingInsight.confidence}</p></div>
+                </div>
+                <p className="mt-2 text-[9px] leading-5 text-[#dcebe2]">{pendingInsight.summary || "تقویم پیشنهادی آماده است."}</p>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" onClick={() => { setAcceptedInsight(pendingInsight); setPendingInsight(null); setResearchState("idle"); }} className="flex-1 rounded-xl bg-mint-300 px-3 py-2 text-[10px] font-semibold text-[#10201a]">تایید</button>
+                  <button type="button" onClick={() => { setPendingInsight(null); setResearchState("idle"); }} className="rounded-xl border border-white/10 px-3 py-2 text-[10px] text-[#a9c1b5]">انصراف</button>
+                </div>
+              </div>
+            )}
+            {(researchState === "notfound" || researchState === "error") && (
+              <div className="text-center">
+                <h3 className="text-[12px] font-semibold text-white">{researchState === "notfound" ? "درخواست شما یافت نشد" : "استدلال انجام نشد"}</h3>
+                <p className="mt-1 text-[9px] leading-5 text-[#93ad9f]">{researchMessage}</p>
+                <button type="button" onClick={() => setResearchState("idle")} className="mt-3 rounded-xl border border-white/10 px-4 py-2 text-[10px] text-[#a9c1b5]">بستن</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
