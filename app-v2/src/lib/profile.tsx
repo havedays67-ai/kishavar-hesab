@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, Building2, MapPin, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { formatJalali, toEnglishDigits, todayJalali } from "./format";
+import { isValidIranMobile, normalizePhone } from "./phone";
+export { isValidIranMobile, normalizePhone } from "./phone";
 import { TextField } from "../components/FormControls";
 import { Modal, Toast } from "../components/ui";
 
@@ -63,18 +65,6 @@ export function loadProfile(): UserProfile | null {
   } catch {
     return null;
   }
-}
-
-export function normalizePhone(value: string): string {
-  const digits = toEnglishDigits(value).replace(/\D/g, "");
-  if (digits.startsWith("0098")) return `0${digits.slice(4)}`;
-  if (digits.startsWith("98") && digits.length > 10) return `0${digits.slice(2)}`;
-  if (digits.startsWith("9") && digits.length === 10) return `0${digits}`;
-  return digits;
-}
-
-export function isValidIranMobile(value: string): boolean {
-  return /^09\d{9}$/.test(normalizePhone(value));
 }
 
 export function normalizeNationalId(value: string): string {

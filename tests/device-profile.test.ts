@@ -1,15 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { checkProfile } from "../app-v2/src/lib/profile-check";
 import { importantTopics } from "../app-v2/src/lib/important-notifications";
-import { EMPTY_PROFILE } from "../app-v2/src/lib/profile";
+import type { UserProfile } from "../app-v2/src/lib/profile";
 import type { Insight } from "../app-v2/src/lib/insights";
 
-const profile = {
-  ...EMPTY_PROFILE,
+const profile: UserProfile = {
   fullName: "علی رضایی",
+  businessName: "",
+  farmName: "",
+  role: "کشاورز / مدیر مزرعه",
   phone: "09121234567",
+  nationalId: "",
+  economicCode: "",
   province: "گلستان",
   city: "گرگان",
+  address: "",
+  postalCode: "",
+  email: "",
+  landArea: "",
+  mainCrop: "",
+  notes: "",
+  color: "sand",
+  createdAt: "",
 };
 
 describe("بررسی پروفایل قبل از استدلال", () => {

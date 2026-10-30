@@ -1,4 +1,5 @@
-import { isValidIranMobile, type UserProfile } from "./profile";
+import type { UserProfile } from "./profile";
+import { isValidIranMobile } from "./phone";
 
 export interface ProfileCheck {
   ok: boolean;
