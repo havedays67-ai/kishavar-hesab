@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "updatedAt": "2026-10-27T05:16:24Z",
+  "updatedAt": "2026-10-30T10:43:11Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": null,
+    "versionCode": 1069,
     "minSdk": 26,
-    "sizeBytes": 4013545,
-    "sha256": "e0159a79d60d5a69478d019d5e674fc3cbabe0faad537a4ddff8c42a4f717110",
-    "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-offline-mvp/KishavarHesab-1.0.0-offline.apk",
-    "releaseNotes": "نسخه آفلاین MVP: ثبت هزینه/درآمد، دستیار با پیش‌نمایش و تأیید، گزارش و خروجی JSON. بدون سرور؛ داده‌ها روی گوشی. مدل زبانی هنوز همراه APK نیست.",
-    "build": "offline-mvp"
+    "sizeBytes": 4959101,
+    "sha256": "eb7c043e18331353b94b9bc5788bdc11e5d541d9e479b0a8905cb0c6431b1c8c",
+    "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk",
+    "releaseNotes": "دستیار کشاورزیار حالا سند می‌سازد، چاپ و ارسال می‌کند، رسید می‌فرستد و برگهٔ امضا با انتخاب سمت امضاکننده و دکمهٔ باز نشانی می‌سازد. انتشار امن کنش‌ها، پرسش مشخصات ناقص، و مودال خطای پنج‌کلیدی.",
+    "build": "app-v2-main-69"
   },
   "model": {
     "status": "not-published",
