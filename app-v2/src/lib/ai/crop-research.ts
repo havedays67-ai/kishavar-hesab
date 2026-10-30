@@ -53,9 +53,8 @@ function readCache(): CacheMap {
 }
 
 function cacheKey(name: string, options: { city?: string; province?: string; climate?: string; today?: string } = {}): string {
-  // استدلال یک هفته معتبر است؛ تاریخ روز در کلید نمی‌آید تا هر روز دوباره استدلال نشود.
-  const week = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
-  return [normalizeName(name), normalizePlace(options.province), normalizePlace(options.city), normalizePlace(options.climate), `w${week}`].join("|");
+  // کلید پایدار است و اعتبار با age هفت‌روزه سنجیده می‌شود؛ نه مرز هفتهٔ تقویمی.
+  return [normalizeName(name), normalizePlace(options.province), normalizePlace(options.city), normalizePlace(options.climate)].join("|");
 }
 
 export function cachedCropInsight(name: string, options: { city?: string; province?: string; climate?: string; today?: string } = {}): CropInsight | null {
@@ -94,7 +93,7 @@ export async function researchCrop(
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: clean, city: options.city ?? "", province: options.province ?? "", climate: options.climate ?? "", today: options.today ?? "" }),
+        body: JSON.stringify({ name: clean, city: options.city ?? "", province: options.province ?? "", climate: options.climate ?? "", today: options.today ?? "", force: Boolean(options.force) }),
         signal: controller.signal,
         cache: "no-store",
       });

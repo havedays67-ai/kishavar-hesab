@@ -693,15 +693,20 @@ function localText(text) {
 }
 
 /** کنش‌های روشن و پرتکرار را بدون مدل می‌سازد؛ آخرین سنگر برای وقتی ظرفیت مدل پر است. */
-function localActionPlan(message, context = {}, history = []) {
+function localActionPlan(message, context = {}, history = [], pending = null) {
   const current = localText(message);
-  const previous = history
-    .filter((turn) => turn && turn.role === "user" && typeof turn.content === "string")
-    .slice(-3)
-    .map((turn) => localText(turn.content))
-    .join(" ، ");
-  const text = `${previous} ، ${current}`;
-  const amount = localAmount(current) || localAmount(previous);
+  // فقط وقتی سرور سؤال نیمه‌کاره دارد، تاریخچهٔ قبلی برای تکمیل همان کنش استفاده می‌شود.
+  // پیام تازهٔ بی‌ربط نباید طرف‌حساب/مبلغ پیام‌های قبلی را به ارث ببرد.
+  const hasPending = Boolean(pending && pending.question);
+  const previous = hasPending
+    ? history
+        .filter((turn) => turn && turn.role === "user" && typeof turn.content === "string")
+        .slice(-3)
+        .map((turn) => localText(turn.content))
+        .join(" ، ")
+    : "";
+  const text = hasPending ? `${previous} ، ${current}` : current;
+  const amount = localAmount(current) || (hasPending ? localAmount(previous) : 0);
   const wantsDebt = /(طلب|طلبکار|بدهی|بدهکار|بستانکار|قرض)/.test(text)
     || (/بابت/.test(current) && /(ثبت|وارد|اضافه|بنویس)/.test(current) && !/(هزینه|درآمد)/.test(current));
   const wantsEntry = /(هزینه|درآمد)/.test(current) && !wantsDebt;
@@ -917,6 +922,10 @@ function normalizePlan(plan, message = "") {
       actions: [],
     };
   }
+  if (missingUnique.length) {
+    const note = `یک بخش از درخواست کامل نشد: ${missingUnique.join("، ")}`;
+    question = question ? `${question} ${note}` : note;
+  }
   return { say: clean(plan?.say, 400), question: question || undefined, actions };
 }
 
@@ -992,7 +1001,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 39,
+        version: 41,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
@@ -1075,8 +1084,8 @@ export default {
       const climate = String(body?.climate ?? "").slice(0, 20);
       if (name.length < 2) return json({ ok: false, error: "نام محصول را کامل بنویس" }, 400);
       const cache = typeof caches !== "undefined" ? caches.default : null;
-      const cacheKey = new Request(`https://cache.local/crop/v3?n=${encodeURIComponent(name)}&p=${encodeURIComponent(province)}&c=${encodeURIComponent(city)}&z=${encodeURIComponent(climate)}&d=${encodeURIComponent(String(body?.today ?? "").slice(0, 10))}`);
-      if (cache) {
+      const cacheKey = new Request(`https://cache.local/crop/v5?n=${encodeURIComponent(name)}&p=${encodeURIComponent(province)}&c=${encodeURIComponent(city)}&z=${encodeURIComponent(climate)}`);
+      if (cache && !body?.force) {
         const hit = await cache.match(cacheKey);
         if (hit) {
           const cached = await hit.json().catch(() => null);
@@ -1160,7 +1169,7 @@ export default {
         engine: result.engine,
         weather: weather ? weather.slice(0, 1400) : "",
       };
-      if (cache) await cache.put(cacheKey, new Response(JSON.stringify(payload), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "max-age=86400" } }));
+      if (cache) await cache.put(cacheKey, new Response(JSON.stringify(payload), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "max-age=604800" } }));
       return json({ ok: true, ...payload, cached: false });
     }
     if (url.pathname !== "/api/chat" || request.method !== "POST") return json({ ok: false, error: "مسیر پیدا نشد" }, 404);
@@ -1177,7 +1186,10 @@ export default {
 
     const section = SECTION_PROMPTS[body?.section] ? body.section : "assistant";
     const mode = String(body?.mode ?? "auto");
-    const isAction = mode === "action" || (mode === "auto" && ACTION_HINTS.test(message));
+    // سؤال‌های خواندنی («چقدر طلب دارم؟») نباید به کنش ثبت تبدیل شوند.
+    const readOnlyQuestion = /(چقدر|چند|چیست|چیه|چطور|کجا|آیا|چه زمانی|چرا|\?|؟)/.test(message)
+      && !/(ثبت کن|ثبتش کن|وارد کن|اضافه کن|بنویس|بزن|بساز|ایجاد کن|صادر کن|بفرست|ارسال کن|چاپ کن|امضا کن|فرم امضا بفرست)/.test(message);
+    const isAction = !readOnlyQuestion && (mode === "action" || (mode === "auto" && ACTION_HINTS.test(message)));
     const context = body?.context && typeof body.context === "object" ? body.context : {};
 
     const history = Array.isArray(body?.history) ? body.history.slice(-6) : [];
@@ -1244,7 +1256,7 @@ export default {
     };
 
     if (isAction) {
-      const local = localActionPlan(message, context, history);
+      const local = localActionPlan(message, context, history, body?.pending);
       if (local) return json({ ok: true, mode: "action", plan: local, engine: "local-action", identity: "کشاورزیار" });
     }
 

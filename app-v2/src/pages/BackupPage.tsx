@@ -377,12 +377,15 @@ export function BackupPage({
     setQuestion("");
     setThinking(true);
 
+    const followUp = Boolean(pendingDraft) && !attachment
+      && value.length <= 120
+      && !/(هوا|آب‌وهوا|هواشناسی|قیمت|بازار|چطور|چیست|چیه|سلام|ممنون|کجا|چرا)/.test(value);
     const result = await askCloud({
       message: value || "این تصویر را تحلیل کن.",
       history,
       section,
-      mode: pendingDraft ? "action" : "auto",
-      pending: pendingDraft ? { question: pendingDraft.question } : undefined,
+      mode: followUp ? "action" : "auto",
+      pending: followUp && pendingDraft ? { question: pendingDraft.question } : undefined,
       image: attachment?.dataUrl,
       context: {
         today: formatJalali(todayJalali(), "short"),
@@ -404,6 +407,7 @@ export function BackupPage({
     }
 
     if (result.mode === "text") {
+      setPendingDraft(null);
       const actionTopic = /(بدهی|طلب|هزینه|درآمد|سند|امضا|رسید|چاپ|ارسال|ثبت|وارد|اضافه)/.test(value);
       const falseClaim = /(ثبت شد|ثبت شدند|ذخیره شد|انجام شد|ارسال شد)/.test(result.text);
       const honestText = actionTopic && falseClaim
@@ -435,6 +439,7 @@ export function BackupPage({
   };
 
   const resetMemory = () => {
+    setPendingDraft(null);
     clearAssistantMessages();
     setMessages([makeAssistantMessage("bot", greeting(assistantContext, profile.fullName))]);
     setToast("حافظهٔ گفتگو پاک شد؛ دانشنامه و داده‌های دفتر دست‌نخورده‌اند.");

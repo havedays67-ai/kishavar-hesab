@@ -242,7 +242,7 @@ export function CropPlanPage() {
 
   async function requestSeasonPlan(force = false) {
     const token = ++planRequestRef.current;
-    const name = crop.name.startsWith("گندم") ? "گندم" : crop.name;
+    const name = productMode === "other" && acceptedInsight ? acceptedInsight.name : crop.name.startsWith("گندم") ? "گندم" : crop.name;
     const options = { city: profile.city, province: profile.province, climate, today: formatJalali(todayJalali(), "long") };
     const cached = force ? null : cachedCropInsight(name, options);
     if (cached) {
@@ -375,7 +375,7 @@ export function CropPlanPage() {
   }, [restored, storageKey, cropId, climate, soil, waterSource, areaHa, planting, productMode, otherName, catalogQuery, analyzed, locationDeclined, acceptedInsight, aiBrief]);
 
   useEffect(() => {
-    if (!analyzed) return;
+    if (!analyzed || productMode === "other") return;
     if (skipAutoPlanRef.current) {
       skipAutoPlanRef.current = false;
       return;
@@ -383,7 +383,7 @@ export function CropPlanPage() {
     void requestSeasonPlan();
     // استدلال فقط با تغییر محصول/منطقه یا تحلیل تازه انجام می‌شود؛ تغییر خاک/آب/مساحت تقویم ذخیره‌شده را بی‌دلیل نمی‌سوزاند.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyzed, cropId, productMode, otherName, profile.city, profile.province]);
+  }, [analyzed, cropId, productMode, profile.city, profile.province]);
 
   const farm: FarmProfile = {
     region: [profile.city, profile.province].filter(Boolean).join("، ") || "منطقهٔ شما",
@@ -418,7 +418,7 @@ export function CropPlanPage() {
     return { fertilizer, spray };
   }, [season]);
 
-  const aiData = aiPlan.state === "ready" && aiPlan.data ? aiPlan.data : null;
+  const aiData = productMode === "other" && acceptedInsight ? acceptedInsight : aiPlan.state === "ready" && aiPlan.data ? aiPlan.data : null;
   const aiTasks = useMemo(() => {
     if (!aiData || aiData.tasks.length === 0) return null;
     return aiData.tasks
@@ -551,10 +551,12 @@ export function CropPlanPage() {
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> تحلیل کشاورزیار برای زمین شما</h2>
           <div className="flex items-center gap-1.5">
             <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">کش ذخیره‌شده تا ۷ روز</span>
-            <button type="button" onClick={() => void requestSeasonPlan(true)} disabled={aiPlan.state === "loading"} className="rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2 py-1 text-[7px] text-mint-300 disabled:opacity-50">استدلال دوباره</button>
+            {productMode !== "other" && <button type="button" onClick={() => void requestSeasonPlan(true)} disabled={aiPlan.state === "loading"} className="rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2 py-1 text-[7px] text-mint-300 disabled:opacity-50">استدلال دوباره</button>}
           </div>
         </div>
-        {aiPlan.state === "loading" ? (
+        {productMode === "other" && !acceptedInsight ? (
+          <p className="text-[8px] leading-4 text-[#93ad9f]">برای محصول خارج از فهرست، نامش را بنویس و «استدلال و ساخت تقویم» را بزن؛ نتیجه در کارت «تقویم اختصاصی» و همین بخش نمایش داده می‌شود.</p>
+        ) : productMode !== "other" && aiPlan.state === "loading" ? (
           <p className="flex items-center gap-2 text-[8px] leading-4 text-mint-300"><Loader2 className="h-3 w-3 animate-spin" /> کشاورزیار دارد تقویم کامل {crop.name} را برای منطقه، خاک، آب و تاریخ کاشت شما استدلال می‌کند…</p>
         ) : aiData ? (
           <div className="space-y-2">
@@ -570,9 +572,9 @@ export function CropPlanPage() {
             </div>
             <p className="text-[7px] leading-4 text-[#78968a]">تاریخ‌های خط زمانی، کوددهی و سم‌پاشی پایین از همین استدلال و برای تاریخ کاشت {formatJalali(season.planting, "long")} ساخته شده‌اند.</p>
           </div>
-        ) : aiBrief.state === "ready" ? (
+        ) : aiBrief.state === "ready" && productMode !== "other" ? (
           <p className="whitespace-pre-line text-[9px] leading-5 text-[#dcebe2]">{aiBrief.text}</p>
-        ) : aiPlan.state === "error" ? (
+        ) : aiPlan.state === "error" && productMode !== "other" ? (
           <p className="text-[8px] leading-4 text-[#e3d39a]">استدلال آنلاین تقویم انجام نشد ({aiPlan.message || "خطای موقت"})؛ برنامهٔ پایین از محاسبهٔ منطقه‌ای پایه ساخته شده و «استدلال‌شده» نیست.</p>
         ) : aiBrief.state === "error" ? (
           <p className="text-[8px] leading-4 text-[#e3d39a]">{aiBrief.text}</p>

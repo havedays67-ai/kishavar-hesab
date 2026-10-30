@@ -18,9 +18,21 @@ export function importantTopics(insights: Insight[]): Insight[] {
     .slice(0, 3);
 }
 
+function notificationsWanted(): boolean {
+  try {
+    const raw = localStorage.getItem("kishavar.permissions.prefs.v2");
+    if (!raw) return true;
+    const prefs = JSON.parse(raw) as { asked?: boolean; notifications?: boolean };
+    return !prefs.asked || prefs.notifications !== false;
+  } catch {
+    return true;
+  }
+}
+
 export async function notifyImportantTopics(insights: Insight[]): Promise<{ ok: boolean; count: number }> {
   const topics = importantTopics(insights);
   if (topics.length === 0) return { ok: false, count: 0 };
+  if (!notificationsWanted()) return { ok: false, count: 0 };
   const permission = await checkNotificationPermission();
   if (permission !== "granted") return { ok: false, count: 0 };
   const today = new Date().toISOString().slice(0, 10);

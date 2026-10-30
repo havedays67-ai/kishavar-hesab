@@ -35,7 +35,8 @@ export async function checkNotificationPermission(): Promise<PermissionState> {
   if (native() && Capacitor.isPluginAvailable("LocalNotifications")) {
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
-      const status = await LocalNotifications.checkPermissions();
+      const status = await withTimeout(LocalNotifications.checkPermissions(), 5_000);
+      if (!status) return "unavailable";
       return status.display === "granted" ? "granted" : status.display === "denied" ? "denied" : "prompt";
     } catch {
       return "unavailable";
@@ -73,7 +74,8 @@ export async function checkLocationPermission(): Promise<PermissionState> {
   if (native() && Capacitor.isPluginAvailable("Geolocation")) {
     try {
       const { Geolocation } = await import("@capacitor/geolocation");
-      const status = await Geolocation.checkPermissions();
+      const status = await withTimeout(Geolocation.checkPermissions(), 5_000);
+      if (!status) return "unavailable";
       if (status.location === "granted" || status.coarseLocation === "granted") return "granted";
       if (status.location === "denied" || status.coarseLocation === "denied") return "denied";
       return "prompt";
@@ -84,7 +86,8 @@ export async function checkLocationPermission(): Promise<PermissionState> {
   if (typeof navigator === "undefined" || !navigator.geolocation) return "unavailable";
   if (navigator.permissions?.query) {
     try {
-      const status = await navigator.permissions.query({ name: "geolocation" });
+      const status = await withTimeout(navigator.permissions.query({ name: "geolocation" }), 5_000);
+      if (!status) return "unavailable";
       return status.state === "granted" ? "granted" : status.state === "denied" ? "denied" : "prompt";
     } catch {
       /* ignore */
@@ -120,9 +123,11 @@ export type LocationResult = { ok: true; coords: Coordinates } | { ok: false; ki
 
 function classifyError(message: string, code?: number): LocationFailure {
   const text = String(message || "").toLowerCase();
-  if (code === 1 || /denied|not authorized|permission/.test(text)) return "denied";
-  if (code === 2 || /disabled|location services|gps|unavailable/.test(text)) return "disabled";
-  if (code === 3 || /timeout|timed out/.test(text)) return "timeout";
+  if (/insecure|secure origin|not allowed to access location/.test(text)) return "unavailable";
+  if (code === 1 || /denied|not authorized|permission denied|user denied/.test(text)) return "denied";
+  if (/disabled|location services|gps is off|location is off/.test(text)) return "disabled";
+  if (code === 3 || /timeout|timed out|timed out/.test(text)) return "timeout";
+  // code 2 در بسیاری از دستگاه‌ها یعنی «موقعیت الان در دسترس نیست»، نه اینکه GPS خاموش باشد.
   return "unavailable";
 }
 
@@ -148,11 +153,18 @@ async function browserPosition(): Promise<LocationResult> {
     return { ok: false, kind: "unavailable", message: "موقعیت مکانی در این دستگاه در دسترس نیست." };
   }
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: LocationResult) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve({ ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } }),
-      (error) => resolve({ ok: false, kind: classifyError(error.message, error.code), message: error.message }),
+      (position) => finish({ ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } }),
+      (error) => finish({ ok: false, kind: classifyError(error.message, error.code), message: error.message }),
       { enableHighAccuracy: false, timeout: 9_000, maximumAge: 120_000 }
     );
+    setTimeout(() => finish({ ok: false, kind: "timeout", message: "خواندن موقعیت زمان‌بر شد." }), 10_000);
   });
 }
 
