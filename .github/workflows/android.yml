@@ -22,6 +22,7 @@ on:
       - "docs/**"
       - "**/*.md"
       - "site/**"
+      - "cloudflare/**"
 
 concurrency:
   group: android-apk
