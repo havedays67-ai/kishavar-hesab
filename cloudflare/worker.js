@@ -2,19 +2,19 @@
 // deploy: POST /accounts/{account}/workers/scripts/kishavar-download
 const MANIFEST = {
   "schema": 1,
-  "updatedAt": "2026-10-30T19:43:40Z",
+  "updatedAt": "2026-10-30T21:01:36Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": 1079,
+    "versionCode": 1082,
     "minSdk": 26,
-    "sizeBytes": 5599385,
-    "sha256": "9f4bedef34d8924d7c3066c290a543b451cd10b173c68da297feab95c30e7f39",
+    "sizeBytes": 5600777,
+    "sha256": "9606407cab61390d900e46fbb9550cf032773f6a66c9781b4651bbef48149115",
     "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk",
     "releaseNotes": "وضعیت استدلال کشاورزیار روی تقویم کشت، بررسی پروفایل و منطقه پیش از تحلیل، پر کردن استان و شهر از موقعیت با اجازهٔ کاربر، درخواست اجازهٔ اعلان و موقعیت در اولین ورود، اعلان موضوعات مهم و پنجرهٔ موضوعات مهم. جستجو با زنجیرهٔ جایگزین پایدارتر شد.",
-    "build": "app-v2-main-79"
+    "build": "app-v2-main-82"
   },
   "model": {
     "status": "not-published",
