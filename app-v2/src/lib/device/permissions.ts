@@ -49,7 +49,7 @@ export async function requestNotificationPermission(): Promise<PermissionState> 
   if (native() && Capacitor.isPluginAvailable("LocalNotifications")) {
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
-      const status = await withTimeout(LocalNotifications.requestPermissions(), 12_000);
+      const status = await withTimeout(LocalNotifications.requestPermissions(), 8_000);
       if (!status) return checkNotificationPermission();
       if (status.display === "granted") return "granted";
       if (status.display === "denied") return "denied";
@@ -60,7 +60,7 @@ export async function requestNotificationPermission(): Promise<PermissionState> 
   }
   if (typeof Notification === "undefined") return "unavailable";
   try {
-    const result = await withTimeout(Notification.requestPermission(), 12_000);
+    const result = await withTimeout(Notification.requestPermission(), 8_000);
     if (result === "granted") return "granted";
     if (result === "denied") return "denied";
     return checkNotificationPermission();
@@ -97,7 +97,7 @@ export async function requestLocationPermission(): Promise<PermissionState> {
   if (native() && Capacitor.isPluginAvailable("Geolocation")) {
     try {
       const { Geolocation } = await import("@capacitor/geolocation");
-      const status = await withTimeout(Geolocation.requestPermissions(), 12_000);
+      const status = await withTimeout(Geolocation.requestPermissions(), 8_000);
       if (!status) return checkLocationPermission();
       if (status.location === "granted" || status.coarseLocation === "granted") return "granted";
       if (status.location === "denied" || status.coarseLocation === "denied") return "denied";
@@ -131,8 +131,8 @@ async function nativePosition(highAccuracy: boolean): Promise<LocationResult | n
   try {
     const { Geolocation } = await import("@capacitor/geolocation");
     const position = await withTimeout(
-      Geolocation.getCurrentPosition({ enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 18_000 : 24_000, maximumAge: 60_000 }),
-      26_000
+      Geolocation.getCurrentPosition({ enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 8_000 : 10_000, maximumAge: 60_000 }),
+      12_000
     );
     if (!position) return { ok: false, kind: "timeout", message: "خواندن موقعیت زمان‌بر شد." };
     return { ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } };
@@ -151,7 +151,7 @@ async function browserPosition(): Promise<LocationResult> {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({ ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } }),
       (error) => resolve({ ok: false, kind: classifyError(error.message, error.code), message: error.message }),
-      { enableHighAccuracy: false, timeout: 20_000, maximumAge: 120_000 }
+      { enableHighAccuracy: false, timeout: 9_000, maximumAge: 120_000 }
     );
   });
 }

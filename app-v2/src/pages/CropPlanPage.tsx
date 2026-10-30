@@ -255,7 +255,7 @@ export function CropPlanPage() {
     if (token !== planRequestRef.current) return;
     setAiPlan({ state: "loading", data: null, message: "" });
     setAssistantStatus(`کشاورزیار دارد تقویم ${name} را برای منطقه، خاک، آب و تاریخ کاشت شما استدلال می‌کند…`);
-    const result = await researchCrop(name, options);
+    const result = await researchCrop(name, { ...options, force });
     if (token !== planRequestRef.current) return;
     if (result.ok) {
       setAiPlan({ state: "ready", data: result.data, message: "" });
