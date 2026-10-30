@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "updatedAt": "2026-10-30T14:32:08Z",
+  "updatedAt": "2026-10-30T14:58:58Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": 1072,
+    "versionCode": 1073,
     "minSdk": 26,
-    "sizeBytes": 4962741,
-    "sha256": "a967064ca49af210abcfea2df21d4bddeab9f35f58cd954070f3bed0be14f6bd",
+    "sizeBytes": 4963121,
+    "sha256": "524f31ba6937d126af904a7a200eb3093fb610e02776c779d289271bf5288ff5",
     "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk",
-    "releaseNotes": "کشاورزیار پایدارتر شد؛ تقویم کشت و نهاده حالا جست‌وجوی محصول، گزینهٔ «سایر» با نام آزاد، پنجرهٔ استدلال و نتیجهٔ تأییدشده دارد. کش نتایج و پاسخ‌های پشتیبان هم اضافه شد.",
-    "build": "app-v2-main-72"
+    "releaseNotes": "تقویم کشت و نهاده حالا منوی محصول شیک و جست‌وجوپذیر دارد؛ اقلیم، خاک و منبع آب هم با منوی داخلی برنامه انتخاب می‌شوند. گزینهٔ «سایر» با نام آزاد و پنجرهٔ استدلال هم فعال است.",
+    "build": "app-v2-main-73"
   },
   "model": {
     "status": "not-published",
