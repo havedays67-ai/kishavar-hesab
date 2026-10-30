@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BellRing, Check, LocateFixed, Loader2, ShieldCheck } from "lucide-react";
 import { Modal } from "./ui";
 import { useProfile } from "../lib/profile";
+import { reversePlace } from "../lib/ai/place";
 import {
   checkLocationPermission,
   checkNotificationPermission,
@@ -59,7 +60,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (val
 
 /** اولین ورود و پنل تنظیمات: انتخاب مستقل اعلان و موقعیت، با ثبت واقعی وضعیت. */
 export function FirstRunPermissions() {
-  const { hasProfile } = useProfile();
+  const { hasProfile, profile, saveProfile } = useProfile();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notifyOn, setNotifyOn] = useState(false);
@@ -108,6 +109,16 @@ export function FirstRunPermissions() {
         const coords = await getCurrentCoordinates();
         if (!coords.ok) {
           setMessage(coords.kind === "disabled" ? "اجازهٔ موقعیت ثبت شد، اما GPS دستگاه خاموش است؛ برای تشخیص خودکار منطقه آن را روشن کن." : "اجازهٔ موقعیت ثبت شد، اما خواندن مختصات الان ممکن نشد.");
+        } else {
+          try {
+            localStorage.setItem("kishavar.device.location.v1", JSON.stringify({ ...coords.coords, at: Date.now() }));
+          } catch {
+            /* ذخیرهٔ مختصات اختیاری است؛ اجازهٔ خودش ثبت شده. */
+          }
+          const place = await reversePlace(coords.coords.latitude, coords.coords.longitude);
+          if (place.ok && (!profile.province || !profile.city)) {
+            saveProfile({ ...profile, province: profile.province || place.province, city: profile.city || place.city });
+          }
         }
       } else {
         setLocationOn(false);

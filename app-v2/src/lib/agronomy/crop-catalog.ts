@@ -179,10 +179,10 @@ function regionsOf(farm: FarmProfile): string[] {
 
 function monthScore(sow: number[], month: number): number {
   if (sow.length === 0) return 0;
-  if (sow.includes(month)) return 30;
+  if (sow.includes(month)) return 28;
   const distance = Math.min(...sow.map((value) => Math.min(Math.abs(value - month), 12 - Math.abs(value - month))));
-  if (distance === 1) return 16;
-  if (distance === 2) return 6;
+  if (distance === 1) return 14;
+  if (distance === 2) return 5;
   return 0;
 }
 
@@ -210,13 +210,13 @@ export function scoreCatalog(farm: FarmProfile, month = 8): CatalogScore[] {
         market: special.market ?? base.market,
         perennial: special.perennial ?? base.perennial,
       };
-      const climateScore = rule.climates.includes(farm.climate) ? 30 : 4;
+      const climateScore = rule.climates.includes(farm.climate) ? 28 : 4;
       const seasonScore = monthScore(rule.sow, month);
-      const waterScore = farm.waterSource === "rain" ? (rule.waterMm <= 350 ? 20 : rule.waterMm <= 500 ? 8 : 0) : rule.waterMm <= 600 ? 20 : rule.waterMm <= 900 ? 14 : 8;
-      const soilScore = rule.soils.includes(farm.soil) ? 10 : 3;
+      const waterScore = farm.waterSource === "rain" ? (rule.waterMm <= 350 ? 18 : rule.waterMm <= 500 ? 7 : 0) : rule.waterMm <= 600 ? 18 : rule.waterMm <= 900 ? 12 : 7;
+      const soilScore = rule.soils.includes(farm.soil) ? 9 : 2;
       const major = province.some((area) => REGION_MAJOR[area]?.includes(item.name));
       const avoid = province.some((area) => REGION_AVOID[area]?.includes(item.name));
-      const regionScore = avoid ? -15 : major ? 10 : 0;
+      const regionScore = avoid ? -15 : major ? 6 : 0;
       const perennialPenalty = rule.perennial ? -6 : 0;
       const rainPenalty = farm.waterSource === "rain" && rule.waterMm > 700 ? 15 : 0;
       let score = Math.max(0, Math.min(100, Math.round(climateScore + seasonScore + waterScore + soilScore + regionScore + rule.market + perennialPenalty - rainPenalty)));
