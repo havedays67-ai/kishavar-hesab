@@ -41,7 +41,7 @@ const COMMON_RULES = `
 /** پرامپت هر بخش: مدل فقط در همان حوزه فکر می‌کند. */
 const SECTION_PROMPTS = {
   assistant: `${IDENTITY}\nحوزهٔ تو: کشاورزی، دام، آب و خاک، نهاده، بازار و همین برنامه.${COMMON_RULES}`,
-  crops: `${IDENTITY}\nحوزهٔ تو برنامه‌ریزی کشت است: انتخاب محصول، پنجرهٔ کاشت، تراز آب، خاک و شوری، کوددهی، سم‌پاشی، آبیاری، ریسک سرما/گرما و برداشت. اگر پرسش دربارهٔ بخش دیگری بود، کوتاه راهنمایی کن که از همان بخش بپرسند.${COMMON_RULES}\nبرای هر توصیه، دلیل کشاورزی و شرط موفقیت را کوتاه بگو و اگر دادهٔ منطقه/آب/خاک نداری، بپرس.`,
+  crops: `${IDENTITY}\nحوزهٔ تو برنامه‌ریزی کشت است: انتخاب محصول، پنجرهٔ کاشت، تراز آب، خاک و شوری، کوددهی، سم‌پاشی، آبیاری، ریسک سرما/گرما و برداشت. اگر پرسش دربارهٔ بخش دیگری بود، کوتاه راهنمایی کن که از همان بخش بپرسند.${COMMON_RULES}\nبرای هر توصیه، دلیل کشاورزی و شرط موفقیت را کوتاه بگو و اگر دادهٔ منطقه/آب/خاک نداری، بپرس.\nپنجرهٔ کاشت همان ماه را رعایت کن؛ در آبان و آذر محصولات تابستانه مثل ذرت، ماش، کنجد، بامیه، ریحان، خیار و گوجه‌فرنگی را پیشنهاد نکن مگر کشت گلخانه‌ای. اگر دادهٔ منطقه را داری، همان را مبنا بگیر و پاسخ عمومی نده.`,
   parties: `${IDENTITY}\nحوزهٔ تو بدهکار/بستانکار، پرداخت، قرض، رسید و صورتحساب است.${COMMON_RULES}`,
   finance: `${IDENTITY}\nحوزهٔ تو درآمد، هزینه، سود/زیان و دسته‌بندی هزینه است.${COMMON_RULES}`,
   inventory: `${IDENTITY}\nحوزهٔ تو انبار و کالا است: موجودی، حد بحرانی، ورود/خروج، ارزش موجودی و خرید نهاده. تحلیل طولانی نکن؛ پاسخ کوتاه و عملی.${COMMON_RULES}`,
@@ -832,7 +832,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 24,
+        version: 27,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
@@ -1025,6 +1025,7 @@ export default {
 
     // دادهٔ روز: اول پیش‌بینی عددی بارش، بعد وب. اگر هر دو بخوابند صادقانه بگو.
     let searchBlock = "";
+    let searchEngine = null;
     const city = context?.profile?.city;
     const wantsWeather = WEATHER_HINTS.test(message);
     const places = wantsWeather ? placeCandidates(message, knownPlaceIn(message, city)) : [];
@@ -1041,6 +1042,7 @@ export default {
           : `\n\nنام شهر یا روستا در پیام نیست؛ برای بارش دقیق، نام منطقه را بپرس و عدد نساز.`;
       }
       if (found.text) {
+        searchEngine = found.engine;
         searchBlock += `\n\nنتیجهٔ جست‌وجوی وب (${found.engine}؛ منبع بیرونی و فقط برای دادهٔ روز):\n${found.text}`;
       } else if (!weather && !wantsWeather) {
         searchBlock += `\n\nابزار جستجو الان در دسترس نیست. صریح بگو «فعلا ابزار جستجو کار نمی‌کند» و هیچ قیمت یا آمار روز نساز؛ فقط راهنمایی کارشناسی کلی بده.`;
@@ -1074,7 +1076,9 @@ export default {
       max_tokens: maxTokens,
     };
 
-    const result = await complete(env, payload, { requirePersian: true });
+    const result = await complete(env, payload, section === "crops" && !isAction
+      ? { requirePersian: true, deadlineMs: 52_000 }
+      : { requirePersian: true });
     if (!result.text) {
       if (section === "crops" && !isAction) {
         return json({ ok: true, mode: "text", text: localCropAnswer(message, city), engine: "local-fallback", identity: "کشاورزیار" });
@@ -1097,6 +1101,6 @@ export default {
     }
 
     const text = result.text === OUT_OF_DOMAIN ? OUT_OF_DOMAIN : result.text;
-    return json({ ok: true, mode: "text", text, engine: result.engine, identity: "کشاورزیار" });
+    return json({ ok: true, mode: "text", text, engine: result.engine, search: searchEngine, identity: "کشاورزیار" });
   },
 };
