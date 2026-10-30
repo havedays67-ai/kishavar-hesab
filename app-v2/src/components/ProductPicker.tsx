@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { cn } from "../utils/cn";
-import { normalizeProductQuery, productsByCategory, searchProducts, type ProductItem } from "../lib/products";
+import { normalizeProductQuery, productsByCategory, searchProducts, type ProductCategory, type ProductItem } from "../lib/products";
 
 export function ProductPicker({
   value,
@@ -16,12 +16,14 @@ export function ProductPicker({
   label = "محصول",
   required,
   error,
+  categories,
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
   required?: boolean;
   error?: string;
+  categories?: ProductCategory[];
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -29,8 +31,12 @@ export function ProductPicker({
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const grouped = useMemo(() => productsByCategory(), []);
-  const results = useMemo(() => (query.trim() ? searchProducts(query, 40) : []), [query]);
+  const allowed = useMemo(() => (categories ? new Set(categories) : null), [categories]);
+  const grouped = useMemo(
+    () => productsByCategory().map((group) => ({ ...group, items: group.items.filter((item) => !allowed || allowed.has(item.category)) })).filter((group) => group.items.length > 0),
+    [allowed]
+  );
+  const results = useMemo(() => (query.trim() ? searchProducts(query, 60).filter((item) => !allowed || allowed.has(item.category)) : []), [query, allowed]);
   const flat = useMemo(() => (query.trim() ? results : grouped.flatMap((group) => group.items)), [query, results, grouped]);
   const canCreate = Boolean(query.trim()) && !flat.some((item) => normalizeProductQuery(item.name) === normalizeProductQuery(query));
 
@@ -117,7 +123,7 @@ export function ProductPicker({
       {error && <p className="mt-1.5 text-[11px] text-[#ef9c8f]">{error}</p>}
 
       {open && (
-        <div className="animate-fade absolute inset-x-0 top-[calc(100%+7px)] z-40 overflow-hidden rounded-xl border border-[#345746] bg-[#10251c] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]" role="listbox" aria-label={`${label} — فهرست محصولات`}>
+        <div className="animate-fade absolute inset-x-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[#3b6652] bg-[#0b1f17]/[0.98] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.65)] ring-1 ring-black/30 backdrop-blur-xl" role="listbox" aria-label={`${label} — فهرست محصولات`}>
           <div className="sticky top-0 z-10 mb-1 rounded-lg bg-[#10251c] p-1">
             <label className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
               <Search className="h-3.5 w-3.5 text-[#7d9b8d]" />
@@ -146,7 +152,7 @@ export function ProductPicker({
                     onMouseEnter={() => setHighlighted(index)}
                     onClick={() => choose(item)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-right text-[11px] transition",
+                      "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-right text-[11px] transition",
                       highlighted === index ? "bg-white/[0.07]" : "hover:bg-white/[0.05]",
                       item.name === value ? "font-medium text-mint-300" : "text-[#d4e5db]",
                     )}
@@ -174,7 +180,7 @@ export function ProductPicker({
                         onMouseEnter={() => setHighlighted(index)}
                         onClick={() => choose(item)}
                         className={cn(
-                          "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-right text-[11px] transition",
+                          "flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-right text-[11px] transition",
                           highlighted === index ? "bg-white/[0.07]" : "hover:bg-white/[0.05]",
                           item.name === value ? "font-medium text-mint-300" : "text-[#d4e5db]",
                         )}

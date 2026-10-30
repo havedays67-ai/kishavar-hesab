@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { BadgeCheck, CalendarDays, CircleCheck, CloudRain, Droplets, FlaskConical, Leaf, Loader2, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp, X } from "lucide-react";
+import { BadgeCheck, CalendarDays, CircleCheck, CloudRain, Droplets, FlaskConical, Leaf, Loader2, Search, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp, X } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatAmount } from "../lib/money-format";
 import { formatJalali, JALALI_MONTHS, toPersianDigits, todayJalali, type JDate } from "../lib/format";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
 import { SelectField, type SelectOption } from "../components/FormControls";
+import { ProductPicker } from "../components/ProductPicker";
 import { useProfile } from "../lib/profile";
 import {
   CROPS,
@@ -18,6 +19,7 @@ import {
 } from "../lib/ai/agronomy-planner";
 import { buildSeasonPlan, CROP_SCHEDULES, TASK_LABELS, type TaskKind } from "../lib/agronomy/season-plan";
 import { cachedCropInsight, researchCrop, type CropInsight } from "../lib/ai/crop-research";
+import { scoreCatalog } from "../lib/agronomy/crop-catalog";
 
 const CLIMATE_LABELS: Record<ClimateZone, string> = {
   cold: "سرد",
@@ -38,20 +40,19 @@ const WATER_LABELS: Record<WaterSource, string> = {
   qanat: "قنات",
   rain: "دیم/باران",
 };
-const CROP_HINTS: Record<string, string> = {
-  "wheat-irrigated": "غلات — کشت آبی",
-  "wheat-rainfed": "غلات — دیم",
-  barley: "غلات",
-  canola: "دانه‌های روغنی",
-  "corn-forage": "علوفه",
-  alfalfa: "علوفهٔ چندساله",
-  cotton: "الیافی",
-  sugarbeet: "ریشه‌ای و صنعتی",
-};
+/** حدس محافظه‌کارانهٔ اقلیم از استان/شهر پروفایل؛ کاربر همیشه می‌تواند عوضش کند. */
+function guessClimate(value: string): ClimateZone {
+  const text = String(value ?? "");
+  if (/(گیلان|مازندران|گلستان)/.test(text)) return "humid";
+  if (/(خوزستان|بوشهر|هرمزگان|سیستان|بلوچستان|جاسک|چابهار)/.test(text)) return "warm";
+  if (/(یزد|کرمان|اصفهان|سمنان|قم|قزوین|مرکزی|خراسان جنوبی)/.test(text)) return "dry";
+  if (/(آذربایجان|اردبیل|کردستان|همدان|زنجان|قزوین|البرز)/.test(text)) return "cold";
+  return "temperate";
+}
+
 const CLIMATE_OPTIONS: SelectOption[] = (Object.keys(CLIMATE_LABELS) as ClimateZone[]).map((id) => ({ value: id, label: CLIMATE_LABELS[id] }));
 const SOIL_OPTIONS: SelectOption[] = (Object.keys(SOIL_LABELS) as SoilType[]).map((id) => ({ value: id, label: SOIL_LABELS[id] }));
 const WATER_OPTIONS: SelectOption[] = (Object.keys(WATER_LABELS) as WaterSource[]).map((id) => ({ value: id, label: WATER_LABELS[id] }));
-const CUSTOM_PRODUCT = "__custom__";
 
 const TASK_STYLE: Record<TaskKind, { chip: string; dot: string }> = {
   prep: { chip: "bg-white/[0.06] text-[#b9cdc2]", dot: "#9fb6aa" },
@@ -149,7 +150,7 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
 export function CropPlanPage() {
   const { profile } = useProfile();
   const [cropId, setCropId] = useState<CropId>("wheat-irrigated");
-  const [climate, setClimate] = useState<ClimateZone>("cold");
+  const [climate, setClimate] = useState<ClimateZone>(() => guessClimate(profile.province || profile.city));
   const [soil, setSoil] = useState<SoilType>("loam");
   const [waterSource, setWaterSource] = useState<WaterSource>("well");
   const [areaHa, setAreaHa] = useState(5);
@@ -160,12 +161,34 @@ export function CropPlanPage() {
   const [acceptedInsight, setAcceptedInsight] = useState<CropInsight | null>(null);
   const [researchState, setResearchState] = useState<"idle" | "waiting" | "ready" | "notfound" | "error">("idle");
   const [researchMessage, setResearchMessage] = useState("");
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [analyzed, setAnalyzed] = useState(false);
 
   const crop = CROPS[cropId];
+  const productValue = productMode === "other" ? otherName : crop.name.startsWith("گندم") ? "گندم" : crop.name;
 
   function chooseCrop(id: CropId) {
     setCropId(id);
     setProductMode("crop");
+    setResearchState("idle");
+  }
+
+  function chooseProduct(name: string) {
+    const clean = name.trim();
+    if (!clean) return;
+    if (clean === "گندم") {
+      chooseCrop(waterSource === "rain" ? "wheat-rainfed" : "wheat-irrigated");
+      setOtherName("");
+      return;
+    }
+    const matched = (Object.keys(CROPS) as CropId[]).find((id) => CROPS[id].name === clean);
+    if (matched) {
+      chooseCrop(matched);
+      setOtherName("");
+      return;
+    }
+    setProductMode("other");
+    setOtherName(clean);
     setResearchState("idle");
   }
 
@@ -223,6 +246,11 @@ export function CropPlanPage() {
   }, [cropId, crop, areaHa, planting]);
 
   const ranked = useMemo(() => rankCrops(farm), [climate, soil, waterSource, areaHa, profile.city]);
+  const catalog = useMemo(() => scoreCatalog(farm), [climate, soil, waterSource, areaHa, profile.city]);
+  const filteredCatalog = useMemo(() => {
+    const query = catalogQuery.trim();
+    return query ? catalog.filter((item) => `${item.name} ${item.category}`.includes(query)) : catalog;
+  }, [catalog, catalogQuery]);
   const bestWindow = useMemo(() => monthsUntilWindow(crop.windows[climate], todayJalali()), [crop, climate]);
 
   const groups = useMemo(() => {
@@ -244,25 +272,7 @@ export function CropPlanPage() {
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           <div className="sm:col-span-2">
-            <SelectField
-              label="محصول"
-              value={productMode === "other" ? CUSTOM_PRODUCT : cropId}
-              options={(Object.keys(CROPS) as CropId[]).map((id) => ({ value: id, label: CROPS[id].name, hint: CROP_HINTS[id] }))}
-              onChange={(next) => {
-                if (next === CUSTOM_PRODUCT) {
-                  setProductMode("other");
-                  setResearchState("idle");
-                } else {
-                  chooseCrop(next as CropId);
-                }
-              }}
-              placeholder="انتخاب یا جست‌وجوی محصول"
-              searchable
-              allowCustom
-              customValue={otherName}
-              onCustomChange={setOtherName}
-              customPlaceholder="نام محصول یا گیاه را بنویس (مثلاً زعفران، پسته، آویشن…)"
-            />
+            <ProductPicker label="محصول" value={productValue} onChange={chooseProduct} categories={["غلات", "دانه‌های روغنی", "نباتات علوفه‌ای", "سبزیجات", "صیفی‌جات", "میوه و درخت", "حبوبات", "صنعتی و نقدی"]} />
           </div>
           <SelectField label="اقلیم منطقه" value={climate} options={CLIMATE_OPTIONS} onChange={(next) => setClimate(next as ClimateZone)} />
           <SelectField label="خاک" value={soil} options={SOIL_OPTIONS} onChange={(next) => setSoil(next as SoilType)} />
@@ -272,6 +282,16 @@ export function CropPlanPage() {
             <input type="number" min={0.1} step={0.1} value={areaHa} onChange={(event) => setAreaHa(Number(event.target.value) || 0.1)} className="field w-full py-2 text-[10px]" />
           </div>
         </div>
+        <p className="mt-2 rounded-lg bg-white/[0.025] px-2.5 py-1.5 text-[8px] leading-4 text-[#93ad9f]">
+          مبنای امتیازدهی: اقلیم <span className="text-[#dcebe2]">{CLIMATE_LABELS[climate]}</span>، خاک <span className="text-[#dcebe2]">{SOIL_LABELS[soil]}</span>، منبع آب <span className="text-[#dcebe2]">{WATER_LABELS[waterSource]}</span>، {toPersianDigits(areaHa)} هکتار
+          {profile.city ? <> — منطقهٔ <span className="text-[#dcebe2]">{profile.city}</span></> : <> — <span className="text-sand-300">شهر پروفایل خالی است؛ برای امتیاز دقیق‌تر آن را تکمیل کن</span></>}
+          . هیچ نتیجه‌ای از قبل ذخیره نشده و همه‌چیز با همین مقادیر محاسبه می‌شود.
+        </p>
+        {!analyzed && (
+          <button type="button" onClick={() => setAnalyzed(true)} className="mt-2 w-full rounded-xl bg-mint-300 px-3 py-2.5 text-[10px] font-semibold text-[#10201a]">
+            {profile.city ? `تحلیل زمین ${profile.city} و امتیازدهی همهٔ محصولات` : "تحلیل با مشخصات فعلی (شهر پروفایل خالی است)"}
+          </button>
+        )}
         {productMode === "other" && (
           <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-sand-300/20 bg-sand-300/[0.04] p-2 sm:flex-row sm:items-center">
             <p className="flex-1 text-[8px] leading-4 text-[#b9ad84]">محصول در فهرست ثابت نیست؛ نامش را داخل کادر بالا بنویس، بعد استدلال را اجرا کن.</p>
@@ -331,6 +351,7 @@ export function CropPlanPage() {
         </section>
       )}
 
+      <div className={cn("space-y-4", !analyzed && "hidden")}>
       <section className="glass rounded-[22px] p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -364,6 +385,33 @@ export function CropPlanPage() {
           {ranked.map((item) => (
             <p key={`why-${item.crop.id}`} className="flex items-start gap-1 text-[7px] leading-4 text-[#78968a]"><CircleCheck className="mt-0.5 h-2.5 w-2.5 shrink-0 text-mint-300/70" />{item.crop.name}: {item.verdict} — {item.factors[0]?.detail ?? ""}</p>
           ))}
+        </div>
+      </section>
+
+      <section className="glass rounded-[22px] p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Leaf className="h-3.5 w-3.5 text-mint-300" /> رتبه‌بندی همهٔ محصولات برای زمین شما</h2>
+            <p className="mt-0.5 text-[8px] text-[#78968a]">{toPersianDigits(catalog.length)} محصول از فهرست کامل، با همین اقلیم/خاک/آب امتیاز خورده‌اند؛ روی هر کدام بزن تا تحلیل کاملش را ببینی.</p>
+          </div>
+          <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">زنده و بدون ذخیرهٔ قبلی</span>
+        </div>
+        <div className="relative mb-2">
+          <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#78968a]" />
+          <input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="جست‌وجو در همهٔ محصولات…" className="field w-full py-2 pr-8 text-[10px]" />
+        </div>
+        <div className="max-h-[380px] space-y-1 overflow-y-auto pl-0.5">
+          {filteredCatalog.map((item, index) => (
+            <button key={item.name} type="button" onClick={() => chooseProduct(item.name)} className={cn("flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-right transition", item.score >= 75 ? "border-mint-300/20 bg-mint-300/[0.045] hover:border-mint-300/40" : item.score >= 50 ? "border-sand-300/15 bg-sand-300/[0.025] hover:border-sand-300/35" : "border-white/[0.05] hover:border-white/15")}>
+              <span className={cn("grid h-7 w-9 shrink-0 place-items-center rounded-lg text-[9px] font-bold", item.score >= 75 ? "bg-mint-300/15 text-mint-300" : item.score >= 50 ? "bg-sand-300/10 text-sand-300" : "bg-white/[0.04] text-[#8da79a]")}>{toPersianDigits(item.score)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 text-[9px] font-medium text-[#eef8f2]"><span className="truncate">{toPersianDigits(index + 1)}. {item.name}</span><span className="shrink-0 rounded bg-white/[0.05] px-1 py-0.5 text-[6.5px] font-normal text-[#8da79a]">{item.category}</span></span>
+                <span className="mt-0.5 block truncate text-[7px] text-[#93ad9f]">پنجره: {item.window} — {item.note}</span>
+              </span>
+              <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[6.5px]", item.verdict === "مناسب" ? "bg-mint-300/10 text-mint-300" : item.verdict === "با احتیاط" ? "bg-sand-300/10 text-sand-300" : "bg-[#f0a59a]/10 text-[#f0a59a]")}>{item.verdict}</span>
+            </button>
+          ))}
+          {filteredCatalog.length === 0 && <p className="py-4 text-center text-[9px] text-[#78968a]">محصولی با این نام در فهرست پیدا نشد؛ از کادر «محصول» نام دلخواه را ثبت کن.</p>}
         </div>
       </section>
 
@@ -492,6 +540,8 @@ export function CropPlanPage() {
         </div>
         <p className="mt-2 flex items-start gap-1 text-[7px] leading-4 text-[#6f8c7f]"><Droplets className="mt-0.5 h-2.5 w-2.5 shrink-0" /> دوزها راهنمای عمومی است؛ برچسب سم/کود و نظر کارشناس منطقه همیشه مقدم است.</p>
       </section>
+
+      </div>
 
       {researchState !== "idle" && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">

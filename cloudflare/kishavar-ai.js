@@ -93,9 +93,6 @@ const ALL_KEYS_FAILED =
 const ACTION_HINTS =
   /(ثبت|اضافه|وارد کن|بزن|بنویس|درست کن|ایجاد کن|بساز|صادر کن|پرداخت|بدهکار|بستانکار|هزینه|درآمد|قرض|سند|رسید|امضا|چاپ|بفرست|ارسال)/;
 
-const SEARCH_HINTS =
-  /(قیمت|بازار|نرخ|هوا|باران|هواشناسی|تعرفه|یارانه|بیمه|مجاز|ممنوع|امسال|اعتبار|کارخانه|خریدار)/;
-
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "content-type",
@@ -114,6 +111,17 @@ function keysOf(env, name) {
     .split(/[,\s]+/)
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+/** کلیدهای گروهی + کلیدهایی که جداگانه با نام KEY_1 … KEY_N ساخته شده‌اند. */
+function allKeys(env, name) {
+  const singular = name.replace(/_KEYS$/, "_KEY");
+  const found = [...keysOf(env, name)];
+  for (let index = 1; index <= 40; index += 1) {
+    const value = String(env[`${singular}_${index}`] ?? "").trim();
+    if (value) found.push(value);
+  }
+  return [...new Set(found)];
 }
 
 /** بعضی مدل‌ها پاسخ را دو بار پشت هم می‌گذارند؛ یک نسخه نگه می‌داریم. */
@@ -168,7 +176,7 @@ function looksPersian(text) {
 
 /** جست‌وجوی Jina: کلید ۱→۵، دو دور کامل، سپس جایگزین. */
 async function jinaSearch(env, query) {
-  const keys = keysOf(env, "JINA_KEYS");
+  const keys = allKeys(env, "JINA_KEYS");
   if (!keys.length) return null;
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const cacheKey = new Request(`https://cache.local/jina/v2?q=${encodeURIComponent(query)}`);
@@ -255,7 +263,71 @@ async function webSearch(env, query) {
   return { text: null, engine: "none" };
 }
 
-const WEATHER_HINTS = /(هوا|باران|بارش|بارندگی|هواشناسی|سرما|گرما|یخبندان|خشکسالی|رطوبت|دما|پیش.?بینی|ابر|طوفان|تگرگ)/;
+const WEATHER_HINTS = /(هوا|باران|بارش|بارندگی|بارانی|رگبار|هواشناسی|سرما|گرما|یخبندان|خشکسالی|رطوبت|دما|پیش.?بینی|ابر|طوفان|تگرگ|سیل)/;
+const SEARCH_HINTS = /(قیمت|بازار|نرخ|هوا|باران|بارش|بارندگی|بارانی|رگبار|هواشناسی|تعرفه|یارانه|بیمه|مجاز|ممنوع|امسال|اعتبار|کارخانه|خریدار)/;
+
+/** نام مکان‌های گفته‌شده در پیام: روستا/شهر/منطقه/استان + شهر پروفایل. */
+function placeCandidates(message, profileCity) {
+  const text = String(message ?? "");
+  const items = [];
+  const re = /(روستای|روستا|دهستان|شهر|بخش|منطقه|استان)\s+([^،.,؟?!\n]{2,60})/g;
+  let match;
+  while ((match = re.exec(text))) {
+    let rest = match[2];
+    rest = rest.split(/\s+(?=(?:روستای|روستا|دهستان|شهر|بخش|منطقه|استان)\s)/)[0];
+    rest = rest.replace(/\s+(?:هست|است|امشب|فردا|بارندگی|باران|هوا|دما|چقدر|چند|میاد|می‌آید).*$/, "").trim();
+    const name = rest.split(/\s+/).slice(0, 3).join(" ").replace(/[()،]/g, "");
+    if (name.length >= 2) items.push({ name, score: match[1].includes("روست") || match[1] === "دهستان" ? 3 : match[1] === "استان" ? 1 : 2 });
+  }
+  if (profileCity) items.push({ name: String(profileCity).trim(), score: 0 });
+  const seen = new Set();
+  return items
+    .filter((item) => {
+      const key = item.name.replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.name)
+    .slice(0, 4);
+}
+
+async function fetchJson(url, options = {}, timeoutMs = 4_000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1_500, timeoutMs));
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** مختصات مکان: اول Open-Meteo، بعد OSM؛ برای روستاها OSM دقیق‌تر است. */
+async function resolvePlace(name, timeoutMs = 4_000) {
+  const clean = String(name ?? "").trim().slice(0, 60);
+  if (!clean) return null;
+  const geo = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(clean)}&count=1&language=fa&format=json`, {}, timeoutMs);
+  const place = geo?.results?.[0];
+  if (place && typeof place.latitude === "number") {
+    return { label: `${place.name}${place.admin1 ? `، ${place.admin1}` : ""}`, latitude: place.latitude, longitude: place.longitude };
+  }
+  const osm = await fetchJson(
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=fa&q=${encodeURIComponent(clean)}`,
+    { headers: { "User-Agent": "KishavarHesab/1.0 (weather lookup)" } },
+    timeoutMs
+  );
+  const hit = Array.isArray(osm) ? osm[0] : null;
+  if (hit && hit.lat && hit.lon) {
+    const label = String(hit.display_name ?? hit.name ?? clean).split(",").slice(0, 3).join("،");
+    return { label, latitude: Number(hit.lat), longitude: Number(hit.lon) };
+  }
+  return null;
+}
 
 const FA_DATE = (iso) => {
   try {
@@ -269,33 +341,35 @@ const FA_DATE = (iso) => {
 async function weatherBrief(city) {
   const name = String(city ?? "").trim().slice(0, 60);
   if (!name) return null;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=fa&format=json`, { signal: controller.signal });
-    if (!geoResponse.ok) { clearTimeout(timer); return null; }
-    const geo = await geoResponse.json();
-    const place = geo?.results?.[0];
-    if (!place || typeof place.latitude !== "number") { clearTimeout(timer); return null; }
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=precipitation_sum,precipitation_probability_max,temperature_2m_min,temperature_2m_max,weather_code&timezone=Asia%2FTehran&forecast_days=10`;
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timer);
-    if (!response.ok) return null;
-    const data = await response.json();
-    const daily = data?.daily;
-    if (!daily?.time?.length) return null;
-    const rows = daily.time.slice(0, 10).map((date, index) => {
-      const rain = Number(daily.precipitation_sum?.[index] ?? 0);
-      const chance = Number(daily.precipitation_probability_max?.[index] ?? 0);
-      const min = Math.round(Number(daily.temperature_2m_min?.[index] ?? 0));
-      const max = Math.round(Number(daily.temperature_2m_max?.[index] ?? 0));
-      return `- ${FA_DATE(date)}: بارش ${rain.toFixed(1)} میلی‌متر، احتمال بارش ${chance}٪، دما ${min} تا ${max} درجه`;
-    });
-    const total = daily.precipitation_sum.slice(0, 10).reduce((sum, value) => sum + Number(value || 0), 0);
-    return `پیش‌بینی ده‌روزهٔ ${place.name}${place.admin1 ? `، ${place.admin1}` : ""} (Open-Meteo):\n${rows.join("\n")}\nجمع بارش ده روز: ${total.toFixed(1)} میلی‌متر.`;
-  } catch {
-    return null;
+  const place = await resolvePlace(name);
+  if (!place) return null;
+  const data = await fetchJson(
+    `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=precipitation_sum,precipitation_probability_max,temperature_2m_min,temperature_2m_max,weather_code&timezone=Asia%2FTehran&forecast_days=10`,
+    {},
+    6_000
+  );
+  const daily = data?.daily;
+  if (!daily?.time?.length) return null;
+  const rows = daily.time.slice(0, 10).map((date, index) => {
+    const rain = Number(daily.precipitation_sum?.[index] ?? 0);
+    const chance = Number(daily.precipitation_probability_max?.[index] ?? 0);
+    const min = Math.round(Number(daily.temperature_2m_min?.[index] ?? 0));
+    const max = Math.round(Number(daily.temperature_2m_max?.[index] ?? 0));
+    return `- ${FA_DATE(date)}: بارش ${rain.toFixed(1)} میلی‌متر، احتمال بارش ${chance}٪، دما ${min} تا ${max} درجه`;
+  });
+  const total = daily.precipitation_sum.slice(0, 10).reduce((sum, value) => sum + Number(value || 0), 0);
+  return `پیش‌بینی ده‌روزهٔ ${place.label} (Open-Meteo):\n${rows.join("\n")}\nجمع بارش ده روز: ${total.toFixed(1)} میلی‌متر.`;
+}
+
+/** چند نام محتمل را امتحان می‌کند تا روستا/شهر دقیق پیدا شود. */
+async function weatherBriefFor(places) {
+  const deadline = Date.now() + 12_000;
+  for (const place of places) {
+    if (Date.now() > deadline) break;
+    const brief = await weatherBrief(place);
+    if (brief) return brief;
   }
+  return null;
 }
 
 function searchQueryFor(message, city) {
@@ -358,7 +432,7 @@ async function callWorkersAi(env, model, payload, timeoutMs = 14_000) {
  */
 async function complete(env, payload, { requirePersian = true, deadlineMs = 38_000, reserveFirst = false, workersFirst = false } = {}) {
   const errors = [];
-  const keys = keysOf(env, "DAHL_KEYS");
+  const keys = allKeys(env, "DAHL_KEYS");
   const deadline = Date.now() + deadlineMs;
   const reserveMs = Math.min(RESERVE_MS, Math.max(8_000, Math.round(deadlineMs * 0.45)));
   const primaryEnd = deadline - reserveMs;
@@ -606,10 +680,11 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 16,
+        version: 17,
         identity: "کشاورزیار",
-        keys: keysOf(env, "DAHL_KEYS").length,
-        search: keysOf(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
+        keys: allKeys(env, "DAHL_KEYS").length,
+        search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",
+        searchKeys: allKeys(env, "JINA_KEYS").length,
       });
     }
     if (url.pathname === "/api/search" && request.method === "POST") {
@@ -739,21 +814,24 @@ export default {
     // دادهٔ روز: اول پیش‌بینی عددی بارش، بعد وب. اگر هر دو بخوابند صادقانه بگو.
     let searchBlock = "";
     const city = context?.profile?.city;
-    if (!isAction && ["crops", "trade", "assistant"].includes(section) && SEARCH_HINTS.test(message)) {
+    const wantsWeather = WEATHER_HINTS.test(message);
+    const places = wantsWeather ? placeCandidates(message, city) : [];
+    if (!isAction && ["crops", "trade", "assistant"].includes(section) && (SEARCH_HINTS.test(message) || wantsWeather)) {
       const [weather, found] = await Promise.all([
-        WEATHER_HINTS.test(message) && city ? weatherBrief(city) : Promise.resolve(null),
-        webSearch(env, searchQueryFor(message, city)),
+        wantsWeather && places.length ? weatherBriefFor(places) : Promise.resolve(null),
+        webSearch(env, searchQueryFor(message, places[0] || city)),
       ]);
       if (weather) {
-        searchBlock += `\n\n${weather}\nاز این عددها دقیق استفاده کن: تاریخ بارش، مقدار میلی‌متر و دما را بگو. اگر بازهٔ ده‌روزه کافی نیست، صریح بگو.`;
-      }
-      if (!city && WEATHER_HINTS.test(message)) {
-        searchBlock += `\n\nشهر کاربر معلوم نیست؛ برای بارش دقیق، نام شهر یا منطقه را بپرس و عدد نساز.`;
+        searchBlock += `\n\n${weather}\nاگر این پیش‌بینی عددی در همین پیام هست، هرگز نگو «دسترسی به هوا ندارم»؛ فقط از همین تاریخ‌ها، میلی‌متر و دما استفاده کن. اگر بازهٔ ده‌روزه کافی نیست، صریح بگو.`;
+      } else if (wantsWeather) {
+        searchBlock += places.length
+          ? `\n\nبرای «${places[0]}» پیش‌بینی عددی پیدا نشد؛ نگو دسترسی ندارم، بگو این مکان در سرویس هواشناسی پیدا نشد و از کاربر نام شهر نزدیک را بپرس. عدد نساز.`
+          : `\n\nنام شهر یا روستا در پیام نیست؛ برای بارش دقیق، نام منطقه را بپرس و عدد نساز.`;
       }
       if (found.text) {
         searchBlock += `\n\nنتیجهٔ جست‌وجوی وب (${found.engine}؛ منبع بیرونی و فقط برای دادهٔ روز):\n${found.text}`;
-      } else if (!weather) {
-        searchBlock += `\n\nابزار جستجو و هواشناسی الان در دسترس نیست. صریح بگو «فعلا ابزار جستجو کار نمی‌کند» و هیچ قیمت، بارش یا آمار روز نساز؛ فقط راهنمایی کارشناسی کلی بده.`;
+      } else if (!weather && !wantsWeather) {
+        searchBlock += `\n\nابزار جستجو الان در دسترس نیست. صریح بگو «فعلا ابزار جستجو کار نمی‌کند» و هیچ قیمت یا آمار روز نساز؛ فقط راهنمایی کارشناسی کلی بده.`;
       }
       searchBlock += `\nفقط فارسی روان پاسخ بده؛ عدد و تاریخ را با منبع و بازه بگو و از ارجاع به اینستاگرام یا شبکهٔ اجتماعی پرهیز کن.`;
     }
