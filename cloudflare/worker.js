@@ -2,19 +2,19 @@
 // deploy: POST /accounts/{account}/workers/scripts/kishavar-download
 const MANIFEST = {
   "schema": 1,
-  "updatedAt": "2026-10-30T10:43:11Z",
+  "updatedAt": "2026-10-30T10:48:26Z",
   "app": {
     "name": "KishavarHesab",
     "nameFa": "کشاورزحساب",
     "applicationId": "ir.kishavarhesab.app",
     "version": "1.0.0",
-    "versionCode": 1069,
+    "versionCode": 1071,
     "minSdk": 26,
     "sizeBytes": 4959101,
-    "sha256": "eb7c043e18331353b94b9bc5788bdc11e5d541d9e479b0a8905cb0c6431b1c8c",
+    "sha256": "c70c31a22994dc54e6698c3bd08c945118ad056bbcab980cc99de3cab394deab",
     "url": "https://github.com/havedays67-ai/kishavar-hesab/releases/download/apk-v1/KishavarHesab-1.0.0.apk",
     "releaseNotes": "دستیار کشاورزیار حالا سند می‌سازد، چاپ و ارسال می‌کند، رسید می‌فرستد و برگهٔ امضا با انتخاب سمت امضاکننده و دکمهٔ باز نشانی می‌سازد. انتشار امن کنش‌ها، پرسش مشخصات ناقص، و مودال خطای پنج‌کلیدی.",
-    "build": "app-v2-main-69"
+    "build": "app-v2-main-71"
   },
   "model": {
     "status": "not-published",
