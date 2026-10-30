@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "../utils/cn";
-import type { SavedContract } from "../lib/data";
+import type { Page, SavedContract } from "../lib/data";
 import { useProfile, profileDisplayName, profileFarmLine } from "../lib/profile";
 import { formatJalali, toPersianDigits, todayJalali } from "../lib/format";
 import { formatAmount } from "../lib/money-format";
@@ -38,7 +38,7 @@ import {
   type PartyPayment,
 } from "../lib/ledger";
 import { tradeBalance, type CropTrade } from "../lib/trade";
-import type { CropPlot } from "../lib/samples";
+import { plotMetrics, type CropPlot } from "../lib/samples";
 import {
   assistantSuggestedQuestions,
   clearAssistantMessages,
@@ -49,7 +49,12 @@ import {
   type AssistantMessage,
 } from "../lib/ai/engine";
 import { askCloud, type CloudSection } from "../lib/ai/cloud-chat";
-import { parseActionPlan } from "../lib/ai/actions";
+import { parseActionPlan, type AssistantDocType } from "../lib/ai/actions";
+import { makeDocument, verificationPayload, type DocumentKind, type DocumentSpec } from "../lib/documents";
+import { documentEntity } from "../lib/signable";
+import type { SignableEntity } from "../lib/signatures";
+import { SignatureDialog } from "../components/SignatureDialog";
+import { shareFile, shareLink, shareOutcomeMessage } from "../lib/share";
 import type { LeaseSignature, RentPaymentRecord } from "./RentalsPage";
 import { loadReceipts, replaceReceipts, type StoredReceipt } from "../lib/receipts";
 import { Toast } from "../components/ui";
@@ -88,6 +93,8 @@ export function BackupPage({
   onAddParty,
   onAddPayment,
   onAddEntry,
+  onOpenDocument,
+  onNavigate,
 }: {
   ledger: LedgerState;
   trades: CropTrade[];
@@ -101,6 +108,8 @@ export function BackupPage({
   onAddParty: (party: DebtParty) => void;
   onAddPayment: (payment: PartyPayment) => void;
   onAddEntry: (entry: FinanceEntry) => void;
+  onOpenDocument?: (spec: DocumentSpec) => void;
+  onNavigate?: (page: Page) => void;
 }) {
   const { profile } = useProfile();
   const assistantContext = useMemo(() => ({ ledger, trades, plots, contracts }), [ledger, trades, plots, contracts]);
@@ -156,6 +165,52 @@ export function BackupPage({
     if (dataUrl) setAttachment({ dataUrl, name: file.name });
   };
 
+  const [signTarget, setSignTarget] = useState<SignableEntity | null>(null);
+  const [signRole, setSignRole] = useState<string | undefined>(undefined);
+  const [failOpen, setFailOpen] = useState(false);
+
+  /** ساخت سند از دادهٔ واقعی دفتر؛ هرگز سند با دادهٔ ساختگی ساخته نمی‌شود. */
+  const buildDocument = (docType: AssistantDocType, hint?: string): DocumentSpec | null => {
+    const kind = docType as DocumentKind;
+    if (kind === "party-statement") {
+      const party = hint ? ledger.parties.find((item) => item.id === hint || item.name === hint) : ledger.parties[0];
+      if (!party) return null;
+      return makeDocument(kind, {
+        party: { id: party.id, name: party.name, phone: party.phone, city: party.city, kind: party.kind, amount: party.amount, reason: party.reason, date: party.date, dueDate: party.dueDate, note: party.note },
+        payments: ledger.payments.filter((payment) => payment.partyId === party.id),
+      });
+    }
+    if (kind === "finance-report") return makeDocument(kind, { entries: ledger.entries, parties: ledger.parties });
+    if (kind === "trades-report") return trades.length ? makeDocument(kind, { trades }) : null;
+    if (kind === "inventory-report") return makeDocument(kind, { items: ledger.items, assets: ledger.assets, budgets: ledger.budgets, entries: ledger.entries });
+    if (kind === "cost-report") {
+      if (!plots.length) return null;
+      const rows = plots.map((plot) => {
+        const metrics = plotMetrics(plot);
+        return {
+          title: plot.title,
+          areaHa: plot.areaHa,
+          crop: plot.crop,
+          totalCost: metrics.cost,
+          yieldKg: metrics.yieldKg,
+          revenue: metrics.revenue,
+          profit: metrics.profit,
+        };
+      });
+      return makeDocument(kind, { costRows: rows });
+    }
+    const trade = hint ? trades.find((item) => item.serial === hint || item.id === hint) : trades[0];
+    if (trade && ["sale-contract", "weigh-ticket", "quality-minutes", "sale-invoice", "settlement"].includes(kind)) {
+      return makeDocument(kind, { trade });
+    }
+    const contract = hint ? contracts.find((item) => item.code === hint || item.id === hint) : contracts[0];
+    if (contract && ["lease-contract", "lease-receipt", "lease-handover"].includes(kind)) {
+      return makeDocument(kind, { contract });
+    }
+    if (kind === "cheque-sheet" && ledger.cheques.length) return makeDocument(kind, { cheque: ledger.cheques[0] });
+    return null;
+  };
+
   /** اجرای برنامهٔ کنش؛ فقط کنش‌های مجاز و اعتبارسنجی‌شده. */
   const runPlan = (raw: unknown): { say: string; done: string[]; question?: string } => {
     const validation = parseActionPlan(JSON.stringify(raw));
@@ -206,6 +261,74 @@ export function BackupPage({
         done.push(`${action.kind === "income" ? "درآمد" : "هزینه"} ثبت شد: ${formatAmount(action.amount)} تومان بابت ${action.reason}`);
         return;
       }
+      if (action.type === "receipt.open") {
+        onNavigate?.("receipts");
+        done.push("رسیدها باز شد؛ رسید موردنظر را همان‌جا ببین.");
+        return;
+      }
+      if (action.type === "receipt.send") {
+        const receipts = loadReceipts()
+          .slice()
+          .sort((a, b) => b.createdAt - a.createdAt);
+        const picked = action.id ? receipts.find((receipt) => receipt.id === action.id) : receipts[0];
+        if (!picked) {
+          done.push("هنوز رسیدی در برنامه ذخیره نشده است؛ اول از صفحهٔ رسیدها یکی را بارگذاری کن.");
+          return;
+        }
+        void shareFile({
+          title: picked.title,
+          fileName: picked.fileName || `receipt-${picked.id}.png`,
+          dataUrl: picked.dataUrl,
+          text: `${picked.title} — ${formatAmount(picked.amount ?? 0)} تومان (کشاورزحساب)`,
+        }).then((outcome) => setToast(shareOutcomeMessage(outcome, "file")));
+        done.push(`رسید «${picked.title}» برای ارسال آماده شد.`);
+        return;
+      }
+      if (action.type === "document.create" || action.type === "document.print" || action.type === "document.send") {
+        const hint = action.type === "document.create" ? action.partyId ?? action.id : action.id;
+        const spec = buildDocument(action.docType, hint);
+        if (!spec) {
+          done.push("برای این نوع سند، رکورد مرتبط در دفتر پیدا نشد؛ اول معامله/قرارداد/طرف‌حساب را ثبت کن.");
+          return;
+        }
+        if (action.type === "document.send") {
+          done.push(`نشانی استعلام سند «${spec.meta.title}» آماده شد.`);
+          void shareLink({
+            title: spec.meta.title,
+            text: `${spec.meta.title} — ${spec.serial} (کشاورزحساب)`,
+            url: verificationPayload(spec),
+          }).then((outcome) => setToast(shareOutcomeMessage(outcome, "link")));
+          return;
+        }
+        onOpenDocument?.(spec);
+        done.push(`${action.type === "document.print" ? "پیش‌نمایش چاپ" : "سند"} «${spec.meta.title}» آماده شد.`);
+        return;
+      }
+      if (action.type === "signature.request") {
+        const signParty = ledger.parties[0];
+        if (!signParty) {
+          done.push("برای ساختن برگهٔ امضا اول یک طرف‌حساب ثبت کن، بعد دوباره بگو.");
+          return;
+        }
+        const spec = makeDocument("party-statement", {
+          party: signParty,
+          payments: ledger.payments.filter((payment) => payment.partyId === signParty.id),
+        });
+        setSignTarget(documentEntity({ ...spec, meta: { ...spec.meta, title: action.title } }));
+        setSignRole(action.signerRole);
+        done.push(`فرم مشخصات و کادر امضا برای «${action.title}» باز شد${action.note ? ` — ${action.note}` : ""}.`);
+        return;
+      }
+      if (action.type === "navigate") {
+        const page = action.page === "contracts" || action.page === "profile" ? action.page : action.page;
+        onNavigate?.(page as Page);
+        done.push(`صفحهٔ ${action.page} باز شد.`);
+        return;
+      }
+      if (action.type === "record.update") {
+        done.push("ویرایش خودکار رکوردها برای امنیت انجام نمی‌شود؛ خودت در همان صفحه مقدار را اصلاح کن.");
+        return;
+      }
       if (action.type === "answer") done.push(action.text);
     });
     return { say: plan.say, done, question: plan.question };
@@ -236,11 +359,12 @@ export function BackupPage({
     if (!result.ok) {
       setMessages((current) => [
         ...current,
-        makeAssistantMessage("bot", `کشاورزیار الان جواب نداد (موتور محلی خاموش است).\n${result.error}\n\nاینترنت یا VPN را بررسی کن و دوباره بفرست.`, {
+        makeAssistantMessage("bot", "فعلا کشاورزیار نمی‌تواند پاسخ بدهد، لطفا بعدا دوباره امتحان کنید، از شکیبایی شما متشکریم.", {
           confidence: 0, category: "برنامه", sources: [], followUps: [], matchedId: "cloud-error", kind: "fallback", engine: "cloud-error",
         }),
       ]);
       setThinking(false);
+      setFailOpen(true);
       return;
     }
 
@@ -467,6 +591,26 @@ export function BackupPage({
             <p className="mt-2 rounded-lg bg-white/[0.02] px-2.5 py-2 text-[8px] leading-5 text-[#78968a]">ذخیره‌سازی محلی (localStorage) با نسخه‌بندی. برای نسخه چندکاربره، اتصال به PostgreSQL در معماری پیش‌بینی شده است.</p>
           </section>
         </div>
+      )}
+
+      {failOpen && (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-[#020806]/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-label="خطای موقت کشاورزیار">
+          <div className="w-full max-w-sm rounded-[20px] border border-[#a25649]/35 bg-[#10231b] p-5 text-center shadow-2xl">
+            <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl border border-[#a25649]/40 bg-[#a25649]/15 text-[#efad9f]"><X className="h-5 w-5" /></div>
+            <h2 className="text-[13px] font-bold text-white">کشاورزیار موقتاً پاسخ نمی‌دهد</h2>
+            <p className="mt-2 text-[10px] leading-6 text-[#b9cec3]">فعلا کشاورزیار نمی‌تواند پاسخ بدهد، لطفا بعدا دوباره امتحان کنید، از شکیبایی شما متشکریم.</p>
+            <button type="button" onClick={() => setFailOpen(false)} className="mt-4 w-full rounded-xl bg-mint-300/15 py-2.5 text-[10px] font-medium text-mint-300">باشه، بعداً امتحان می‌کنم</button>
+          </div>
+        </div>
+      )}
+
+      {signTarget && (
+        <SignatureDialog
+          entity={signTarget}
+          open
+          initialRole={signRole}
+          onClose={() => setSignTarget(null)}
+        />
       )}
 
       <Toast open={Boolean(toast)} message={toast ?? ""} onClose={() => setToast(null)} />

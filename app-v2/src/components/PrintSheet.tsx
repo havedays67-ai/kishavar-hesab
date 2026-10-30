@@ -9,6 +9,7 @@ import {
   FileCheck2,
   Printer,
   QrCode,
+  Share2,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -19,7 +20,8 @@ import { documentEntity } from "../lib/signable";
 import { SignatureDialog } from "./SignatureDialog";
 import { Fingerprint } from "lucide-react";
 import type { DocumentSpec } from "../lib/documents";
-import { verificationData } from "../lib/documents";
+import { verificationData, verificationPayload } from "../lib/documents";
+import { shareLink, shareOutcomeMessage } from "../lib/share";
 import { deliverDocumentPdf, deliverDocumentPng, deliverHtmlFile, printSheetOrPdf } from "../lib/pdf";
 import { buildPrintableHtml, collectDocumentStyles } from "../lib/exportFile";
 import { CHEQUE_PRINT_WARNING, chequeStatutoryChecks, documentCompleteness, reviewFor } from "../lib/legal";
@@ -262,6 +264,18 @@ export function DocumentDialog({
     window.setTimeout(() => setCopied(false), 2200);
   };
 
+  /** «باز نشانی»: هم‌رسانی لینک استعلام سند؛ در نبود اشتراک‌گذاری، کپی یا باز کردن در تب. */
+  const shareAddress = async () => {
+    setBusy("html");
+    const outcome = await shareLink({
+      title: spec.meta.title,
+      text: `${spec.meta.title} — ${spec.serial} (کشاورزحساب)`,
+      url: verificationPayload(spec),
+    });
+    setBusy(null);
+    setStatus({ tone: outcome === "failed" ? "err" : "ok", text: shareOutcomeMessage(outcome, "link") });
+  };
+
   const printNow = async () => {
     onPrint?.();
     if (busy) return;
@@ -291,6 +305,10 @@ export function DocumentDialog({
             <button type="button" onClick={() => setSignOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-[#9fd4ee]/30 bg-[#9fd4ee]/10 px-2.5 py-2 text-[9px] text-[#bfe6f7] transition hover:bg-[#9fd4ee]/20">
               <Fingerprint className="h-3.5 w-3.5" />
               امضا ({toPersianDigits(signatureReport.signed)}/{toPersianDigits(signatureReport.required)})
+            </button>
+            <button type="button" onClick={shareAddress} disabled={busy !== null} title="هم‌رسانی نشانی استعلام سند" className="flex items-center gap-1.5 rounded-lg border border-[#e5cf9b]/30 bg-[#e5cf9b]/10 px-2.5 py-2 text-[9px] text-[#f0dfb7] transition hover:bg-[#e5cf9b]/20 disabled:opacity-60">
+              <Share2 className="h-3.5 w-3.5" />
+              {busy === "html" ? "در حال آماده‌سازی…" : "باز نشانی"}
             </button>
             <button type="button" onClick={downloadPdf} disabled={busy !== null} className="flex items-center gap-1.5 rounded-lg bg-mint-400 px-3 py-2 text-[9px] font-bold text-[#07110d] transition hover:bg-mint-300 disabled:opacity-60">
               <Download className="h-3.5 w-3.5" />

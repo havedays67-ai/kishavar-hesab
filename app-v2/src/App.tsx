@@ -430,6 +430,8 @@ export default function App() {
             signatures={signatures}
             onRestore={restore}
             onReset={resetAll}
+            onOpenDocument={setActiveDocument}
+            onNavigate={navigate}
           />
         )}
         {page === "reminders" && <RemindersPage />}

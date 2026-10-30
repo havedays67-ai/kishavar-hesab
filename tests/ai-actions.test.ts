@@ -48,7 +48,7 @@ describe("کنش‌های دستیار — برنامهٔ کامل", () => {
   });
 
   it("JSON داخل توضیح مدل را هم پیدا می‌کند", () => {
-    const raw = 'حتماً:\n```json\n{"say":"باشه","actions":[{"type":"document.print","docType":"report"}]}\n```';
+    const raw = 'حتماً:\n```json\n{"say":"باشه","actions":[{"type":"document.print","docType":"trades-report"}]}\n```';
     expect(parseActionPlan(raw).ok).toBe(true);
   });
 

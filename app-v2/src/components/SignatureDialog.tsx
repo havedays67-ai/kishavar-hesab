@@ -80,7 +80,7 @@ function DrawPad({ onSave, disabled }: { onSave: (data: string) => void; disable
   );
 }
 
-export function SignatureDialog({ entity, open, onClose }: { entity: SignableEntity | null; open: boolean; onClose: () => void }) {
+export function SignatureDialog({ entity, open, onClose, initialRole }: { entity: SignableEntity | null; open: boolean; onClose: () => void; initialRole?: string }) {
   const { profile } = useProfile();
   const { sign, remove, audit } = useSignatures();
   const [role, setRole] = useState<SignatureRoleRequirement | null>(null);
@@ -95,9 +95,14 @@ export function SignatureDialog({ entity, open, onClose }: { entity: SignableEnt
 
   useEffect(() => {
     if (!open) return;
-    setRole(null);
+    const wanted = initialRole
+      ? entity?.roles.find((row) => row.role === initialRole || row.label.includes(initialRole))
+      : undefined;
+    setRole(wanted ?? entity?.roles.find((row) => row.required) ?? entity?.roles[0] ?? null);
     setError("");
-  }, [open, entity?.id]);
+    // فقط با باز شدن یا تغییر سند/سمت اجرا شود، نه با هر رندر والد.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, entity?.id, initialRole]);
 
   useEffect(() => {
     if (!role) return;

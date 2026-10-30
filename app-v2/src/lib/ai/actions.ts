@@ -23,8 +23,12 @@ export type ActionType =
   | "party.payment.add"
   | "entry.add"
   | "receipt.open"
+  | "receipt.send"
   | "record.update"
   | "document.print"
+  | "document.create"
+  | "document.send"
+  | "signature.request"
   | "answer";
 
 export interface NavigateAction { type: "navigate"; page: PageKey }
@@ -59,7 +63,27 @@ export interface RecordUpdateAction {
   field: "name" | "phone" | "city" | "reason" | "amount" | "note" | "dueDate";
   value: string;
 }
-export interface DocumentPrintAction { type: "document.print"; docType: "party-statement" | "contract" | "receipt" | "report"; id?: string }
+export type AssistantDocType =
+  | "sale-contract" | "weigh-ticket" | "quality-minutes" | "sale-invoice" | "settlement"
+  | "lease-contract" | "lease-receipt" | "lease-handover" | "trades-report" | "cost-report"
+  | "party-statement" | "finance-report" | "inventory-report" | "cheque-sheet";
+
+export interface DocumentPrintAction { type: "document.print"; docType: AssistantDocType; id?: string }
+export interface DocumentCreateAction {
+  type: "document.create";
+  docType: AssistantDocType;
+  id?: string;
+  partyId?: string;
+  title?: string;
+}
+export interface DocumentSendAction { type: "document.send"; docType: AssistantDocType; id?: string }
+export interface ReceiptSendAction { type: "receipt.send"; target: "last" | "party" | "party-payment" | "trade" | "cheque"; id?: string }
+export interface SignatureRequestAction {
+  type: "signature.request";
+  title: string;
+  note?: string;
+  signerRole: string;
+}
 export interface AnswerAction { type: "answer"; text: string }
 
 export type AppAction =
@@ -68,8 +92,12 @@ export type AppAction =
   | PartyPaymentAction
   | EntryAddAction
   | ReceiptOpenAction
+  | ReceiptSendAction
   | RecordUpdateAction
   | DocumentPrintAction
+  | DocumentCreateAction
+  | DocumentSendAction
+  | SignatureRequestAction
   | AnswerAction;
 
 export interface ActionPlan {
@@ -88,7 +116,12 @@ const RECORD_FIELDS: Record<string, string[]> = {
   inventory: ["name", "amount", "note"],
   trade: ["name", "amount", "note"],
 };
-const DOC_TYPES = ["party-statement", "contract", "receipt", "report"];
+const DOC_TYPES: AssistantDocType[] = [
+  "sale-contract", "weigh-ticket", "quality-minutes", "sale-invoice", "settlement",
+  "lease-contract", "lease-receipt", "lease-handover", "trades-report", "cost-report",
+  "party-statement", "finance-report", "inventory-report", "cheque-sheet",
+];
+const SIGNER_ROLES = ["seller", "buyer", "landlord", "tenant", "witness", "manager", "counterparty", "payer", "payee", "issuer"];
 
 export const MAX_ACTIONS = 3;
 export const DESTRUCTIVE: ActionType[] = ["record.update"];
@@ -178,10 +211,35 @@ export function validateAction(raw: unknown): { action?: AppAction; error?: stri
       if (field === "amount" && !positiveAmount(Number(value.replace(/[^\d]/g, "")))) return { error: "مبلغ نامعتبر" };
       return { action: { type, record: record as RecordUpdateAction["record"], id, field: field as RecordUpdateAction["field"], value } };
     }
-    case "document.print": {
+    case "document.print":
+    case "document.create":
+    case "document.send": {
       const docType = String(raw.docType ?? "");
-      if (!DOC_TYPES.includes(docType)) return { error: "نوع سند نامعتبر" };
-      return { action: { type, docType: docType as DocumentPrintAction["docType"], id: cleanText(raw.id, 80) ?? undefined } };
+      if (!DOC_TYPES.includes(docType as AssistantDocType)) return { error: "نوع سند نامعتبر" };
+      const id = cleanText(raw.id, 80) ?? undefined;
+      if (type === "document.print") return { action: { type, docType: docType as AssistantDocType, id } };
+      if (type === "document.send") return { action: { type, docType: docType as AssistantDocType, id } };
+      return {
+        action: {
+          type,
+          docType: docType as AssistantDocType,
+          id,
+          partyId: cleanText(raw.partyId, 80) ?? undefined,
+          title: cleanText(raw.title, 120) ?? undefined,
+        },
+      };
+    }
+    case "receipt.send": {
+      const target = String(raw.target ?? "last");
+      if (!["last", "party", "party-payment", "trade", "cheque"].includes(target)) return { error: "نوع رسید نامعتبر" };
+      return { action: { type, target: target as ReceiptSendAction["target"], id: cleanText(raw.id, 80) ?? undefined } };
+    }
+    case "signature.request": {
+      const title = cleanText(raw.title, 120);
+      if (!title) return { error: "عنوان سند امضا لازم است" };
+      const signerRole = String(raw.signerRole ?? "counterparty");
+      if (!SIGNER_ROLES.includes(signerRole)) return { error: "سمت امضاکننده نامعتبر" };
+      return { action: { type, title, note: cleanText(raw.note, 240) ?? undefined, signerRole } };
     }
     case "answer": {
       const text = cleanText(raw.text, 600);
@@ -233,6 +291,10 @@ export function describeAction(action: AppAction): string {
     case "receipt.open": return `باز کردن رسیدهای ${action.target} با شناسهٔ ${action.id}`;
     case "record.update": return `تغییر ${action.field} رکورد ${action.record} (${action.id}) به «${action.value}»`;
     case "document.print": return `آماده‌سازی چاپ ${action.docType}`;
+    case "document.create": return `ساخت سند ${action.docType}${action.title ? ` «${action.title}»` : ""}`;
+    case "document.send": return `ارسال/هم‌رسانی سند ${action.docType}`;
+    case "receipt.send": return "ارسال رسید";
+    case "signature.request": return `درخواست امضا برای «${action.title}»`;
     case "answer": return action.text;
   }
 }
@@ -246,7 +308,13 @@ export const ACTION_SYSTEM_PROMPT = `تو «کشاورزیار» هستی؛ دس
 فقط دربارهٔ کشاورزی، دام، نهاده، بازار و همین برنامه پاسخ بده. هیچ عدد مالی از خودت نساز.
 اگر کاربر خواست کاری در برنامه انجام شود، فقط JSON زیر را بده و هیچ متن دیگری ننویس:
 {"say":"توضیح کوتاه","question":null,"actions":[{"type":"...","...":"..."}]}
-کنش‌های مجاز: navigate, party.create, party.payment.add, entry.add, receipt.open, record.update, document.print, answer.
+کنش‌های مجاز: navigate, party.create, party.payment.add, entry.add, receipt.open, receipt.send, record.update,
+document.print, document.create, document.send, signature.request, answer.
+نوع سند (docType) فقط یکی از: sale-contract, weigh-ticket, quality-minutes, sale-invoice, settlement,
+lease-contract, lease-receipt, lease-handover, trades-report, cost-report, party-statement, finance-report,
+inventory-report, cheque-sheet.
+برای «امضا بگیر/امضا کن» کنش signature.request بده تا فرم مشخصات و کادر امضا برای کاربر باز شود.
+برای «رسید بفرست» receipt.send و برای «سند بساز/چاپ/بفرست» document.create/document.print/document.send.
 - حداکثر ۳ کنش.
 - اگر اطلاعات کافی نیست، actions خالی بگذار و در question یک سؤال کوتاه بپرس.
 - حذف هیچ رکوردی مجاز نیست؛ برای ویرایش فقط record.update با فیلدهای مجاز.
