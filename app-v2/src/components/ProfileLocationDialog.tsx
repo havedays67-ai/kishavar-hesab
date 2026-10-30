@@ -57,7 +57,7 @@ export function ProfileLocationDialog({
         setMessage("اجازهٔ موقعیت داده نشد. از تنظیمات برنامه، دسترسی موقعیت را روشن کن.");
       } else {
         setStep("gps");
-        setMessage(position.kind === "timeout" ? "یافتن موقعیت طول کشید؛ مکان‌یاب را روشن و دوباره تلاش کن." : "مکان‌یاب خاموش است یا سیگنال ندارد.");
+        setMessage(position.kind === "timeout" ? "یافتن موقعیت طول کشید؛ مکان‌یاب را روشن و دوباره تلاش کن." : "مکان‌یاب یا دسترسی موقعیت آماده نیست؛ اگر مکان‌یاب روشن است، یک بار دیگر تلاش کن.");
       }
       return;
     }
@@ -116,12 +116,13 @@ export function ProfileLocationDialog({
         {step === "gps" && (
           <div className="space-y-3 text-center">
             <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#f0a59a]/10 text-[#f0a59a]"><MapPin className="h-5 w-5" /></span>
-            <h3 className="text-[11px] font-semibold text-white">مکان‌یاب خاموش است</h3>
+            <h3 className="text-[11px] font-semibold text-white">مکان‌یاب آماده نشد</h3>
             <p className="text-[9px] leading-5 text-[#93ad9f]">{message} مکان‌یاب گوشی را روشن کن و دوباره تلاش کن.</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => void locate()} className="flex-1 rounded-xl bg-mint-300 px-3 py-2.5 text-[10px] font-semibold text-[#10201a]">روشن کردم، دوباره تلاش کن</button>
               <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-3 py-2.5 text-[10px] text-[#a9c1b5]">بعداً</button>
             </div>
+            <p className="text-[8px] leading-4 text-[#78968a]">اگر چند بار آماده نشد، استان/شهر را در پروفایل دستی وارد کن؛ تحلیل با همان اطلاعات ادامه پیدا می‌کند.</p>
           </div>
         )}
 

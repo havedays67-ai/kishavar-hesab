@@ -94,50 +94,72 @@ export function FirstRunPermissions() {
   const apply = async () => {
     setBusy(true);
     setMessage("");
-    let nextNotify: PermissionState = "prompt";
-    let nextLocation: PermissionState = "prompt";
-    if (notifyOn) {
-      nextNotify = await requestNotificationPermission();
-      if (nextNotify !== "granted") {
-        setNotifyOn(false);
-        setMessage(nextNotify === "unavailable" ? "اعلان روی این دستگاه در دسترس نیست؛ اگر بعداً فعال شد از همین پنل دوباره امتحان کن." : "اجازهٔ اعلان داده نشد. اگر اشتباهی رد شد، از تنظیمات گوشی یا همین پنل دوباره تلاش کن.");
+    try {
+      let nextNotify: PermissionState = await checkNotificationPermission();
+      if (notifyOn && nextNotify !== "granted") {
+        setMessage("در حال گرفتن اجازهٔ اعلان…");
+        nextNotify = await requestNotificationPermission();
       }
-    }
-    if (locationOn) {
-      nextLocation = await requestLocationPermission();
-      if (nextLocation === "granted") {
+      let nextLocation: PermissionState = await checkLocationPermission();
+      if (locationOn && nextLocation !== "granted") {
+        setMessage("در حال گرفتن اجازهٔ موقعیت…");
+        nextLocation = await requestLocationPermission();
+      }
+
+      const problems: string[] = [];
+      if (notifyOn && nextNotify !== "granted") {
+        problems.push(nextNotify === "unavailable" ? "اعلان روی این دستگاه در دسترس نیست؛ اگر بعداً فعال شد از همین پنل دوباره امتحان کن." : "اجازهٔ اعلان داده نشد. اگر اشتباهی رد شد، از تنظیمات گوشی یا همین پنل دوباره تلاش کن.");
+      }
+
+      if (locationOn && nextLocation === "granted") {
+        setMessage("اجازهٔ موقعیت گرفته شد؛ در حال خواندن موقعیت…");
         const coords = await getCurrentCoordinates();
         if (!coords.ok) {
-          setMessage(coords.kind === "disabled" ? "اجازهٔ موقعیت ثبت شد، اما GPS دستگاه خاموش است؛ برای تشخیص خودکار منطقه آن را روشن کن." : "اجازهٔ موقعیت ثبت شد، اما خواندن مختصات الان ممکن نشد.");
+          problems.push(coords.kind === "disabled" ? "اجازهٔ موقعیت ثبت شد، اما مکان‌یاب گوشی خاموش است یا سیگنال ندارد. مکان‌یاب را روشن کن و دوباره تایید بزن." : "اجازهٔ موقعیت ثبت شد، اما خواندن مختصات الان ممکن نشد. دوباره تلاش کن.");
         } else {
           try {
             localStorage.setItem("kishavar.device.location.v1", JSON.stringify({ ...coords.coords, at: Date.now() }));
           } catch {
             /* ذخیرهٔ مختصات اختیاری است؛ اجازهٔ خودش ثبت شده. */
           }
-          const place = await reversePlace(coords.coords.latitude, coords.coords.longitude);
-          if (place.ok && (!profile.province || !profile.city)) {
-            saveProfile({ ...profile, province: profile.province || place.province, city: profile.city || place.city });
-          }
+          // تبدیل مختصات به استان/شهر در پس‌زمینه انجام می‌شود تا دکمهٔ تایید بی‌دلیل منتظر نماند.
+          void reversePlace(coords.coords.latitude, coords.coords.longitude).then((place) => {
+            if (!place.ok) return;
+            const current = readPrefs();
+            if (current.asked) {
+              const p = profile;
+              if (!p.province || !p.city) saveProfile({ ...p, province: p.province || place.province, city: p.city || place.city });
+            }
+          });
         }
-      } else {
-        setLocationOn(false);
-        setMessage(nextLocation === "unavailable" ? "اجازهٔ موقعیت گرفته نشد؛ ممکن است سرویس GPS خاموش باشد. آن را روشن کن و دوباره تایید بزن." : "اجازهٔ موقعیت داده نشد. اگر اشتباهی رد شد، از تنظیمات گوشی یا همین پنل دوباره تلاش کن.");
+      } else if (locationOn) {
+        problems.push(nextLocation === "unavailable" ? "اجازهٔ موقعیت گرفته نشد؛ ممکن است مکان‌یاب گوشی خاموش باشد. آن را روشن کن و دوباره تایید بزن." : "اجازهٔ موقعیت داده نشد. اگر اشتباهی رد شد، از تنظیمات گوشی یا همین پنل دوباره تلاش کن.");
       }
+
+      setNotify(nextNotify);
+      setLocation(nextLocation);
+      setNotifyOn(notifyOn);
+      setLocationOn(locationOn);
+      writePrefs({
+        asked: true,
+        notifications: notifyOn && nextNotify === "granted",
+        location: locationOn && nextLocation === "granted",
+        notifyState: nextNotify,
+        locationState: nextLocation,
+      });
+      window.dispatchEvent(new Event("kishavar:permissions-updated"));
+      window.dispatchEvent(new Event("kishavar:location-updated"));
+      if (problems.length) {
+        setMessage(problems.join(" "));
+      } else {
+        setMessage("دسترسی‌های انتخاب‌شده واقعاً فعال و ذخیره شد.");
+        setOpen(false);
+      }
+    } catch {
+      setMessage("گرفتن اجازه با خطا مواجه شد؛ دوباره تلاش کن.");
+    } finally {
+      setBusy(false);
     }
-    setNotify(nextNotify);
-    setLocation(nextLocation);
-    writePrefs({
-      asked: true,
-      notifications: nextNotify === "granted",
-      location: nextLocation === "granted",
-      notifyState: nextNotify,
-      locationState: nextLocation,
-    });
-    setBusy(false);
-    setOpen(false);
-    window.dispatchEvent(new Event("kishavar:permissions-updated"));
-    window.dispatchEvent(new Event("kishavar:location-updated"));
   };
 
   const decline = () => {

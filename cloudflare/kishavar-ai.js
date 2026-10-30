@@ -713,8 +713,28 @@ function localActionPlan(message, context = {}, history = []) {
 
   if (wantsDebt) {
     let name = "";
-    const fromText = text.match(/(?:از|به)\s+([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s+(?:طلب|بدهی|بدهکار|بستانکار)/);
-    if (fromText) name = fromText[1].trim();
+    // «علی ۵ میلیون به من بدهکار است»: نام قبل از مبلغ.
+    const leadingName = current.match(/^([\u0600-\u06FF][\u0600-\u06FF\s]{1,24}?)\s+(?=[\d۰-۹]|میلیون|هزار|میلیارد)/);
+    if (leadingName && !/^(بدهی|طلب|من|ما|به|از|قرض|هزینه|درآمد)/.test(current)) name = leadingName[1].trim();
+    const fromText = text.match(/(?:از|به)\s+([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s+(?:[\d۰-۹][^،]{0,16}\s+)?(?:طلب|بدهی|بدهکار|بستانکار)/);
+    if (fromText) {
+      const candidate = fromText[1].trim();
+      if (!/^(من|ما|او|شما|ایشان|خودم)$/.test(candidate)) name = candidate;
+    }
+    if (!name) {
+      // «به علی ۵ میلیون بدهکارم» / «از علی ۵ میلیون طلب دارم»
+      const beforeAmount = text.match(/(?:^|[،,])\s*(?:از|به)\s+([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s+(?:[\d۰-۹]|میلیون|میلیارد|هزار)/);
+      if (beforeAmount) name = beforeAmount[1].trim();
+    }
+    if (!name) {
+      // «بدهی من به علی …» یا «به علی بدهکارم …» که نام قبل/بعد از کلیدواژه می‌آید.
+      const toDebt = text.match(/(?:به|از)\s+([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s+(?:بدهکار|بستانکار|بدهی|طلب)/);
+      if (toDebt) name = toDebt[1].trim();
+    }
+    if (!name) {
+      const debtTo = text.match(/(?:بدهی|بدهکار|بستانکار|قرض)[^،\u060c]{0,24}?(?:به|از)\s+([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)(?:\s|$)/);
+      if (debtTo) name = debtTo[1].trim();
+    }
     if (!name) {
       const lead = text.replace(/^\s*[،,\u060c]\s*/, "").match(/^([\u0600-\u06FF][\u0600-\u06FF\s]{1,28}?)\s*[،,\u060c]/);
       if (lead) name = lead[1].trim();
@@ -723,18 +743,24 @@ function localActionPlan(message, context = {}, history = []) {
       const known = Array.isArray(context?.parties) ? context.parties.find((party) => party && text.includes(party.name)) : null;
       if (known) name = known.name;
     }
-    if (!name) return null;
+    if (!name && amount && !/(طلب|بدهی|بدهکار|بستانکار|قرض)/.test(current)) {
+      const simple = current.match(/^([\u0600-\u06FF][\u0600-\u06FF\s]{1,24}?)\s+(?:[\d۰-۹]|میلیون|میلیارد|هزار)/);
+      if (simple) name = simple[1].trim();
+    }
+    if (!name) {
+      return { say: "", question: "نام طرف‌حساب و مبلغ بدهی/طلب را کامل بگو تا در دفتر ثبت شود.", actions: [] };
+    }
     const reasonMatch = text.match(/بابت\s+([^،,.]+)/);
     const cleanReason = (value) => {
       let out = value.trim();
       for (let i = 0; i < 3; i += 1) out = out.replace(/\s*(ثبت|کن|بزن|وارد|اضافه)\s*$/g, "").trim();
       return out.slice(0, 120);
     };
-    const reason = reasonMatch ? cleanReason(reasonMatch[1]) : /بستانکار|بدهی من|باید بدهم/.test(text) ? "بدهی" : "طلب";
+    const reason = reasonMatch ? cleanReason(reasonMatch[1]) : /بستانکار|بدهی من|باید بدهم|بدهکارم|بدهی دارم/.test(text) ? "بدهی" : "طلب";
     if (!amount) {
-      return { say: "", question: `مبلغ ${/بستانکار|بدهی من|باید بدهم/.test(text) ? "بدهی" : "طلب"} از «${name}» چقدر است؟`, actions: [] };
+      return { say: "", question: `مبلغ ${/بستانکار|بدهی من|باید بدهم|بدهکارم|بدهی دارم/.test(text) ? "بدهی" : "طلب"} از «${name}» چقدر است؟`, actions: [] };
     }
-    const kind = /(بستانکار|بدهی من|باید بدهم)/.test(text) ? "creditor" : "debtor";
+    const kind = /(بستانکار|بدهی من|باید بدهم|بدهکارم|بدهی دارم)/.test(text) ? "creditor" : "debtor";
     const existing = Array.isArray(context?.parties) ? context.parties.find((party) => party && name.includes(party.name)) : null;
     if (existing) {
       return {
@@ -832,7 +858,7 @@ function normalizePlan(plan, message = "") {
         continue;
       }
       const explicitKind = KIND_MAP[String(src.kind ?? "").trim()];
-      const inferredKind = /بستانکار|بدهی من|باید بدهم/.test(message) ? "creditor" : "debtor";
+      const inferredKind = /بستانکار|بدهی من|باید بدهم|بدهکارم|بدهی دارم/.test(message) ? "creditor" : "debtor";
       actions.push({
         type, name, kind: explicitKind ?? inferredKind, amount, reason,
         city: clean(src.city, 40) || undefined,
@@ -883,11 +909,15 @@ function normalizePlan(plan, message = "") {
     const ask = `برای ادامه، این‌ها را بگو: ${missingUnique.join("، ")}؟`;
     question = question ? `${question} ${ask}` : ask;
   }
-  if (missingUnique.length && !actions.length) {
+  if (!actions.length) {
     // هیچ چیزی ثبت نشده؛ جملهٔ «ثبت شد» مدل نباید نمایش داده شود.
-    return { say: "", question, actions: [] };
+    return {
+      say: "",
+      question: question || "برای ثبت، نام طرف‌حساب، مبلغ و بابت را کامل بگو تا واقعاً در دفتر نوشته شود.",
+      actions: [],
+    };
   }
-  return { say: actions.length ? clean(plan?.say, 400) : "", question: question || undefined, actions };
+  return { say: clean(plan?.say, 400), question: question || undefined, actions };
 }
 
 function extractJson(text) {
@@ -962,7 +992,7 @@ export default {
       return json({
         ok: true,
         service: "kishavar-ai",
-        version: 33,
+        version: 39,
         identity: "کشاورزیار",
         keys: allKeys(env, "DAHL_KEYS").length,
         search: allKeys(env, "JINA_KEYS").length ? "jina" : "duckduckgo",

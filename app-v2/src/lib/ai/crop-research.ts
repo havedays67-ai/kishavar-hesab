@@ -33,7 +33,7 @@ const ENDPOINTS = [
   "https://kishavar-ai.indistinctiveeee.workers.dev/api/research",
 ];
 const CACHE_KEY = "kishavar.crop-research.v3";
-const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 70_000;
 
 const normalizeName = (name: string) => name.trim().replace(/[يى]/g, "ی").replace(/ك/g, "ک").replace(/\u200c/g, " ").replace(/\s+/g, " ").toLowerCase();
@@ -53,7 +53,9 @@ function readCache(): CacheMap {
 }
 
 function cacheKey(name: string, options: { city?: string; province?: string; climate?: string; today?: string } = {}): string {
-  return [normalizeName(name), normalizePlace(options.province), normalizePlace(options.city), normalizePlace(options.climate), String(options.today ?? "").slice(0, 10)].join("|");
+  // استدلال یک هفته معتبر است؛ تاریخ روز در کلید نمی‌آید تا هر روز دوباره استدلال نشود.
+  const week = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  return [normalizeName(name), normalizePlace(options.province), normalizePlace(options.city), normalizePlace(options.climate), `w${week}`].join("|");
 }
 
 export function cachedCropInsight(name: string, options: { city?: string; province?: string; climate?: string; today?: string } = {}): CropInsight | null {

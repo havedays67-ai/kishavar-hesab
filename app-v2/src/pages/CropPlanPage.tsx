@@ -202,6 +202,7 @@ export function CropPlanPage() {
   const [aiBrief, setAiBrief] = useState<{ state: "idle" | "loading" | "ready" | "error"; text: string }>({ state: "idle", text: "" });
   const [aiPlan, setAiPlan] = useState<{ state: "idle" | "loading" | "ready" | "error"; data: CropInsight | null; message: string }>({ state: "idle", data: null, message: "" });
   const planRequestRef = useRef(0);
+  const skipAutoPlanRef = useRef(false);
 
   const crop = CROPS[cropId];
   const productValue = productMode === "other" ? otherName : crop.name.startsWith("گندم") ? "گندم" : crop.name;
@@ -239,11 +240,11 @@ export function CropPlanPage() {
     }
   }
 
-  async function requestSeasonPlan() {
+  async function requestSeasonPlan(force = false) {
     const token = ++planRequestRef.current;
     const name = crop.name.startsWith("گندم") ? "گندم" : crop.name;
     const options = { city: profile.city, province: profile.province, climate, today: formatJalali(todayJalali(), "long") };
-    const cached = cachedCropInsight(name, options);
+    const cached = force ? null : cachedCropInsight(name, options);
     if (cached) {
       if (token !== planRequestRef.current) return;
       setAiPlan({ state: "ready", data: cached, message: "" });
@@ -292,9 +293,11 @@ export function CropPlanPage() {
         return;
       }
     }
+    skipAutoPlanRef.current = !analyzed;
     setAnalyzed(true);
     announceReasoning(true);
     setVerifying(false);
+    void requestSeasonPlan(true);
   }
 
   async function runResearch() {
@@ -373,10 +376,14 @@ export function CropPlanPage() {
 
   useEffect(() => {
     if (!analyzed) return;
+    if (skipAutoPlanRef.current) {
+      skipAutoPlanRef.current = false;
+      return;
+    }
     void requestSeasonPlan();
-    // عمداً فقط با تغییر تحلیل یا مشخصات زمین اجرا می‌شود؛ خود تابع وضعیت loading را کنترل می‌کند.
+    // استدلال فقط با تغییر محصول/منطقه یا تحلیل تازه انجام می‌شود؛ تغییر خاک/آب/مساحت تقویم ذخیره‌شده را بی‌دلیل نمی‌سوزاند.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyzed, cropId, productMode, otherName, climate, soil, waterSource, areaHa, profile.city, profile.province]);
+  }, [analyzed, cropId, productMode, otherName, profile.city, profile.province]);
 
   const farm: FarmProfile = {
     region: [profile.city, profile.province].filter(Boolean).join("، ") || "منطقهٔ شما",
@@ -542,7 +549,10 @@ export function CropPlanPage() {
       <section className="glass rounded-[22px] border border-mint-300/20 p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Sparkles className="h-3.5 w-3.5 text-mint-300" /> تحلیل کشاورزیار برای زمین شما</h2>
-          <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">بر پایهٔ منطقه، ماه و دادهٔ زنده</span>
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-lg bg-white/[0.04] px-2 py-1 text-[7px] text-[#93ad9f]">کش ذخیره‌شده تا ۷ روز</span>
+            <button type="button" onClick={() => void requestSeasonPlan(true)} disabled={aiPlan.state === "loading"} className="rounded-lg border border-mint-300/20 bg-mint-300/[0.06] px-2 py-1 text-[7px] text-mint-300 disabled:opacity-50">استدلال دوباره</button>
+          </div>
         </div>
         {aiPlan.state === "loading" ? (
           <p className="flex items-center gap-2 text-[8px] leading-4 text-mint-300"><Loader2 className="h-3 w-3 animate-spin" /> کشاورزیار دارد تقویم کامل {crop.name} را برای منطقه، خاک، آب و تاریخ کاشت شما استدلال می‌کند…</p>

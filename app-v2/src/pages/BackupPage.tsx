@@ -224,6 +224,9 @@ export function BackupPage({
       return { say: "نتوانستم این درخواست را به ثبت امن تبدیل کنم.", done: [], question: validation.errors.join("، ") || undefined, writes: 0, effects: 0 };
     }
     const plan = validation.plan;
+    if (!plan.actions.length && !plan.question) {
+      return { say: "", done: [], question: "برای ثبت، نام طرف‌حساب، مبلغ و بابت را کامل بگو تا واقعاً در دفتر نوشته شود.", writes: 0, effects: 0 };
+    }
     const done: string[] = [];
     let writes = 0;
     let effects = 0;
@@ -355,7 +358,12 @@ export function BackupPage({
         done.push("ویرایش خودکار رکوردها برای امنیت انجام نمی‌شود؛ خودت در همان صفحه مقدار را اصلاح کن.");
         return;
       }
-      if (action.type === "answer") done.push(action.text);
+      if (action.type === "answer") {
+        // پاسخ متنی داخل برنامهٔ کنش هم نباید ادعای ثبت بدون نوشتن بکند.
+        if (/ثبت شد|ثبت شدند|ذخیره شد|انجام شد/.test(action.text)) {
+          done.push("هیچ رکوردی در دفتر نوشته نشد؛ برای ثبت، نام، مبلغ و بابت را کامل بگو.");
+        } else done.push(action.text);
+      }
     });
     return { say: plan.say, done, question: plan.question, writes, effects };
   };
@@ -396,14 +404,19 @@ export function BackupPage({
     }
 
     if (result.mode === "text") {
+      const actionTopic = /(بدهی|طلب|هزینه|درآمد|سند|امضا|رسید|چاپ|ارسال|ثبت|وارد|اضافه)/.test(value);
+      const falseClaim = /(ثبت شد|ثبت شدند|ذخیره شد|انجام شد|ارسال شد)/.test(result.text);
+      const honestText = actionTopic && falseClaim
+        ? "این جمله فقط ادعای مدل بود؛ هیچ رکوردی در دفتر نوشته نشد. لطفاً با ذکر نام، مبلغ و بابت دوباره بگو تا ثبت واقعی انجام شود."
+        : result.text;
       setMessages((current) => [
         ...current,
-        makeAssistantMessage("bot", result.text, { confidence: 86, category: "کشاورزی", sources: [], followUps: [], matchedId: "keshavaryar", kind: "knowledge", engine: "cloud", model: "کشاورزیار" }),
+        makeAssistantMessage("bot", honestText, { confidence: actionTopic && falseClaim ? 30 : 86, category: "کشاورزی", sources: [], followUps: [], matchedId: "keshavaryar", kind: actionTopic && falseClaim ? "fallback" : "knowledge", engine: "cloud", model: "کشاورزیار" }),
       ]);
     } else {
       const executed = runPlan(result.plan);
       // «ثبت شد» فقط وقتی نمایش داده می‌شود که واقعاً چیزی در دفتر نوشته شده باشد.
-      const showSay = executed.writes > 0 || (executed.effects === 0 && executed.done.length === 0);
+      const showSay = executed.writes === 0 && executed.effects === 0 && executed.done.length === 0 && !/ثبت شد|ذخیره شد|انجام شد|ارسال شد/.test(executed.say);
       const lines = [...(showSay ? [executed.say] : []), ...executed.done].filter(Boolean);
       const body = lines.length ? lines.join("\n") : "هیچ تغییری در دفتر ثبت نشد.";
       setMessages((current) => [

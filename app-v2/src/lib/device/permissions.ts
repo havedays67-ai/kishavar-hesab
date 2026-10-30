@@ -5,6 +5,32 @@ export type PermissionState = "granted" | "denied" | "prompt" | "unavailable";
 
 const native = () => Capacitor.isNativePlatform();
 
+/** بعضی دیالوگ‌های نیتیو روی برخی گوشی‌ها هرگز resolve نمی‌شوند؛ UI نباید قفل بماند. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(null);
+    }, ms);
+    promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(null);
+      }
+    );
+  });
+}
+
 export async function checkNotificationPermission(): Promise<PermissionState> {
   if (native() && Capacitor.isPluginAvailable("LocalNotifications")) {
     try {
@@ -23,19 +49,23 @@ export async function requestNotificationPermission(): Promise<PermissionState> 
   if (native() && Capacitor.isPluginAvailable("LocalNotifications")) {
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
-      const status = await LocalNotifications.requestPermissions();
+      const status = await withTimeout(LocalNotifications.requestPermissions(), 12_000);
+      if (!status) return checkNotificationPermission();
       if (status.display === "granted") return "granted";
       if (status.display === "denied") return "denied";
-      return "prompt";
+      return checkNotificationPermission();
     } catch {
-      return "unavailable";
+      return checkNotificationPermission();
     }
   }
   if (typeof Notification === "undefined") return "unavailable";
   try {
-    return (await Notification.requestPermission()) === "granted" ? "granted" : "denied";
+    const result = await withTimeout(Notification.requestPermission(), 12_000);
+    if (result === "granted") return "granted";
+    if (result === "denied") return "denied";
+    return checkNotificationPermission();
   } catch {
-    return "unavailable";
+    return checkNotificationPermission();
   }
 }
 
@@ -67,12 +97,13 @@ export async function requestLocationPermission(): Promise<PermissionState> {
   if (native() && Capacitor.isPluginAvailable("Geolocation")) {
     try {
       const { Geolocation } = await import("@capacitor/geolocation");
-      const status = await Geolocation.requestPermissions();
+      const status = await withTimeout(Geolocation.requestPermissions(), 12_000);
+      if (!status) return checkLocationPermission();
       if (status.location === "granted" || status.coarseLocation === "granted") return "granted";
       if (status.location === "denied" || status.coarseLocation === "denied") return "denied";
-      return "prompt";
+      return checkLocationPermission();
     } catch {
-      return "unavailable";
+      return checkLocationPermission();
     }
   }
   return checkLocationPermission();
@@ -95,18 +126,24 @@ function classifyError(message: string, code?: number): LocationFailure {
   return "unavailable";
 }
 
-export async function getCurrentCoordinates(): Promise<LocationResult> {
-  if (native() && Capacitor.isPluginAvailable("Geolocation")) {
-    try {
-      const { Geolocation } = await import("@capacitor/geolocation");
-      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 18_000, maximumAge: 60_000 });
-      return { ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } };
-    } catch (error) {
-      const message = String((error as { message?: string })?.message || error);
-      const code = Number((error as { code?: number })?.code);
-      return { ok: false, kind: classifyError(message, code), message };
-    }
+async function nativePosition(highAccuracy: boolean): Promise<LocationResult | null> {
+  if (!native() || !Capacitor.isPluginAvailable("Geolocation")) return null;
+  try {
+    const { Geolocation } = await import("@capacitor/geolocation");
+    const position = await withTimeout(
+      Geolocation.getCurrentPosition({ enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 18_000 : 24_000, maximumAge: 60_000 }),
+      26_000
+    );
+    if (!position) return { ok: false, kind: "timeout", message: "خواندن موقعیت زمان‌بر شد." };
+    return { ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } };
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || error);
+    const code = Number((error as { code?: number })?.code);
+    return { ok: false, kind: classifyError(message, code), message };
   }
+}
+
+async function browserPosition(): Promise<LocationResult> {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return { ok: false, kind: "unavailable", message: "موقعیت مکانی در این دستگاه در دسترس نیست." };
   }
@@ -114,7 +151,19 @@ export async function getCurrentCoordinates(): Promise<LocationResult> {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({ ok: true, coords: { latitude: position.coords.latitude, longitude: position.coords.longitude } }),
       (error) => resolve({ ok: false, kind: classifyError(error.message, error.code), message: error.message }),
-      { enableHighAccuracy: true, timeout: 18_000, maximumAge: 60_000 }
+      { enableHighAccuracy: false, timeout: 20_000, maximumAge: 120_000 }
     );
   });
+}
+
+export async function getCurrentCoordinates(): Promise<LocationResult> {
+  const high = await nativePosition(true);
+  if (high?.ok) return high;
+  if (high?.kind === "denied") return high;
+  // اگر GPS دقیق آماده نیست، یک بار با دقت کمتر و بعد از مسیر مرورگر تلاش می‌کنیم.
+  const low = await nativePosition(false);
+  if (low?.ok) return low;
+  const browser = await browserPosition();
+  if (browser.ok) return browser;
+  return high ?? low ?? browser;
 }
