@@ -70,6 +70,7 @@ export function SelectField({
         event.preventDefault();
         const option = filtered[Math.min(highlighted, filtered.length - 1)];
         if (option) {
+          if (option.value === CUSTOM && query.trim()) onCustomChange?.(query.trim());
           onChange(option.value);
           setCustomMode(option.value === CUSTOM);
           setOpen(false);
@@ -83,7 +84,7 @@ export function SelectField({
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, filtered, highlighted, onChange]);
+  }, [open, filtered, highlighted, onChange, onCustomChange, query]);
 
   return (
     <div ref={rootRef} className="relative">
@@ -117,9 +118,9 @@ export function SelectField({
       )}
 
       {open && (
-        <div className="animate-fade absolute inset-x-0 top-[calc(100%+7px)] z-40 overflow-hidden rounded-xl border border-[#345746] bg-[#10251c] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]" role="listbox">
+        <div className="animate-fade absolute inset-x-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[#3b6652] bg-[#0b1f17]/[0.98] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.65)] ring-1 ring-black/30 backdrop-blur-xl" role="listbox">
           {(searchable || withCustom.length > 7) && (
-            <div className="sticky top-0 z-10 mb-1 rounded-lg bg-[#10251c] p-1">
+            <div className="sticky top-0 z-10 mb-1.5 rounded-xl bg-[#0b1f17] p-1">
               <input
                 value={query}
                 onChange={(event) => { setQuery(event.target.value); setHighlighted(0); }}
@@ -140,12 +141,18 @@ export function SelectField({
                   role="option"
                   aria-selected={active}
                   onMouseEnter={() => setHighlighted(index)}
-                  onClick={() => { onChange(option.value); setCustomMode(option.value === CUSTOM); setOpen(false); setQuery(""); }}
+                  onClick={() => {
+                    if (option.value === CUSTOM && query.trim()) onCustomChange?.(query.trim());
+                    onChange(option.value);
+                    setCustomMode(option.value === CUSTOM);
+                    setOpen(false);
+                    setQuery("");
+                  }}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-right text-xs transition",
-                    highlighted === index ? "bg-white/[0.07]" : "hover:bg-white/[0.05]",
-                    active ? "font-medium text-mint-300" : "text-[#d4e5db]",
-                    option.value === CUSTOM && "mt-1 border-t border-white/[0.08] pt-2.5"
+                    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-right text-xs transition",
+                    highlighted === index ? "bg-mint-300/[0.09]" : "hover:bg-white/[0.05]",
+                    active ? "bg-mint-300/[0.07] font-medium text-mint-300" : "text-[#d4e5db]",
+                    option.value === CUSTOM && "mt-1.5 border-t border-dashed border-white/[0.1] pt-3"
                   )}
                 >
                   <span className="min-w-0 flex-1">
@@ -159,7 +166,7 @@ export function SelectField({
             {filtered.length === 0 && (
               <div className="px-2 py-3 text-center text-[10px] text-[#78968a]">
                 موردی پیدا نشد.
-                {allowCustom && <button type="button" onClick={() => { onChange(CUSTOM); setCustomMode(true); setOpen(false); }} className="mt-1 block w-full text-mint-300">ثبت «{query}» به‌صورت دستی</button>}
+                {allowCustom && <button type="button" onClick={() => { onCustomChange?.(query.trim()); onChange(CUSTOM); setCustomMode(true); setOpen(false); }} className="mt-1 block w-full text-mint-300">ثبت «{query}» به‌صورت دستی</button>}
               </div>
             )}
           </div>

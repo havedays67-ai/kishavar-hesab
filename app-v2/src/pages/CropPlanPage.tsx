@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { BadgeCheck, CalendarDays, CircleCheck, CloudRain, Droplets, FlaskConical, Leaf, Loader2, Search, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp, X } from "lucide-react";
+import { BadgeCheck, CalendarDays, CircleCheck, CloudRain, Droplets, FlaskConical, Leaf, Loader2, ShieldAlert, Sparkles, Sprout, Sun, TrendingUp, X } from "lucide-react";
 import { cn } from "../utils/cn";
 import { formatAmount } from "../lib/money-format";
 import { formatJalali, JALALI_MONTHS, toPersianDigits, todayJalali, type JDate } from "../lib/format";
 import { JalaliDatePicker } from "../components/JalaliDatePicker";
+import { SelectField, type SelectOption } from "../components/FormControls";
 import { useProfile } from "../lib/profile";
 import {
   CROPS,
@@ -37,6 +38,21 @@ const WATER_LABELS: Record<WaterSource, string> = {
   qanat: "قنات",
   rain: "دیم/باران",
 };
+const CROP_HINTS: Record<string, string> = {
+  "wheat-irrigated": "غلات — کشت آبی",
+  "wheat-rainfed": "غلات — دیم",
+  barley: "غلات",
+  canola: "دانه‌های روغنی",
+  "corn-forage": "علوفه",
+  alfalfa: "علوفهٔ چندساله",
+  cotton: "الیافی",
+  sugarbeet: "ریشه‌ای و صنعتی",
+};
+const CLIMATE_OPTIONS: SelectOption[] = (Object.keys(CLIMATE_LABELS) as ClimateZone[]).map((id) => ({ value: id, label: CLIMATE_LABELS[id] }));
+const SOIL_OPTIONS: SelectOption[] = (Object.keys(SOIL_LABELS) as SoilType[]).map((id) => ({ value: id, label: SOIL_LABELS[id] }));
+const WATER_OPTIONS: SelectOption[] = (Object.keys(WATER_LABELS) as WaterSource[]).map((id) => ({ value: id, label: WATER_LABELS[id] }));
+const CUSTOM_PRODUCT = "__custom__";
+
 const TASK_STYLE: Record<TaskKind, { chip: string; dot: string }> = {
   prep: { chip: "bg-white/[0.06] text-[#b9cdc2]", dot: "#9fb6aa" },
   planting: { chip: "bg-mint-300/10 text-mint-300", dot: "#6ee7b7" },
@@ -138,7 +154,6 @@ export function CropPlanPage() {
   const [waterSource, setWaterSource] = useState<WaterSource>("well");
   const [areaHa, setAreaHa] = useState(5);
   const [planting, setPlanting] = useState<JDate | null>(todayJalali());
-  const [search, setSearch] = useState("");
   const [productMode, setProductMode] = useState<"crop" | "other">("crop");
   const [otherName, setOtherName] = useState("");
   const [pendingInsight, setPendingInsight] = useState<CropInsight | null>(null);
@@ -151,7 +166,6 @@ export function CropPlanPage() {
   function chooseCrop(id: CropId) {
     setCropId(id);
     setProductMode("crop");
-    setSearch("");
     setResearchState("idle");
   }
 
@@ -228,55 +242,39 @@ export function CropPlanPage() {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-[8px] text-[#78968a]">جست‌وجوی محصول</span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#78968a]" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="مثلاً گندم، زعفران، پسته…" className="field w-full py-2 pr-7 text-[10px]" />
-            </div>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[8px] text-[#78968a]">اقلیم منطقه</span>
-            <select value={climate} onChange={(event) => setClimate(event.target.value as ClimateZone)} className="field w-full py-2 text-[10px]">
-              {(Object.keys(CLIMATE_LABELS) as ClimateZone[]).map((id) => <option key={id} value={id}>{CLIMATE_LABELS[id]}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[8px] text-[#78968a]">خاک</span>
-            <select value={soil} onChange={(event) => setSoil(event.target.value as SoilType)} className="field w-full py-2 text-[10px]">
-              {(Object.keys(SOIL_LABELS) as SoilType[]).map((id) => <option key={id} value={id}>{SOIL_LABELS[id]}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[8px] text-[#78968a]">منبع آب</span>
-            <select value={waterSource} onChange={(event) => setWaterSource(event.target.value as WaterSource)} className="field w-full py-2 text-[10px]">
-              {(Object.keys(WATER_LABELS) as WaterSource[]).map((id) => <option key={id} value={id}>{WATER_LABELS[id]}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[8px] text-[#78968a]">مساحت (هکتار)</span>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="sm:col-span-2">
+            <SelectField
+              label="محصول"
+              value={productMode === "other" ? CUSTOM_PRODUCT : cropId}
+              options={(Object.keys(CROPS) as CropId[]).map((id) => ({ value: id, label: CROPS[id].name, hint: CROP_HINTS[id] }))}
+              onChange={(next) => {
+                if (next === CUSTOM_PRODUCT) {
+                  setProductMode("other");
+                  setResearchState("idle");
+                } else {
+                  chooseCrop(next as CropId);
+                }
+              }}
+              placeholder="انتخاب یا جست‌وجوی محصول"
+              searchable
+              allowCustom
+              customValue={otherName}
+              onCustomChange={setOtherName}
+              customPlaceholder="نام محصول یا گیاه را بنویس (مثلاً زعفران، پسته، آویشن…)"
+            />
+          </div>
+          <SelectField label="اقلیم منطقه" value={climate} options={CLIMATE_OPTIONS} onChange={(next) => setClimate(next as ClimateZone)} />
+          <SelectField label="خاک" value={soil} options={SOIL_OPTIONS} onChange={(next) => setSoil(next as SoilType)} />
+          <SelectField label="منبع آب" value={waterSource} options={WATER_OPTIONS} onChange={(next) => setWaterSource(next as WaterSource)} />
+          <div>
+            <div className="label">مساحت (هکتار)</div>
             <input type="number" min={0.1} step={0.1} value={areaHa} onChange={(event) => setAreaHa(Number(event.target.value) || 0.1)} className="field w-full py-2 text-[10px]" />
-          </label>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {(Object.keys(CROPS) as CropId[])
-            .filter((id) => !search.trim() || CROPS[id].name.includes(search.trim()))
-            .map((id) => (
-              <button key={id} type="button" onClick={() => chooseCrop(id)} className={cn("rounded-lg border px-2 py-1 text-[8px] transition", productMode === "crop" && cropId === id ? "border-mint-300/40 bg-mint-300/10 text-mint-200" : "border-white/[0.08] text-[#a9c1b5] hover:border-white/20")}>
-                {CROPS[id].name}
-              </button>
-            ))}
-          <button type="button" onClick={() => { setProductMode("other"); setResearchState("idle"); }} className={cn("rounded-lg border px-2 py-1 text-[8px] transition", productMode === "other" ? "border-sand-300/40 bg-sand-300/10 text-sand-200" : "border-white/[0.08] text-[#a9c1b5] hover:border-white/20")}>
-            سایر (محصول دلخواه)
-          </button>
+          </div>
         </div>
         {productMode === "other" && (
-          <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-sand-300/20 bg-sand-300/[0.04] p-2 sm:flex-row sm:items-end">
-            <label className="block flex-1">
-              <span className="mb-1 block text-[8px] text-[#a99f78]">نام محصول یا گیاه را بنویس</span>
-              <input value={otherName} onChange={(event) => setOtherName(event.target.value)} placeholder="مثلاً زعفران، پسته، آویشن…" className="field w-full py-2 text-[10px]" disabled={researchState === "waiting"} />
-            </label>
+          <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-sand-300/20 bg-sand-300/[0.04] p-2 sm:flex-row sm:items-center">
+            <p className="flex-1 text-[8px] leading-4 text-[#b9ad84]">محصول در فهرست ثابت نیست؛ نامش را داخل کادر بالا بنویس، بعد استدلال را اجرا کن.</p>
             <button type="button" onClick={() => void runResearch()} disabled={researchState === "waiting"} className="rounded-xl bg-sand-300 px-3 py-2 text-[9px] font-semibold text-[#1d2a24] disabled:opacity-60">
               {researchState === "waiting" ? "در حال استدلال…" : "استدلال و ساخت تقویم"}
             </button>

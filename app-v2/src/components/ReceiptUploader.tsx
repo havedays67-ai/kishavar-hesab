@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Camera, CheckCircle2, Download, FileText, Info, Trash2, Upload } from "lucide-react";
 import { cn } from "../utils/cn";
+import { SelectField } from "./FormControls";
 import { formatJalali, todayJalali } from "../lib/format";
 import { RECEIPT_NOTE } from "../lib/document-validity";
 import { RECEIPT_SECTIONS, RECEIPT_ACCEPT, isReceiptSection, receiptSection, type ReceiptSectionId } from "../lib/receipt-sections";
@@ -99,11 +100,12 @@ export function ReceiptUploader({
           <input className="field text-[11px] tabular-nums" value={amount} onChange={(event) => setAmount(formatAmountInput(event.target.value))} placeholder="مبلغ (تومان، اختیاری)" inputMode="numeric" maxLength={20} />
           <input className="field text-[11px]" value={reference} onChange={(event) => setReference(event.target.value)} placeholder="شمارهٔ پیگیری / شمارهٔ قرارداد" />
           {showSection && (
-            <select className="field text-[11px]" value={selected} onChange={(event) => setSelected(isReceiptSection(event.target.value) ? event.target.value : "other")}>
-              {RECEIPT_SECTIONS.map((item) => (
-                <option key={item.id} value={item.id}>{item.label}</option>
-              ))}
-            </select>
+            <SelectField
+              label="بخش رسید"
+              value={selected}
+              options={RECEIPT_SECTIONS.map((item) => ({ value: item.id, label: item.label }))}
+              onChange={(next) => setSelected(isReceiptSection(next) ? next : "other")}
+            />
           )}
         </div>
         <textarea className="field min-h-14 text-[11px]" value={note} onChange={(event) => setNote(event.target.value)} placeholder="توضیح کوتاه: پرداخت بابت چه چیزی بود؟ نام پرداخت‌کننده و دریافت‌کننده" />
